@@ -1,0 +1,27 @@
+[12:57:35] universo: 503 tickers
+[12:57:35] histórico: 15 en caché, 488 por descargar
+[12:57:44]   descargados 40/488
+[12:57:53]   descargados 80/488
+[12:58:00]   descargados 120/488
+[12:58:05]   descargados 160/488
+[12:58:09]   descargados 200/488
+[12:58:17]   descargados 240/488
+[12:58:26]   descargados 280/488
+[12:58:34]   descargados 320/488
+[12:58:43]   descargados 360/488
+[12:58:51]   descargados 400/488
+[12:58:59]   descargados 440/488
+[12:59:08]   descargados 480/488
+[12:59:10]   descargados 488/488
+[12:59:10] ATH inicial calculado para 503 tickers -> ath.json
+[12:59:10] construyendo dataset (features + etiquetas, solo drawdown>=30%) ...
+[12:59:12] dataset: 233218 filas | positivos=51.2% | tickers=491 | rango 2016-05-03..2026-07-02
+[12:59:12] walk-forward tipo=hgb ...
+[backtest:hgb] 13 bloques walk-forward; holdout desde 2025-07-02
+[12:59:25] walk-forward tipo=logreg ...
+[backtest:logreg] 13 bloques walk-forward; holdout desde 2025-07-02
+[12:59:29] modelo ganador: logreg (precisión WF=0.8005366726296959)
+[12:59:29] entrenando modelo final con todo el histórico ...
+[12:59:29] modelo guardado -> /Users/sebastiansaltoshotmail.com/centinela-sp500/modelos/modelo_centinela.pkl
+[12:59:29] reporte -> /Users/sebastiansaltoshotmail.com/centinela-sp500/reportes/backtest_inicial.md
+[12:59:29] LISTO en 0:01:54.549326

@@ -1,0 +1,21 @@
+# Centinela SP500 — dependencias (todas gratuitas, sin APIs de pago)
+# Fijadas para reproducibilidad entre tu Mac y GitHub Actions (Python 3.12).
+#
+# Nota de diseño: NO usamos LightGBM. En macOS requiere libomp (runtime OpenMP)
+# como dependencia nativa externa, lo que fragiliza tanto el entorno local como
+# el runner de Actions. En su lugar usamos HistGradientBoostingClassifier de
+# scikit-learn (gradient boosting histográfico, sin dependencias nativas extra),
+# que cumple igual el requisito de "gradient boosting" y es más robusto para
+# correr desatendido durante meses.
+
+yfinance==1.5.1
+pandas==3.0.3
+numpy==2.5.1
+scikit-learn==1.9.0
+pyarrow==25.0.0
+exchange_calendars==4.13.2
+vaderSentiment==3.3.2
+beautifulsoup4==4.15.0
+lxml==6.1.1
+requests==2.34.2
+joblib==1.5.3

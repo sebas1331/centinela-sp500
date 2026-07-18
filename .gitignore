@@ -1,0 +1,13 @@
+# Entorno
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# Caché de precios (parquet, pesada): NO va a git. Se guarda en actions/cache y
+# se reconstruye desde yfinance si se pierde.
+.cache/
+
+# Resultados intermedios del backtest (el .md sí se versiona)
+reportes/backtest_inicial.json

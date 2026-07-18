@@ -1,0 +1,56 @@
+name: Escaneo pre-apertura
+
+# El cron de Actions corre en UTC y NO entiende el horario de verano (DST).
+# Programamos DOS horarios para cubrir EDT y EST; el script verifica con el
+# calendario bursátil si hoy hay mercado y si está en la ventana correcta, y si
+# no, termina sin hacer nada. Objetivo: ~08:45 ET (>=30 min antes de la apertura).
+#   12:45 UTC = 08:45 EDT (verano)   |   13:45 UTC = 08:45 EST (invierno)
+on:
+  schedule:
+    - cron: "45 12 * * 1-5"
+    - cron: "45 13 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  preapertura:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Escaneo pre-apertura
+        run: python scripts/escaneo_preapertura.py
+
+      - name: Commit automático (bitácora, estado, logs)
+        run: |
+          git config user.name "centinela-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add estado bitacora.csv bitacora.sqlite datos logs reportes 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "sin cambios que commitear"
+          else
+            git commit -m "pre-apertura: decisiones de entrada [skip ci]"
+            git push
+          fi

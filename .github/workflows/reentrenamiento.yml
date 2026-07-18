@@ -1,0 +1,53 @@
+name: Reentrenamiento mensual
+
+# Reentrenamiento walk-forward mensual (workflow largo). Corre el día 1 de cada
+# mes a las 06:00 UTC (fuera de las ventanas de escaneo). Respeta la regla dura:
+# no cambia umbral/features/stop sin >=30 operaciones cerradas nuevas.
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  reentrenar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Restaurar caché de precios/histórico
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Reentrenamiento mensual
+        run: python scripts/reentrenar_mensual.py
+
+      - name: Commit automático (modelo, CHANGELOG)
+        run: |
+          git config user.name "centinela-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add modelos datos CHANGELOG.md reportes 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "sin cambios que commitear"
+          else
+            git commit -m "reentrenamiento mensual del modelo [skip ci]"
+            git push
+          fi

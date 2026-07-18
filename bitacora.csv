@@ -1,0 +1,1 @@
+id,grupo,ticker,portafolio,sector,fecha_entrada,hora_entrada_et,hora_entrada_utc,timestamp_escaneo,precio_entrada,probabilidad,score_fundamental,objetivo_inicial,objetivo_actual,historial_objetivos,stop,fecha_salida,hora_salida_et,precio_salida,motivo_salida,pnl_pct,dias_habiles,estado,notas

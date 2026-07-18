@@ -1,0 +1,55 @@
+name: Escaneo post-cierre
+
+# Objetivo: ~18:00 ET (bien después del cierre de 16:00). Doble cron UTC por DST.
+#   22:00 UTC = 18:00 EDT (verano)   |   23:00 UTC = 18:00 EST (invierno)
+# Ambos crons pueden dispararse el mismo día; el script es IDEMPOTENTE (si ya
+# procesó hoy, no repite) y verifica la ventana con el calendario bursátil.
+on:
+  schedule:
+    - cron: "0 22 * * 1-5"
+    - cron: "0 23 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  postcierre:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Escaneo post-cierre (entradas, salidas, reportes)
+        run: python scripts/escaneo_postcierre.py
+
+      - name: Commit automático (bitácora, estado, ATH, reportes)
+        run: |
+          git config user.name "centinela-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add estado bitacora.csv bitacora.sqlite datos logs reportes 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "sin cambios que commitear"
+          else
+            git commit -m "post-cierre: entradas/salidas y reportes [skip ci]"
+            git push
+          fi
