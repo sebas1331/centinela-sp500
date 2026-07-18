@@ -8,7 +8,16 @@ on:
   schedule:
     - cron: "0 22 * * 1-5"
     - cron: "0 23 * * 1-5"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Forzar (ignora ventana e idempotencia)"
+        type: boolean
+        default: false
+      fecha:
+        description: "Fecha de sesión YYYY-MM-DD (opcional)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -40,7 +49,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Escaneo post-cierre (entradas, salidas, reportes)
-        run: python scripts/escaneo_postcierre.py
+        run: |
+          ARGS=""
+          if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
+          if [ -n "${{ inputs.fecha }}" ]; then ARGS="$ARGS --fecha ${{ inputs.fecha }}"; fi
+          python scripts/escaneo_postcierre.py $ARGS
 
       - name: Commit automático (bitácora, estado, ATH, reportes)
         run: |

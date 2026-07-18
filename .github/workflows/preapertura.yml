@@ -9,7 +9,16 @@ on:
   schedule:
     - cron: "45 12 * * 1-5"
     - cron: "45 13 * * 1-5"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Forzar (ignora ventana e idempotencia)"
+        type: boolean
+        default: false
+      fecha:
+        description: "Fecha de sesión YYYY-MM-DD (opcional)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -41,7 +50,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Escaneo pre-apertura
-        run: python scripts/escaneo_preapertura.py
+        run: |
+          ARGS=""
+          if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
+          if [ -n "${{ inputs.fecha }}" ]; then ARGS="$ARGS --fecha ${{ inputs.fecha }}"; fi
+          python scripts/escaneo_preapertura.py $ARGS
 
       - name: Commit automático (bitácora, estado, logs)
         run: |
