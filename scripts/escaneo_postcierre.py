@@ -11,7 +11,7 @@ Pasos:
 
 Verifica calendario/ventana e idempotencia igual que la pre-apertura.
 """
-from _comun import parse_args, contexto, log
+from _comun import parse_args, contexto, log, finalizar
 
 from centinela import (calendario, estado as est_mod, simulador, bitacora,
                        runtime, reportes, notificaciones, ath as ath_mod)
@@ -23,13 +23,13 @@ def main():
 
     if not args.forzar:
         if not calendario.es_dia_de_mercado(hoy):
-            log("hoy no hay mercado; termino sin hacer nada."); return
+            log("hoy no hay mercado; termino sin hacer nada."); return "omitido:sin-mercado"
         if not calendario.en_ventana_postcierre(ahora):
-            log("aún no es la ventana post-cierre; termino sin hacer nada."); return
+            log("aún no es la ventana post-cierre; termino sin hacer nada."); return "omitido:fuera-de-ventana"
 
     estado = est_mod.cargar()
     if not args.forzar and est_mod.ya_proceso_postcierre(estado, hoy_iso):
-        log(f"post-cierre ya procesado para {hoy_iso}; idempotente, termino."); return
+        log(f"post-cierre ya procesado para {hoy_iso}; idempotente, termino."); return "omitido:ya-procesado"
 
     mes_previo = (estado.get("ultima_postcierre") or "")[:7]
 
@@ -69,6 +69,8 @@ def main():
             f"🛰️ Centinela post-cierre {hoy_iso}: {len(cerradas)} cierres. "
             + ", ".join(f"{c['ticker']}/{c['portafolio']} {c['pnl_pct']:.1%}" for c in cerradas))
 
+    return "procesado"
+
 
 if __name__ == "__main__":
-    main()
+    finalizar(main())

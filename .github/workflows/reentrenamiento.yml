@@ -40,14 +40,13 @@ jobs:
       - name: Reentrenamiento mensual
         run: python scripts/reentrenar_mensual.py
 
-      - name: Commit automático (modelo, CHANGELOG)
+      # "omitido:sin-cambios-de-modelo": la regla dura (>=30 operaciones cerradas
+      # nuevas) puede impedir legítimamente cualquier cambio, así que aquí no
+      # exigimos commit; lo que sí se verifica es que, si hay commit, llegue al
+      # remoto.
+      - name: Commit y push verificados (modelo, CHANGELOG)
         run: |
-          git config user.name "centinela-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add modelos datos CHANGELOG.md reportes 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "sin cambios que commitear"
-          else
-            git commit -m "reentrenamiento mensual del modelo [skip ci]"
-            git push
-          fi
+          scripts/commit_y_push.sh \
+            "reentrenamiento mensual del modelo [skip ci]" \
+            "omitido:sin-cambios-de-modelo" \
+            modelos datos CHANGELOG.md reportes

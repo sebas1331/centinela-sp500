@@ -1,6 +1,7 @@
 """Utilidades comunes de los scripts de escaneo."""
 from __future__ import annotations
 
+import os
 import sys
 import argparse
 from datetime import datetime
@@ -33,3 +34,20 @@ def contexto(fecha_override: str | None):
 
 def log(msg: str):
     print(f"[{datetime.now(config.TZ_ET):%Y-%m-%d %H:%M:%S ET}] {msg}", flush=True)
+
+
+def finalizar(resultado: str | None):
+    """Publica el desenlace del escaneo de forma legible por máquina.
+
+    `resultado` es "procesado" (el escaneo hizo trabajo real y por tanto DEBE
+    haber cambios que commitear) u "omitido:<motivo>" (no tocaba trabajar). El
+    workflow lo lee para decidir si la ausencia de commit es legítima o si debe
+    romper en rojo. Sin esto, un escaneo que muere por ventana y un escaneo que
+    trabaja pero no persiste se ven idénticos: ambos terminan en verde.
+    """
+    resultado = resultado or "procesado"
+    log(f"RESULTADO={resultado}")
+    destino = os.environ.get("GITHUB_OUTPUT")
+    if destino:
+        with open(destino, "a", encoding="utf-8") as fh:
+            fh.write(f"resultado={resultado}\n")

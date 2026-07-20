@@ -48,10 +48,18 @@ TZ_UTC = ZoneInfo("UTC")
 CALENDARIO_BOLSA = "XNYS"               # NYSE/Nasdaq en exchange_calendars
 
 # Ventana pre-apertura: procesamos si faltan entre estos minutos para la
-# apertura oficial (09:30 ET). Con doble cron UTC (cubre EDT y EST) siempre uno
-# cae dentro de la ventana y el otro aborta. Tolerante a retrasos del cron.
+# apertura oficial (09:30 ET). Hay varios crons UTC escalonados (cubren EDT/EST
+# y los retrasos del cron de Actions); el primero que caiga dentro hace el
+# trabajo y los demás abortan por idempotencia.
+#
+# El LÍMITE SUPERIOR es ancho a propósito: el 2026-07-20 el cron de las 12:45
+# UTC arrancó a las 14:57 UTC (2h12m tarde) y el escaneo murió por ventana con
+# el workflow en verde. Correr "demasiado temprano" es inofensivo (los datos son
+# del cierre anterior); lo que NO se puede es correr DESPUÉS de la apertura,
+# porque entonces la decisión vería el precio de apertura al que luego se simula
+# la compra -> look-ahead bias. Por eso el mínimo se queda en 20 min.
 PREAPERTURA_MIN_ANTES = 20     # no antes de 20 min previos a la apertura
-PREAPERTURA_MAX_ANTES = 95     # no después de 95 min previos (deja margen DST)
+PREAPERTURA_MAX_ANTES = 240    # hasta 4 h antes: absorbe retrasos del cron
 
 # Ventana post-cierre: procesamos si ya pasó el cierre (16:00 ET) del día.
 POSTCIERRE_MIN_DESPUES = 30    # al menos 30 min tras el cierre

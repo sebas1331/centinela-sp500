@@ -166,16 +166,66 @@ tests/                pruebas (pytest)
 
 ## ⏰ Calendario de ejecución
 
-El cron de Actions corre en **UTC y no entiende el horario de verano**, y puede
-retrasarse. Por eso hay **doble cron** (cubre EDT y EST) y el script verifica
-internamente con el calendario bursátil si corresponde ejecutar; si no, termina
-sin hacer nada. Todo es **idempotente**.
+El cron de Actions corre en **UTC**, no entiende el horario de verano y **se
+retrasa** (el 2026-07-20 un disparo llegó **2 h 12 min tarde**). Por eso cada
+escaneo tiene **varios disparos escalonados**: el primero que caiga dentro de la
+ventana hace el trabajo y los demás terminan sin hacer nada (todo es
+**idempotente**).
 
-| Workflow | Crons (UTC) | Equivale a (ET) | Qué hace |
+| Workflow | Crons (UTC) | Ventana válida (ET) | Qué hace |
 |---|---|---|---|
-| Pre-apertura | 12:45 y 13:45, L-V | ~08:45 ET | Decide las entradas del día |
-| Post-cierre | 22:00 y 23:00, L-V | ~18:00 ET | Ejecuta entradas, gestiona salidas, reportes |
+| Pre-apertura | 10:45, 11:15, 11:45, 12:15, 12:45 · L-V | de 4 h a 20 min **antes** de las 09:30 | Decide las entradas del día |
+| Post-cierre | 22:00, 22:30, 23:00, 23:30 · L-V | desde 30 min **después** de las 16:00 | Ejecuta entradas, gestiona salidas, reportes |
 | Reentrenamiento | 06:00 del día 1 | — | Reajusta el modelo con datos nuevos |
+
+La ventana pre-apertura es **asimétrica a propósito**: ancha hacia atrás (correr
+temprano es inofensivo, los datos son del cierre anterior) y **tajante en la
+apertura**, porque decidir después del *open* sería *look-ahead bias* — la
+compra se simula justo a ese precio.
+
+---
+
+## ✅ Cómo verificar que el sistema está vivo (desde el celular)
+
+Abre el repo en el navegador o la app de GitHub y mira **la fecha del último
+commit** en la portada. No hace falta nada más.
+
+**Qué commits esperar cada día de mercado (lunes a viernes, salvo festivos):**
+
+| Cuándo (hora Ecuador, verano) | Mensaje del commit | Archivos que cambian |
+|---|---|---|
+| entre **05:45 y 08:10** | `pre-apertura: decisiones de entrada` | `estado/estado.json`, `logs/decisiones-AAAA-MM-DD.log` |
+| entre **17:00 y 18:30** | `post-cierre: entradas/salidas y reportes` | `estado/estado.json`, `logs/…`, `datos/ath.json`, y `bitacora.csv` si hubo operaciones |
+
+> En invierno (noviembre-marzo) suma **1 hora** a esos rangos: Ecuador y Nueva
+> York quedan a la misma hora.
+
+Los dos commits aparecen **aunque no haya ninguna operación**: el escaneo siempre
+deja constancia de lo que evaluó en `logs/decisiones-AAAA-MM-DD.log`. Un día de
+mercado **sin commits es un fallo**, no un día tranquilo.
+
+Los viernes hay además un **reporte semanal** nuevo en [`reportes/`](reportes/), y
+el primer día de mercado de cada mes, uno mensual.
+
+### Si no cambian
+
+1. Entra en la pestaña **Actions** del repo. Los workflows ahora **fallan en
+   rojo** si trabajan y no consiguen guardar, así que lo normal es que el
+   problema sea visible ahí mismo.
+2. Si ves un run **en rojo** → ábrelo y lee el paso *«Commit y push
+   verificados»*; el mensaje de error dice exactamente qué falló.
+3. Si todo está **en verde pero sin commits** → abre el run y busca la línea
+   `RESULTADO=` del paso de escaneo:
+   - `RESULTADO=omitido:sin-mercado` → era festivo. Todo bien.
+   - `RESULTADO=omitido:ya-procesado` → otro disparo del día ya hizo el trabajo;
+     busca su commit. Todo bien.
+   - `RESULTADO=omitido:fuera-de-ventana` en **todos** los disparos → Actions se
+     retrasó más de lo previsto. Es el fallo que hay que reportar.
+4. Si **no hay ningún run** ese día → GitHub desactiva los crons de los repos sin
+   actividad durante 60 días; basta con hacer un commit cualquiera para
+   reactivarlos.
+5. Arreglo manual en cualquier caso: **Actions → Escaneo post-cierre → Run
+   workflow**, marca *forzar* y pon la fecha de la sesión perdida.
 
 ## 🔁 Autoaprendizaje sin sobreoptimizar
 - Reentrenamiento walk-forward **mensual** con datos nuevos.

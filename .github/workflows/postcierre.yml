@@ -1,13 +1,18 @@
 name: Escaneo post-cierre
 
-# Objetivo: ~18:00 ET (bien después del cierre de 16:00). Doble cron UTC por DST.
+# Objetivo: ~18:00 ET (bien después del cierre de 16:00). Varios crons UTC por
+# DST y por los retrasos del cron de Actions (que llegan a superar las 2 h).
 #   22:00 UTC = 18:00 EDT (verano)   |   23:00 UTC = 18:00 EST (invierno)
-# Ambos crons pueden dispararse el mismo día; el script es IDEMPOTENTE (si ya
-# procesó hoy, no repite) y verifica la ventana con el calendario bursátil.
+# Aquí la ventana no tiene techo (basta con que hayan pasado >=30 min del
+# cierre), así que un retraso nunca hace daño; los disparos extra son un seguro
+# por si GitHub descarta alguno. El script es IDEMPOTENTE: el primero que entre
+# hace el trabajo y los demás terminan sin hacer nada.
 on:
   schedule:
     - cron: "0 22 * * 1-5"
+    - cron: "30 22 * * 1-5"
     - cron: "0 23 * * 1-5"
+    - cron: "30 23 * * 1-5"
   workflow_dispatch:
     inputs:
       forzar:
@@ -49,20 +54,17 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Escaneo post-cierre (entradas, salidas, reportes)
+        id: escaneo
         run: |
           ARGS=""
           if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
           if [ -n "${{ inputs.fecha }}" ]; then ARGS="$ARGS --fecha ${{ inputs.fecha }}"; fi
           python scripts/escaneo_postcierre.py $ARGS
 
-      - name: Commit automático (bitácora, estado, ATH, reportes)
+      # Rompe en rojo si el escaneo trabajó pero su salida no llegó al repo.
+      - name: Commit y push verificados (bitácora, estado, ATH, reportes)
         run: |
-          git config user.name "centinela-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add estado bitacora.csv bitacora.sqlite datos logs reportes 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "sin cambios que commitear"
-          else
-            git commit -m "post-cierre: entradas/salidas y reportes [skip ci]"
-            git push
-          fi
+          scripts/commit_y_push.sh \
+            "post-cierre: entradas/salidas y reportes [skip ci]" \
+            "${{ steps.escaneo.outputs.resultado }}" \
+            estado bitacora.csv bitacora.sqlite datos logs reportes

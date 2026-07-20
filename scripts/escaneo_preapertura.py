@@ -9,7 +9,7 @@ Verifica con el calendario si hoy hay mercado y si estamos en la ventana
 pre-apertura (tolerante a retrasos del cron y al horario de verano). Idempotente:
 si ya se procesó hoy, no repite.
 """
-from _comun import parse_args, contexto, log
+from _comun import parse_args, contexto, log, finalizar
 
 from centinela import (calendario, estado as est_mod, screener, simulador,
                        bitacora, runtime, notificaciones)
@@ -22,13 +22,13 @@ def main():
 
     if not args.forzar:
         if not calendario.es_dia_de_mercado(hoy):
-            log("hoy no hay mercado; termino sin hacer nada."); return
+            log("hoy no hay mercado; termino sin hacer nada."); return "omitido:sin-mercado"
         if not calendario.en_ventana_preapertura(ahora):
-            log("fuera de la ventana pre-apertura; termino sin hacer nada."); return
+            log("fuera de la ventana pre-apertura; termino sin hacer nada."); return "omitido:fuera-de-ventana"
 
     estado = est_mod.cargar()
     if not args.forzar and est_mod.ya_proceso_preapertura(estado, hoy_iso):
-        log(f"pre-apertura ya procesada para {hoy_iso}; idempotente, termino."); return
+        log(f"pre-apertura ya procesada para {hoy_iso}; idempotente, termino."); return "omitido:ya-procesado"
 
     log(f"pre-apertura {hoy_iso}: preparando datos...")
     precios, ath_dict, sectores = runtime.preparar_datos()
@@ -54,6 +54,8 @@ def main():
             f"🛰️ Centinela pre-apertura {hoy_iso}: {len(nuevas)} entradas decididas: "
             + ", ".join(n["ticker"] for n in nuevas))
 
+    return "procesado"
+
 
 if __name__ == "__main__":
-    main()
+    finalizar(main())

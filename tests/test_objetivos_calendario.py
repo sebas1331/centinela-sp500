@@ -34,18 +34,44 @@ def _utc(s):
     return datetime.fromisoformat(s).replace(tzinfo=ZoneInfo("UTC"))
 
 
+# La ventana pre-apertura es deliberadamente asimétrica: ancha hacia atrás (hasta
+# 4 h antes) para absorber los retrasos del cron de Actions, y tajante en la
+# apertura, porque decidir después del open sería look-ahead bias.
 def test_ventana_preapertura_edt():
     # 2026-07-17 (viernes, EDT): 12:45 UTC = 08:45 ET -> en ventana
     assert calendario.en_ventana_preapertura(_utc("2026-07-17T12:45"))
+    # 10:45 UTC = 06:45 ET -> temprano pero dentro (el cron más madrugador)
+    assert calendario.en_ventana_preapertura(_utc("2026-07-17T10:45"))
     # 13:45 UTC = 09:45 ET -> ya abrió, fuera
     assert not calendario.en_ventana_preapertura(_utc("2026-07-17T13:45"))
+    # 13:20 UTC = 09:20 ET -> a 10 min del open, demasiado justo, fuera
+    assert not calendario.en_ventana_preapertura(_utc("2026-07-17T13:20"))
 
 
 def test_ventana_preapertura_est():
     # 2026-01-15 (jueves, EST): 13:45 UTC = 08:45 ET -> en ventana
     assert calendario.en_ventana_preapertura(_utc("2026-01-15T13:45"))
-    # 12:45 UTC = 07:45 ET -> demasiado temprano
-    assert not calendario.en_ventana_preapertura(_utc("2026-01-15T12:45"))
+    # 12:45 UTC = 07:45 ET -> temprano pero dentro
+    assert calendario.en_ventana_preapertura(_utc("2026-01-15T12:45"))
+    # 10:00 UTC = 05:00 ET -> más de 4 h antes, fuera
+    assert not calendario.en_ventana_preapertura(_utc("2026-01-15T10:00"))
+    # 14:35 UTC = 09:35 ET -> ya abrió, fuera
+    assert not calendario.en_ventana_preapertura(_utc("2026-01-15T14:35"))
+
+
+def test_todos_los_crons_preapertura_caen_en_ventana():
+    """Regresión del fallo del 2026-07-20: los crons programados tienen que caer
+    dentro de la ventana en AMBOS regímenes horarios, con y sin retraso."""
+    import re
+    from pathlib import Path
+    wf = Path(__file__).resolve().parent.parent / ".github/workflows/preapertura.yml"
+    crons = re.findall(r'cron:\s*"(\d+) (\d+) \* \* 1-5"', wf.read_text())
+    assert crons, "no se encontraron crons en preapertura.yml"
+    for minuto, hora in crons:
+        for fecha in ("2026-07-17", "2026-01-15"):   # EDT y EST
+            t = _utc(f"{fecha}T{int(hora):02d}:{int(minuto):02d}")
+            assert calendario.en_ventana_preapertura(t), \
+                f"cron {hora}:{minuto} UTC cae fuera de la ventana el {fecha}"
 
 
 def test_ventana_postcierre():

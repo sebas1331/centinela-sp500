@@ -1,14 +1,23 @@
 name: Escaneo pre-apertura
 
-# El cron de Actions corre en UTC y NO entiende el horario de verano (DST).
-# Programamos DOS horarios para cubrir EDT y EST; el script verifica con el
-# calendario bursátil si hoy hay mercado y si está en la ventana correcta, y si
-# no, termina sin hacer nada. Objetivo: ~08:45 ET (>=30 min antes de la apertura).
-#   12:45 UTC = 08:45 EDT (verano)   |   13:45 UTC = 08:45 EST (invierno)
+# El cron de Actions corre en UTC, NO entiende el horario de verano (DST) y
+# ADEMÁS se retrasa: el 2026-07-20 el disparo de las 12:45 UTC arrancó a las
+# 14:57 (2h12m tarde) y el escaneo abortó por ventana con el workflow en verde.
+# Por eso no bastan dos horarios: escalonamos varios intentos y dejamos que la
+# idempotencia del script decida (el primero que caiga dentro de la ventana
+# trabaja, los demás terminan sin hacer nada).
+#
+# La ventana válida es de 20 a 240 min ANTES de la apertura (09:30 ET):
+#   verano (EDT, apertura 13:30 UTC) -> 09:30-13:10 UTC
+#   invierno (EST, apertura 14:30 UTC) -> 10:30-14:10 UTC
+# Estos cinco disparos caen dentro en ambos regímenes y toleran ~2 h de retraso.
 on:
   schedule:
+    - cron: "45 10 * * 1-5"
+    - cron: "15 11 * * 1-5"
+    - cron: "45 11 * * 1-5"
+    - cron: "15 12 * * 1-5"
     - cron: "45 12 * * 1-5"
-    - cron: "45 13 * * 1-5"
   workflow_dispatch:
     inputs:
       forzar:
@@ -50,20 +59,17 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Escaneo pre-apertura
+        id: escaneo
         run: |
           ARGS=""
           if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
           if [ -n "${{ inputs.fecha }}" ]; then ARGS="$ARGS --fecha ${{ inputs.fecha }}"; fi
           python scripts/escaneo_preapertura.py $ARGS
 
-      - name: Commit automático (bitácora, estado, logs)
+      # Rompe en rojo si el escaneo trabajó pero su salida no llegó al repo.
+      - name: Commit y push verificados (bitácora, estado, logs)
         run: |
-          git config user.name "centinela-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add estado bitacora.csv bitacora.sqlite datos logs reportes 2>/dev/null || true
-          if git diff --cached --quiet; then
-            echo "sin cambios que commitear"
-          else
-            git commit -m "pre-apertura: decisiones de entrada [skip ci]"
-            git push
-          fi
+          scripts/commit_y_push.sh \
+            "pre-apertura: decisiones de entrada [skip ci]" \
+            "${{ steps.escaneo.outputs.resultado }}" \
+            estado bitacora.csv bitacora.sqlite datos logs reportes
