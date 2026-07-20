@@ -1,72 +1,253 @@
 {
-  "actualizado": "2026-07-20T11:21:49.018573-04:00",
-  "contador_grupo": 0,
-  "entradas_pendientes": [
-    {
-      "atr": 199.2122,
-      "fecha_decision": "2026-07-20",
-      "notas": "prob=0.949 score_fund=75.3 sent=-0.004 (n=10)",
-      "proba": 0.9494,
-      "resistencia": 2354.3899,
-      "score_fundamental": 75.3,
-      "sector": "Information Technology",
-      "target_analista": 2144.1365,
-      "ticker": "SNDK",
-      "timestamp_escaneo": "2026-07-20T11:20:52.670661-04:00"
-    },
-    {
-      "atr": 52.684,
-      "fecha_decision": "2026-07-20",
-      "notas": "prob=0.934 score_fund=88.5 sent=0.094 (n=10)",
-      "proba": 0.9343,
-      "resistencia": 779.8,
-      "score_fundamental": 88.5,
-      "sector": "Information Technology",
-      "target_analista": 633.8333,
-      "ticker": "WDC",
-      "timestamp_escaneo": "2026-07-20T11:20:52.670661-04:00"
-    },
-    {
-      "atr": 29.5173,
-      "fecha_decision": "2026-07-20",
-      "notas": "prob=0.888 score_fund=54.2 sent=0.213 (n=10)",
-      "proba": 0.888,
-      "resistencia": 439.68,
-      "score_fundamental": 54.2,
-      "sector": "Information Technology",
-      "target_analista": 391.45267,
-      "ticker": "COHR",
-      "timestamp_escaneo": "2026-07-20T11:20:52.670661-04:00"
-    },
-    {
-      "atr": 16.3955,
-      "fecha_decision": "2026-07-20",
-      "notas": "prob=0.888 score_fund=64.8 sent=0.014 (n=10)",
-      "proba": 0.888,
-      "resistencia": 271.78,
-      "score_fundamental": 64.8,
-      "sector": "Information Technology",
-      "target_analista": 214.06667,
-      "ticker": "GLW",
-      "timestamp_escaneo": "2026-07-20T11:20:52.670661-04:00"
-    },
-    {
-      "atr": 21.5676,
-      "fecha_decision": "2026-07-20",
-      "notas": "prob=0.888 score_fund=57.6 sent=0.258 (n=10)",
-      "proba": 0.888,
-      "resistencia": 314.0925,
-      "score_fundamental": 57.6,
-      "sector": "Information Technology",
-      "target_analista": 253.68922,
-      "ticker": "MRVL",
-      "timestamp_escaneo": "2026-07-20T11:20:52.670661-04:00"
-    }
-  ],
+  "actualizado": "2026-07-20T11:24:25.613657-04:00",
+  "contador_grupo": 5,
+  "entradas_pendientes": [],
   "posiciones": {
-    "A": [],
-    "B": []
+    "A": [
+      {
+        "atr_entrada": 199.2122,
+        "dia_limite": "2026-07-31",
+        "entrada": 1408.78,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 1,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 2354.3899
+          }
+        ],
+        "id": 1,
+        "objetivo": 2354.3899,
+        "objetivo_inicial": 2354.3899,
+        "portafolio": "A",
+        "proba": 0.9494,
+        "score_fundamental": 75.3,
+        "sector": "Information Technology",
+        "stop": 1239.7264,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 52.684,
+        "dia_limite": "2026-07-31",
+        "entrada": 491.36,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 2,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 779.8
+          }
+        ],
+        "id": 3,
+        "objetivo": 779.8,
+        "objetivo_inicial": 779.8,
+        "portafolio": "A",
+        "proba": 0.9343,
+        "score_fundamental": 88.5,
+        "sector": "Information Technology",
+        "stop": 432.3968,
+        "ticker": "WDC"
+      },
+      {
+        "atr_entrada": 29.5173,
+        "dia_limite": "2026-07-31",
+        "entrada": 288.65,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 3,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 439.68
+          }
+        ],
+        "id": 5,
+        "objetivo": 439.68,
+        "objetivo_inicial": 439.68,
+        "portafolio": "A",
+        "proba": 0.888,
+        "score_fundamental": 54.2,
+        "sector": "Information Technology",
+        "stop": 254.012,
+        "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 16.3955,
+        "dia_limite": "2026-07-31",
+        "entrada": 157.86,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 4,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 214.0667
+          },
+          {
+            "fecha": "2026-07-20",
+            "motivo": "recálculo: ATR=16.40, resistencia=271.78",
+            "objetivo": 190.651
+          }
+        ],
+        "id": 7,
+        "objetivo": 190.651,
+        "objetivo_inicial": 214.0667,
+        "portafolio": "A",
+        "proba": 0.888,
+        "score_fundamental": 64.8,
+        "sector": "Information Technology",
+        "stop": 138.9168,
+        "ticker": "GLW"
+      },
+      {
+        "atr_entrada": 21.5676,
+        "dia_limite": "2026-07-31",
+        "entrada": 192.99,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 5,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 314.0925
+          }
+        ],
+        "id": 9,
+        "objetivo": 314.0925,
+        "objetivo_inicial": 314.0925,
+        "portafolio": "A",
+        "proba": 0.888,
+        "score_fundamental": 57.6,
+        "sector": "Information Technology",
+        "stop": 169.8312,
+        "ticker": "MRVL"
+      }
+    ],
+    "B": [
+      {
+        "atr_entrada": 199.2122,
+        "dia_limite": "2026-07-31",
+        "entrada": 1408.78,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 1,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 2354.3899
+          }
+        ],
+        "id": 2,
+        "objetivo": 2354.3899,
+        "objetivo_inicial": 2354.3899,
+        "portafolio": "B",
+        "proba": 0.9494,
+        "score_fundamental": 75.3,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 52.684,
+        "dia_limite": "2026-07-31",
+        "entrada": 491.36,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 2,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 779.8
+          }
+        ],
+        "id": 4,
+        "objetivo": 779.8,
+        "objetivo_inicial": 779.8,
+        "portafolio": "B",
+        "proba": 0.9343,
+        "score_fundamental": 88.5,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "WDC"
+      },
+      {
+        "atr_entrada": 29.5173,
+        "dia_limite": "2026-07-31",
+        "entrada": 288.65,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 3,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 439.68
+          }
+        ],
+        "id": 6,
+        "objetivo": 439.68,
+        "objetivo_inicial": 439.68,
+        "portafolio": "B",
+        "proba": 0.888,
+        "score_fundamental": 54.2,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 16.3955,
+        "dia_limite": "2026-07-31",
+        "entrada": 157.86,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 4,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 214.0667
+          },
+          {
+            "fecha": "2026-07-20",
+            "motivo": "recálculo: ATR=16.40, resistencia=271.78",
+            "objetivo": 190.651
+          }
+        ],
+        "id": 8,
+        "objetivo": 190.651,
+        "objetivo_inicial": 214.0667,
+        "portafolio": "B",
+        "proba": 0.888,
+        "score_fundamental": 64.8,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "GLW"
+      },
+      {
+        "atr_entrada": 21.5676,
+        "dia_limite": "2026-07-31",
+        "entrada": 192.99,
+        "fecha_entrada": "2026-07-20",
+        "grupo": 5,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-20",
+            "motivo": "objetivo inicial",
+            "objetivo": 314.0925
+          }
+        ],
+        "id": 10,
+        "objetivo": 314.0925,
+        "objetivo_inicial": 314.0925,
+        "portafolio": "B",
+        "proba": 0.888,
+        "score_fundamental": 57.6,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "MRVL"
+      }
+    ]
   },
-  "ultima_postcierre": null,
+  "ultima_postcierre": "2026-07-20",
   "ultima_preapertura": "2026-07-20"
 }
