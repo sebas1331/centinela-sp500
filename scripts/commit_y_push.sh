@@ -47,8 +47,12 @@ for intento in 1 2 3; do
     break
   fi
   echo "push rechazado (intento $intento/3); rebase sobre origin/$rama y reintento..."
-  git fetch origin "$rama"
-  git rebase "origin/$rama"
+  # Sin "|| true" estos comandos abortarían el script bajo `set -e` en cuanto la
+  # red fallase, saltándose los reintentos y el mensaje de error de abajo: el
+  # job moriría igualmente en rojo, pero con un `fatal:` de git en vez de una
+  # explicación. Se dejan fallar y que decida el bucle.
+  git fetch origin "$rama" || true
+  git rebase "origin/$rama" || git rebase --abort || true
   sleep 5
 done
 
