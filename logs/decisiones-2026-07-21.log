@@ -169,3 +169,9 @@ ZBRA | dd=57.0% | prob=0.550 < umbral -> SIN SEÑAL
 ZBH | dd=46.4% | prob=0.550 < umbral -> SIN SEÑAL
 ZTS | dd=67.9% | prob=0.550 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (5): ['SNDK', 'GLW', 'MRVL', 'WDC', 'COHR']
+
+===== escaneo 2026-07-21 18:51:39 ET =====
+POST-CIERRE 2026-07-21
+entradas ejecutadas: ['SNDK', 'GLW', 'MRVL', 'WDC', 'COHR']
+cambios de objetivo: 10
+cierres: []
