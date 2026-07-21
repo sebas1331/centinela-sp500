@@ -1,11 +1,72 @@
 {
-  "actualizado": "2026-07-20T18:55:46.422640-04:00",
+  "actualizado": "2026-07-21T08:12:38.479585-04:00",
   "contador_grupo": 0,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 199.5687,
+      "fecha_decision": "2026-07-21",
+      "notas": "prob=0.949 score_fund=75.6 sent=0.221 (n=10)",
+      "proba": 0.9494,
+      "resistencia": 2354.3899,
+      "score_fundamental": 75.6,
+      "sector": "Information Technology",
+      "target_analista": 2144.1365,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-07-21T08:11:44.695638-04:00"
+    },
+    {
+      "atr": 16.5398,
+      "fecha_decision": "2026-07-21",
+      "notas": "prob=0.934 score_fund=64.8 sent=0.007 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 271.78,
+      "score_fundamental": 64.8,
+      "sector": "Information Technology",
+      "target_analista": 214.06667,
+      "ticker": "GLW",
+      "timestamp_escaneo": "2026-07-21T08:11:44.695638-04:00"
+    },
+    {
+      "atr": 21.7641,
+      "fecha_decision": "2026-07-21",
+      "notas": "prob=0.934 score_fund=57.6 sent=-0.024 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 314.0925,
+      "score_fundamental": 57.6,
+      "sector": "Information Technology",
+      "target_analista": 253.68922,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-07-21T08:11:44.695638-04:00"
+    },
+    {
+      "atr": 52.684,
+      "fecha_decision": "2026-07-21",
+      "notas": "prob=0.934 score_fund=88.7 sent=0.149 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 779.8,
+      "score_fundamental": 88.7,
+      "sector": "Information Technology",
+      "target_analista": 633.8333,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-07-21T08:11:44.695638-04:00"
+    },
+    {
+      "atr": 29.5194,
+      "fecha_decision": "2026-07-21",
+      "notas": "prob=0.888 score_fund=54.2 sent=0.256 (n=10)",
+      "proba": 0.888,
+      "resistencia": 439.68,
+      "score_fundamental": 54.2,
+      "sector": "Information Technology",
+      "target_analista": 391.45267,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-07-21T08:11:44.695638-04:00"
+    }
+  ],
   "posiciones": {
     "A": [],
     "B": []
   },
   "ultima_postcierre": "2026-07-20",
-  "ultima_preapertura": null
+  "ultima_preapertura": "2026-07-21"
 }
