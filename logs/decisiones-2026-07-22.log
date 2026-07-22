@@ -161,3 +161,9 @@ ZBRA | dd=57.3% | prob=0.550 < umbral -> SIN SEÑAL
 ZBH | dd=46.9% | prob=0.544 < umbral -> SIN SEÑAL
 ZTS | dd=68.3% | prob=0.550 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (4): ['CIEN', 'ON', 'SMCI', 'MRNA']
+
+===== escaneo 2026-07-22 18:58:28 ET =====
+POST-CIERRE 2026-07-22
+entradas ejecutadas: ['CIEN', 'ON', 'SMCI', 'MRNA']
+cambios de objetivo: 10
+cierres: []

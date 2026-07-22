@@ -1,56 +1,7 @@
 {
-  "actualizado": "2026-07-22T08:16:38.315976-04:00",
-  "contador_grupo": 5,
-  "entradas_pendientes": [
-    {
-      "atr": 32.0654,
-      "fecha_decision": "2026-07-22",
-      "notas": "prob=0.860 score_fund=60.0 sent=0.291 (n=10)",
-      "proba": 0.8598,
-      "resistencia": 494.53,
-      "score_fundamental": 60.0,
-      "sector": "Information Technology",
-      "target_analista": 565.7067,
-      "ticker": "CIEN",
-      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
-    },
-    {
-      "atr": 6.9926,
-      "fecha_decision": "2026-07-22",
-      "notas": "prob=0.860 score_fund=52.5 sent=0.547 (n=10)",
-      "proba": 0.8598,
-      "resistencia": 124.05,
-      "score_fundamental": 52.5,
-      "sector": "Information Technology",
-      "target_analista": 113.52,
-      "ticker": "ON",
-      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
-    },
-    {
-      "atr": 2.1233,
-      "fecha_decision": "2026-07-22",
-      "notas": "prob=0.860 score_fund=56.6 sent=0.428 (n=10)",
-      "proba": 0.8598,
-      "resistencia": 34.41,
-      "score_fundamental": 56.6,
-      "sector": "Information Technology",
-      "target_analista": 37.375,
-      "ticker": "SMCI",
-      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
-    },
-    {
-      "atr": 4.4263,
-      "fecha_decision": "2026-07-22",
-      "notas": "prob=0.806 score_fund=28.7 sent=0.167 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
-      "proba": 0.8063,
-      "resistencia": 85.6,
-      "score_fundamental": 28.7,
-      "sector": "Health Care",
-      "target_analista": 48.42105,
-      "ticker": "MRNA",
-      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
-    }
-  ],
+  "actualizado": "2026-07-22T18:58:28.540231-04:00",
+  "contador_grupo": 9,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -97,10 +48,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=16.17, resistencia=271.78",
             "objetivo": 193.6453
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=15.63, resistencia=271.78",
+            "objetivo": 192.5535
           }
         ],
         "id": 3,
-        "objetivo": 193.6453,
+        "objetivo": 192.5535,
         "objetivo_inicial": 214.0667,
         "portafolio": "A",
         "proba": 0.9343,
@@ -192,6 +148,118 @@
         "sector": "Information Technology",
         "stop": 270.3888,
         "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 32.0654,
+        "dia_limite": "2026-08-04",
+        "entrada": 396.95,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 6,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 565.7067
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=30.78, resistencia=494.53",
+            "objetivo": 494.53
+          }
+        ],
+        "id": 11,
+        "objetivo": 494.53,
+        "objetivo_inicial": 565.7067,
+        "portafolio": "A",
+        "proba": 0.8598,
+        "score_fundamental": 60.0,
+        "sector": "Information Technology",
+        "stop": 349.316,
+        "ticker": "CIEN"
+      },
+      {
+        "atr_entrada": 6.9926,
+        "dia_limite": "2026-08-04",
+        "entrada": 89.9,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 7,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 124.05
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=6.85, resistencia=121.30",
+            "objetivo": 121.3
+          }
+        ],
+        "id": 13,
+        "objetivo": 121.3,
+        "objetivo_inicial": 124.05,
+        "portafolio": "A",
+        "proba": 0.8598,
+        "score_fundamental": 52.5,
+        "sector": "Information Technology",
+        "stop": 79.112,
+        "ticker": "ON"
+      },
+      {
+        "atr_entrada": 2.1233,
+        "dia_limite": "2026-08-04",
+        "entrada": 28.93,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 8,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 37.375
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=2.46, resistencia=33.98",
+            "objetivo": 33.98
+          }
+        ],
+        "id": 15,
+        "objetivo": 33.98,
+        "objetivo_inicial": 37.375,
+        "portafolio": "A",
+        "proba": 0.8598,
+        "score_fundamental": 56.6,
+        "sector": "Information Technology",
+        "stop": 25.4584,
+        "ticker": "SMCI"
+      },
+      {
+        "atr_entrada": 4.4263,
+        "dia_limite": "2026-08-04",
+        "entrada": 59.37,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 9,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 85.6
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=4.26, resistencia=85.60",
+            "objetivo": 67.8932
+          }
+        ],
+        "id": 17,
+        "objetivo": 67.8932,
+        "objetivo_inicial": 85.6,
+        "portafolio": "A",
+        "proba": 0.8063,
+        "score_fundamental": 28.7,
+        "sector": "Health Care",
+        "stop": 52.2456,
+        "ticker": "MRNA"
       }
     ],
     "B": [
@@ -239,10 +307,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=16.17, resistencia=271.78",
             "objetivo": 193.6453
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=15.63, resistencia=271.78",
+            "objetivo": 192.5535
           }
         ],
         "id": 4,
-        "objetivo": 193.6453,
+        "objetivo": 192.5535,
         "objetivo_inicial": 214.0667,
         "portafolio": "B",
         "proba": 0.9343,
@@ -334,9 +407,121 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 32.0654,
+        "dia_limite": "2026-08-04",
+        "entrada": 396.95,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 6,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 565.7067
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=30.78, resistencia=494.53",
+            "objetivo": 494.53
+          }
+        ],
+        "id": 12,
+        "objetivo": 494.53,
+        "objetivo_inicial": 565.7067,
+        "portafolio": "B",
+        "proba": 0.8598,
+        "score_fundamental": 60.0,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "CIEN"
+      },
+      {
+        "atr_entrada": 6.9926,
+        "dia_limite": "2026-08-04",
+        "entrada": 89.9,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 7,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 124.05
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=6.85, resistencia=121.30",
+            "objetivo": 121.3
+          }
+        ],
+        "id": 14,
+        "objetivo": 121.3,
+        "objetivo_inicial": 124.05,
+        "portafolio": "B",
+        "proba": 0.8598,
+        "score_fundamental": 52.5,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "ON"
+      },
+      {
+        "atr_entrada": 2.1233,
+        "dia_limite": "2026-08-04",
+        "entrada": 28.93,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 8,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 37.375
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=2.46, resistencia=33.98",
+            "objetivo": 33.98
+          }
+        ],
+        "id": 16,
+        "objetivo": 33.98,
+        "objetivo_inicial": 37.375,
+        "portafolio": "B",
+        "proba": 0.8598,
+        "score_fundamental": 56.6,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "SMCI"
+      },
+      {
+        "atr_entrada": 4.4263,
+        "dia_limite": "2026-08-04",
+        "entrada": 59.37,
+        "fecha_entrada": "2026-07-22",
+        "grupo": 9,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-22",
+            "motivo": "objetivo inicial",
+            "objetivo": 85.6
+          },
+          {
+            "fecha": "2026-07-22",
+            "motivo": "recálculo: ATR=4.26, resistencia=85.60",
+            "objetivo": 67.8932
+          }
+        ],
+        "id": 18,
+        "objetivo": 67.8932,
+        "objetivo_inicial": 85.6,
+        "portafolio": "B",
+        "proba": 0.8063,
+        "score_fundamental": 28.7,
+        "sector": "Health Care",
+        "stop": null,
+        "ticker": "MRNA"
       }
     ]
   },
-  "ultima_postcierre": "2026-07-21",
+  "ultima_postcierre": "2026-07-22",
   "ultima_preapertura": "2026-07-22"
 }
