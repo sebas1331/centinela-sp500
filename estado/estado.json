@@ -1,7 +1,56 @@
 {
-  "actualizado": "2026-07-21T18:51:39.294806-04:00",
+  "actualizado": "2026-07-22T08:16:38.315976-04:00",
   "contador_grupo": 5,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 32.0654,
+      "fecha_decision": "2026-07-22",
+      "notas": "prob=0.860 score_fund=60.0 sent=0.291 (n=10)",
+      "proba": 0.8598,
+      "resistencia": 494.53,
+      "score_fundamental": 60.0,
+      "sector": "Information Technology",
+      "target_analista": 565.7067,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
+    },
+    {
+      "atr": 6.9926,
+      "fecha_decision": "2026-07-22",
+      "notas": "prob=0.860 score_fund=52.5 sent=0.547 (n=10)",
+      "proba": 0.8598,
+      "resistencia": 124.05,
+      "score_fundamental": 52.5,
+      "sector": "Information Technology",
+      "target_analista": 113.52,
+      "ticker": "ON",
+      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
+    },
+    {
+      "atr": 2.1233,
+      "fecha_decision": "2026-07-22",
+      "notas": "prob=0.860 score_fund=56.6 sent=0.428 (n=10)",
+      "proba": 0.8598,
+      "resistencia": 34.41,
+      "score_fundamental": 56.6,
+      "sector": "Information Technology",
+      "target_analista": 37.375,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
+    },
+    {
+      "atr": 4.4263,
+      "fecha_decision": "2026-07-22",
+      "notas": "prob=0.806 score_fund=28.7 sent=0.167 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8063,
+      "resistencia": 85.6,
+      "score_fundamental": 28.7,
+      "sector": "Health Care",
+      "target_analista": 48.42105,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-07-22T08:15:15.815530-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -289,5 +338,5 @@
     ]
   },
   "ultima_postcierre": "2026-07-21",
-  "ultima_preapertura": "2026-07-21"
+  "ultima_preapertura": "2026-07-22"
 }
