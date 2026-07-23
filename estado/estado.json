@@ -1,7 +1,20 @@
 {
-  "actualizado": "2026-07-22T18:58:28.540231-04:00",
+  "actualizado": "2026-07-23T08:15:11.706033-04:00",
   "contador_grupo": 9,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 16.7933,
+      "fecha_decision": "2026-07-23",
+      "notas": "prob=0.844 score_fund=72.7 sent=0.068 (n=10)",
+      "proba": 0.8438,
+      "resistencia": 307.37,
+      "score_fundamental": 72.7,
+      "sector": "Information Technology",
+      "target_analista": 234.0357,
+      "ticker": "KLAC",
+      "timestamp_escaneo": "2026-07-23T08:13:42.727539-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -523,5 +536,5 @@
     ]
   },
   "ultima_postcierre": "2026-07-22",
-  "ultima_preapertura": "2026-07-22"
+  "ultima_preapertura": "2026-07-23"
 }
