@@ -1,20 +1,7 @@
 {
-  "actualizado": "2026-07-23T08:15:11.706033-04:00",
-  "contador_grupo": 9,
-  "entradas_pendientes": [
-    {
-      "atr": 16.7933,
-      "fecha_decision": "2026-07-23",
-      "notas": "prob=0.844 score_fund=72.7 sent=0.068 (n=10)",
-      "proba": 0.8438,
-      "resistencia": 307.37,
-      "score_fundamental": 72.7,
-      "sector": "Information Technology",
-      "target_analista": 234.0357,
-      "ticker": "KLAC",
-      "timestamp_escaneo": "2026-07-23T08:13:42.727539-04:00"
-    }
-  ],
+  "actualizado": "2026-07-23T18:52:37.230586-04:00",
+  "contador_grupo": 10,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -66,10 +53,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=15.63, resistencia=271.78",
             "objetivo": 192.5535
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=15.13, resistencia=271.78",
+            "objetivo": 191.5676
           }
         ],
         "id": 3,
-        "objetivo": 192.5535,
+        "objetivo": 191.5676,
         "objetivo_inicial": 214.0667,
         "portafolio": "A",
         "proba": 0.9343,
@@ -234,10 +226,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=2.46, resistencia=33.98",
             "objetivo": 33.98
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=2.45, resistencia=33.68",
+            "objetivo": 33.8346
           }
         ],
         "id": 15,
-        "objetivo": 33.98,
+        "objetivo": 33.8346,
         "objetivo_inicial": 37.375,
         "portafolio": "A",
         "proba": 0.8598,
@@ -262,10 +259,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=4.26, resistencia=85.60",
             "objetivo": 67.8932
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=4.11, resistencia=85.60",
+            "objetivo": 67.5923
           }
         ],
         "id": 17,
-        "objetivo": 67.8932,
+        "objetivo": 67.5923,
         "objetivo_inicial": 85.6,
         "portafolio": "A",
         "proba": 0.8063,
@@ -273,6 +275,29 @@
         "sector": "Health Care",
         "stop": 52.2456,
         "ticker": "MRNA"
+      },
+      {
+        "atr_entrada": 16.7933,
+        "dia_limite": "2026-08-05",
+        "entrada": 213.35,
+        "fecha_entrada": "2026-07-23",
+        "grupo": 10,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-23",
+            "motivo": "objetivo inicial",
+            "objetivo": 307.37
+          }
+        ],
+        "id": 19,
+        "objetivo": 307.37,
+        "objetivo_inicial": 307.37,
+        "portafolio": "A",
+        "proba": 0.8438,
+        "score_fundamental": 72.7,
+        "sector": "Information Technology",
+        "stop": 187.748,
+        "ticker": "KLAC"
       }
     ],
     "B": [
@@ -325,10 +350,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=15.63, resistencia=271.78",
             "objetivo": 192.5535
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=15.13, resistencia=271.78",
+            "objetivo": 191.5676
           }
         ],
         "id": 4,
-        "objetivo": 192.5535,
+        "objetivo": 191.5676,
         "objetivo_inicial": 214.0667,
         "portafolio": "B",
         "proba": 0.9343,
@@ -493,10 +523,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=2.46, resistencia=33.98",
             "objetivo": 33.98
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=2.45, resistencia=33.68",
+            "objetivo": 33.8346
           }
         ],
         "id": 16,
-        "objetivo": 33.98,
+        "objetivo": 33.8346,
         "objetivo_inicial": 37.375,
         "portafolio": "B",
         "proba": 0.8598,
@@ -521,10 +556,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=4.26, resistencia=85.60",
             "objetivo": 67.8932
+          },
+          {
+            "fecha": "2026-07-23",
+            "motivo": "recálculo: ATR=4.11, resistencia=85.60",
+            "objetivo": 67.5923
           }
         ],
         "id": 18,
-        "objetivo": 67.8932,
+        "objetivo": 67.5923,
         "objetivo_inicial": 85.6,
         "portafolio": "B",
         "proba": 0.8063,
@@ -532,9 +572,32 @@
         "sector": "Health Care",
         "stop": null,
         "ticker": "MRNA"
+      },
+      {
+        "atr_entrada": 16.7933,
+        "dia_limite": "2026-08-05",
+        "entrada": 213.35,
+        "fecha_entrada": "2026-07-23",
+        "grupo": 10,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-23",
+            "motivo": "objetivo inicial",
+            "objetivo": 307.37
+          }
+        ],
+        "id": 20,
+        "objetivo": 307.37,
+        "objetivo_inicial": 307.37,
+        "portafolio": "B",
+        "proba": 0.8438,
+        "score_fundamental": 72.7,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "KLAC"
       }
     ]
   },
-  "ultima_postcierre": "2026-07-22",
+  "ultima_postcierre": "2026-07-23",
   "ultima_preapertura": "2026-07-23"
 }
