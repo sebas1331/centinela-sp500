@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-07-24T08:08:08.983475-04:00",
+  "actualizado": "2026-07-24T18:57:59.751116-04:00",
   "contador_grupo": 10,
   "entradas_pendientes": [],
   "posiciones": {
@@ -20,10 +20,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=199.93, resistencia=2348.00",
             "objetivo": 2347.999
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=190.34, resistencia=2280.80",
+            "objetivo": 2280.8
           }
         ],
         "id": 1,
-        "objetivo": 2347.999,
+        "objetivo": 2280.8,
         "objetivo_inicial": 2354.3899,
         "portafolio": "A",
         "proba": 0.9494,
@@ -58,10 +63,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=15.13, resistencia=271.78",
             "objetivo": 191.5676
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=14.87, resistencia=271.78",
+            "objetivo": 191.0404
           }
         ],
         "id": 3,
-        "objetivo": 191.5676,
+        "objetivo": 191.0404,
         "objetivo_inicial": 214.0667,
         "portafolio": "A",
         "proba": 0.9343,
@@ -114,10 +124,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=53.65, resistencia=729.00",
             "objetivo": 729.0
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=50.35, resistencia=663.98",
+            "objetivo": 663.98
           }
         ],
         "id": 7,
-        "objetivo": 729.0,
+        "objetivo": 663.98,
         "objetivo_inicial": 779.8,
         "portafolio": "A",
         "proba": 0.9343,
@@ -142,10 +157,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=29.88, resistencia=419.00",
             "objetivo": 419.0
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=28.48, resistencia=399.45",
+            "objetivo": 399.45
           }
         ],
         "id": 9,
-        "objetivo": 419.0,
+        "objetivo": 399.45,
         "objetivo_inicial": 439.68,
         "portafolio": "A",
         "proba": 0.888,
@@ -170,10 +190,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=30.78, resistencia=494.53",
             "objetivo": 494.53
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=29.58, resistencia=493.26",
+            "objetivo": 493.26
           }
         ],
         "id": 11,
-        "objetivo": 494.53,
+        "objetivo": 493.26,
         "objetivo_inicial": 565.7067,
         "portafolio": "A",
         "proba": 0.8598,
@@ -198,10 +223,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=6.85, resistencia=121.30",
             "objetivo": 121.3
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=6.52, resistencia=102.64",
+            "objetivo": 102.9341
           }
         ],
         "id": 13,
-        "objetivo": 121.3,
+        "objetivo": 102.9341,
         "objetivo_inicial": 124.05,
         "portafolio": "A",
         "proba": 0.8598,
@@ -231,10 +261,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=2.45, resistencia=33.68",
             "objetivo": 33.8346
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=2.42, resistencia=32.59",
+            "objetivo": 33.7778
           }
         ],
         "id": 15,
-        "objetivo": 33.8346,
+        "objetivo": 33.7778,
         "objetivo_inicial": 37.375,
         "portafolio": "A",
         "proba": 0.8598,
@@ -264,10 +299,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=4.11, resistencia=85.60",
             "objetivo": 67.5923
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=4.08, resistencia=85.60",
+            "objetivo": 67.5207
           }
         ],
         "id": 17,
-        "objetivo": 67.5923,
+        "objetivo": 67.5207,
         "objetivo_inicial": 85.6,
         "portafolio": "A",
         "proba": 0.8063,
@@ -317,10 +357,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=199.93, resistencia=2348.00",
             "objetivo": 2347.999
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=190.34, resistencia=2280.80",
+            "objetivo": 2280.8
           }
         ],
         "id": 2,
-        "objetivo": 2347.999,
+        "objetivo": 2280.8,
         "objetivo_inicial": 2354.3899,
         "portafolio": "B",
         "proba": 0.9494,
@@ -355,10 +400,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=15.13, resistencia=271.78",
             "objetivo": 191.5676
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=14.87, resistencia=271.78",
+            "objetivo": 191.0404
           }
         ],
         "id": 4,
-        "objetivo": 191.5676,
+        "objetivo": 191.0404,
         "objetivo_inicial": 214.0667,
         "portafolio": "B",
         "proba": 0.9343,
@@ -411,10 +461,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=53.65, resistencia=729.00",
             "objetivo": 729.0
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=50.35, resistencia=663.98",
+            "objetivo": 663.98
           }
         ],
         "id": 8,
-        "objetivo": 729.0,
+        "objetivo": 663.98,
         "objetivo_inicial": 779.8,
         "portafolio": "B",
         "proba": 0.9343,
@@ -439,10 +494,15 @@
             "fecha": "2026-07-21",
             "motivo": "recálculo: ATR=29.88, resistencia=419.00",
             "objetivo": 419.0
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=28.48, resistencia=399.45",
+            "objetivo": 399.45
           }
         ],
         "id": 10,
-        "objetivo": 419.0,
+        "objetivo": 399.45,
         "objetivo_inicial": 439.68,
         "portafolio": "B",
         "proba": 0.888,
@@ -467,10 +527,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=30.78, resistencia=494.53",
             "objetivo": 494.53
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=29.58, resistencia=493.26",
+            "objetivo": 493.26
           }
         ],
         "id": 12,
-        "objetivo": 494.53,
+        "objetivo": 493.26,
         "objetivo_inicial": 565.7067,
         "portafolio": "B",
         "proba": 0.8598,
@@ -495,10 +560,15 @@
             "fecha": "2026-07-22",
             "motivo": "recálculo: ATR=6.85, resistencia=121.30",
             "objetivo": 121.3
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=6.52, resistencia=102.64",
+            "objetivo": 102.9341
           }
         ],
         "id": 14,
-        "objetivo": 121.3,
+        "objetivo": 102.9341,
         "objetivo_inicial": 124.05,
         "portafolio": "B",
         "proba": 0.8598,
@@ -528,10 +598,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=2.45, resistencia=33.68",
             "objetivo": 33.8346
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=2.42, resistencia=32.59",
+            "objetivo": 33.7778
           }
         ],
         "id": 16,
-        "objetivo": 33.8346,
+        "objetivo": 33.7778,
         "objetivo_inicial": 37.375,
         "portafolio": "B",
         "proba": 0.8598,
@@ -561,10 +636,15 @@
             "fecha": "2026-07-23",
             "motivo": "recálculo: ATR=4.11, resistencia=85.60",
             "objetivo": 67.5923
+          },
+          {
+            "fecha": "2026-07-24",
+            "motivo": "recálculo: ATR=4.08, resistencia=85.60",
+            "objetivo": 67.5207
           }
         ],
         "id": 18,
-        "objetivo": 67.5923,
+        "objetivo": 67.5207,
         "objetivo_inicial": 85.6,
         "portafolio": "B",
         "proba": 0.8063,
@@ -598,6 +678,6 @@
       }
     ]
   },
-  "ultima_postcierre": "2026-07-23",
+  "ultima_postcierre": "2026-07-24",
   "ultima_preapertura": "2026-07-24"
 }
