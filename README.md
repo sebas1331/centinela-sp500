@@ -155,77 +155,129 @@ centinela/            paquete Python
   simulador.py        motor en vivo de las 2 carteras
   bitacora.py         SQLite (fuente de verdad) + espejo CSV + decisiones.log
   estado.py           estado persistente (posiciones, idempotencia)
+  resultados.py       vocabulario CERRADO de desenlaces de un escaneo
   reportes.py         reporte semanal y mensual
   runtime.py          preparación de datos compartida
   notificaciones.py   Telegram (DESACTIVADO por defecto)
 scripts/              entrenar_inicial, escaneo_preapertura, escaneo_postcierre,
-                      reentrenar_mensual, generar_reporte
-.github/workflows/    preapertura.yml, postcierre.yml, reentrenamiento.yml
+                      reentrenar_mensual, generar_reporte, vigilante
+                      commit_y_push.sh, verificar_persistencia.sh
+.github/workflows/    preapertura.yml, postcierre.yml, vigilante.yml,
+                      reentrenamiento.yml
 tests/                pruebas (pytest)
 ```
+
+### Cómo se garantiza que nada falla en silencio
+
+Un workflow verde que no escribe nada es **peor** que uno rojo: disimula el
+fallo. Cuatro capas independientes lo impiden:
+
+1. **Vocabulario cerrado** ([`resultados.py`](centinela/resultados.py)): cada
+   escaneo declara su desenlace. Solo tres motivos permiten terminar sin commit;
+   cualquier otro es un fallo. Un motivo nuevo no hereda el permiso de callarse.
+2. **Commit verificado** ([`commit_y_push.sh`](scripts/commit_y_push.sh)): si el
+   escaneo dijo `procesado`, tiene que haber cambios, commit y push; luego relee
+   el remoto y comprueba autor y marca del run.
+3. **Verificación independiente** ([`verificar_persistencia.sh`](scripts/verificar_persistencia.sh)):
+   un job aparte clona el repo de nuevo desde GitHub y comprueba contra el remoto
+   de verdad que la cabeza de `main` la escribió el bot en ese run.
+4. **Vigilante** ([`vigilante.py`](scripts/vigilante.py)): a diario, comprueba que
+   ninguna sesión exigible se haya quedado sin sus **dos** escaneos. Es la única
+   capa que detecta lo que ningún run puede detectar por sí mismo: que falte un
+   run entero.
 
 ## ⏰ Calendario de ejecución
 
 El cron de Actions corre en **UTC**, no entiende el horario de verano y **se
-retrasa** (el 2026-07-20 un disparo llegó **2 h 12 min tarde**). Por eso cada
-escaneo tiene **varios disparos escalonados**: el primero que caiga dentro de la
-ventana hace el trabajo y los demás terminan sin hacer nada (todo es
-**idempotente**).
+retrasa muchísimo**: el 2026-07-27 los cinco disparos de la pre-apertura llegaron
+entre **2 h 14 min y 2 h 55 min tarde**, todos pasada la apertura, y la sesión se
+perdió con los cinco workflows en verde. Ese fallo dio forma al diseño actual.
 
 | Workflow | Crons (UTC) | Ventana válida (ET) | Qué hace |
 |---|---|---|---|
-| Pre-apertura | 10:45, 11:15, 11:45, 12:15, 12:45 · L-V | de 4 h a 20 min **antes** de las 09:30 | Decide las entradas del día |
-| Post-cierre | 22:00, 22:30, 23:00, 23:30 · L-V | desde 30 min **después** de las 16:00 | Ejecuta entradas, gestiona salidas, reportes |
-| Reentrenamiento | 06:00 del día 1 | — | Reajusta el modelo con datos nuevos |
+| Pre-apertura | 08:03, 08:53, 09:43, 10:33, 11:23, 12:13, 13:03 · L-V | de 4 h a 20 min **antes** de las 09:30 | Decide las entradas del día |
+| Post-cierre | 20:07, 21:07, 22:07, 23:07 · L-V | desde 30 min **después** de las 16:00 | Ejecuta entradas, gestiona salidas, reportes |
+| Vigilante | 14:37 · diario | — | Falla en rojo si faltó alguna sesión |
+| Reentrenamiento | 06:07 del día 1 | — | Reajusta el modelo con datos nuevos |
 
-La ventana pre-apertura es **asimétrica a propósito**: ancha hacia atrás (correr
-temprano es inofensivo, los datos son del cierre anterior) y **tajante en la
-apertura**, porque decidir después del *open* sería *look-ahead bias* — la
-compra se simula justo a ese precio.
+La ventana pre-apertura es **asimétrica a propósito**, y esa asimetría es la
+clave de todo:
+
+- **Llegar pronto no cuesta nada.** Los datos son del cierre anterior.
+- **Llegar tarde es irrecuperable.** Decidir después del *open* sería
+  *look-ahead bias*: la compra se simula justo a ese precio.
+
+Por eso los disparos salen **muy por delante** y el run que llega antes de hora
+**se duerme** hasta las 08:45 ET (18:00 ET en el post-cierre) en vez de morir. El
+que llega ya con retraso trabaja de inmediato. Resultado: el escaneo se hace a su
+hora de siempre con retrasos de hasta 4 h 30 min, y aguanta hasta **5 h** antes de
+perder el día. Todo sigue siendo **idempotente**: el primero que trabaja gana y
+los demás terminan sin hacer nada.
+
+Si la escalera de crons se toca, el test
+`test_escalera_de_crons_preapertura_aguanta_retrasos` comprueba el rango entero
+de retrasos en verano e invierno y avisa si se reabre el agujero.
 
 ---
 
-## ✅ Cómo verificar que el sistema está vivo (desde el celular)
+## ✅ Cómo verificar desde el celular que el sistema está vivo
 
 Abre el repo en el navegador o la app de GitHub y mira **la fecha del último
 commit** en la portada. No hace falta nada más.
 
-**Qué commits esperar cada día de mercado (lunes a viernes, salvo festivos):**
+### Qué esperar cada día de mercado (lunes a viernes, salvo festivos)
 
-| Cuándo (hora Ecuador, verano) | Mensaje del commit | Archivos que cambian |
+| Cuándo | Mensaje del commit | Archivos que cambian |
 |---|---|---|
-| entre **05:45 y 08:10** | `pre-apertura: decisiones de entrada` | `estado/estado.json`, `logs/decisiones-AAAA-MM-DD.log` |
-| entre **17:00 y 18:30** | `post-cierre: entradas/salidas y reportes` | `estado/estado.json`, `logs/…`, `datos/ath.json`, y `bitacora.csv` si hubo operaciones |
+| **08:45 ET** = **07:45 Ecuador** | `pre-apertura: decisiones de entrada` | `estado/estado.json`, `logs/decisiones-AAAA-MM-DD.log` |
+| **18:00 ET** = **17:00 Ecuador** | `post-cierre: entradas/salidas y reportes` | `estado/estado.json`, `logs/…`, `datos/ath.json`, `bitacora.csv` y `bitacora.sqlite` |
 
-> En invierno (noviembre-marzo) suma **1 hora** a esos rangos: Ecuador y Nueva
-> York quedan a la misma hora.
+> **En invierno** (noviembre-marzo) las horas de Ecuador coinciden con las de
+> Nueva York: 08:45 y 18:00 en ambos husos.
+>
+> Si Actions va con retraso, el commit puede llegar **más tarde** (hasta las
+> 09:10 ET la pre-apertura, sin tope el post-cierre). Lo que **no** puede pasar
+> es que no llegue: eso es un fallo y se ve en rojo.
 
-Los dos commits aparecen **aunque no haya ninguna operación**: el escaneo siempre
-deja constancia de lo que evaluó en `logs/decisiones-AAAA-MM-DD.log`. Un día de
-mercado **sin commits es un fallo**, no un día tranquilo.
+Los dos commits aparecen **aunque no haya ninguna operación**: cada escaneo deja
+siempre constancia de lo que evaluó en `logs/decisiones-AAAA-MM-DD.log` y sella
+su paso en `estado/estado.json`. Un día de mercado **sin commits es un fallo**,
+no un día tranquilo.
 
 Los viernes hay además un **reporte semanal** nuevo en [`reportes/`](reportes/), y
 el primer día de mercado de cada mes, uno mensual.
 
-### Si no cambian
+### Si no aparece el commit
 
-1. Entra en la pestaña **Actions** del repo. Los workflows ahora **fallan en
-   rojo** si trabajan y no consiguen guardar, así que lo normal es que el
-   problema sea visible ahí mismo.
-2. Si ves un run **en rojo** → ábrelo y lee el paso *«Commit y push
-   verificados»*; el mensaje de error dice exactamente qué falló.
-3. Si todo está **en verde pero sin commits** → abre el run y busca la línea
-   `RESULTADO=` del paso de escaneo:
-   - `RESULTADO=omitido:sin-mercado` → era festivo. Todo bien.
-   - `RESULTADO=omitido:ya-procesado` → otro disparo del día ya hizo el trabajo;
-     busca su commit. Todo bien.
-   - `RESULTADO=omitido:fuera-de-ventana` en **todos** los disparos → Actions se
-     retrasó más de lo previsto. Es el fallo que hay que reportar.
+1. **Pestaña Actions → filtra por «Vigilante».** Corre todos los días a las 14:37
+   UTC (09:37 Ecuador) y su único trabajo es comprobar que no falte ninguna
+   sesión. Si está **verde**, el sistema está al día aunque a ti te parezca que
+   no. Si está **rojo**, el propio error dice qué sesión y qué escaneo faltan.
+2. **Filtra por «Escaneo pre-apertura» y «Escaneo post-cierre».** Abre el run del
+   día y mira la línea `RESULTADO=` del paso de escaneo:
+
+   | `RESULTADO=` | Qué significa | ¿Preocupa? |
+   |---|---|---|
+   | `procesado` | Trabajó y guardó. Su commit existe. | No |
+   | `omitido:sin-mercado` | Era festivo. | No |
+   | `omitido:ya-procesado` | Otro disparo del día ya lo hizo; busca su commit. | No |
+   | `omitido:antes-de-ventana` | Llegó pronto y cedió el turno al siguiente disparo. | No |
+   | `fallo:ventana-perdida` | **Se perdió la sesión.** Actions se retrasó más de 5 h. | **Sí** |
+
+3. **Avísame** (Sebastián) con el **enlace del run rojo**. Copia la URL de la
+   barra de direcciones; con eso basta.
 4. Si **no hay ningún run** ese día → GitHub desactiva los crons de los repos sin
    actividad durante 60 días; basta con hacer un commit cualquiera para
    reactivarlos.
-5. Arreglo manual en cualquier caso: **Actions → Escaneo post-cierre → Run
-   workflow**, marca *forzar* y pon la fecha de la sesión perdida.
+5. Arreglo manual de una sesión perdida: **Actions → Escaneo post-cierre → Run
+   workflow**, marca *forzar* y pon la fecha de la sesión. Ojo: la pre-apertura
+   **no** se recupera a posteriori, porque decidir entradas después de la
+   apertura falsearía el experimento.
+
+> **Un verde no puede significar «no hice nada».** Cada escaneo publica un
+> resultado de un vocabulario cerrado ([`centinela/resultados.py`](centinela/resultados.py)),
+> y tanto el paso de commit como un job de verificación independiente rompen en
+> rojo si ese resultado no cuadra con lo que hay en el repositorio.
 
 ## 🔁 Autoaprendizaje sin sobreoptimizar
 - Reentrenamiento walk-forward **mensual** con datos nuevos.

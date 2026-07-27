@@ -1,23 +1,45 @@
 name: Escaneo pre-apertura
 
-# El cron de Actions corre en UTC, NO entiende el horario de verano (DST) y
-# ADEMÁS se retrasa: el 2026-07-20 el disparo de las 12:45 UTC arrancó a las
-# 14:57 (2h12m tarde) y el escaneo abortó por ventana con el workflow en verde.
-# Por eso no bastan dos horarios: escalonamos varios intentos y dejamos que la
-# idempotencia del script decida (el primero que caiga dentro de la ventana
-# trabaja, los demás terminan sin hacer nada).
+# ---------------------------------------------------------------------------
+# POR QUÉ ESTA ESCALERA DE CRONS ES ASÍ (fallo del 2026-07-27)
 #
-# La ventana válida es de 20 a 240 min ANTES de la apertura (09:30 ET):
-#   verano (EDT, apertura 13:30 UTC) -> 09:30-13:10 UTC
+# El cron de Actions corre en UTC, no entiende el horario de verano y, sobre
+# todo, SE RETRASA MUCHO: el 2026-07-27 los cinco disparos programados entre las
+# 10:45 y las 12:45 UTC arrancaron entre 2h14m y 2h55m tarde, los cinco ya
+# pasada la apertura. Los cinco escaneos murieron por ventana, en verde, y la
+# sesión se perdió sin que nada lo delatara.
+#
+# La clave del problema es que es ASIMÉTRICO:
+#   - Llegar TARDE es irrecuperable. La ventana tiene un techo duro 20 min antes
+#     de la apertura, porque el post-cierre simula la compra al open oficial:
+#     decidir después del open sería mirar el precio al que luego se compra.
+#   - Llegar PRONTO no cuesta nada. Los datos son del cierre anterior.
+#
+# Así que ahora se dispara MUY por delante y el run que llega pronto DUERME
+# hasta que su ventana abre (hasta 120 min, ver ESPERA_VENTANA_MAX_MIN) en vez
+# de morir. Con esta escalera el sistema aguanta retrasos del cron de 0 a ~5 h
+# en ambos regímenes horarios; el peor retraso observado hasta hoy es 2h55m.
+#
+# Ventana válida (20 a 240 min antes de la apertura de las 09:30 ET):
+#   verano  (EDT, apertura 13:30 UTC) -> 09:30-13:10 UTC
 #   invierno (EST, apertura 14:30 UTC) -> 10:30-14:10 UTC
-# Estos cinco disparos caen dentro en ambos regímenes y toleran ~2 h de retraso.
+#
+# Los minutos son "raros" a propósito: la cola de Actions se congestiona en los
+# minutos redondos y en las horas en punto.
+#
+# El test test_escalera_de_crons_aguanta_retrasos comprueba esta escalera contra
+# todo el rango de retrasos en ambos regímenes. Si tocas los crons, ese test te
+# dirá si acabas de reabrir el agujero.
+# ---------------------------------------------------------------------------
 on:
   schedule:
-    - cron: "45 10 * * 1-5"
-    - cron: "15 11 * * 1-5"
-    - cron: "45 11 * * 1-5"
-    - cron: "15 12 * * 1-5"
-    - cron: "45 12 * * 1-5"
+    - cron: "3 8 * * 1-5"
+    - cron: "53 8 * * 1-5"
+    - cron: "43 9 * * 1-5"
+    - cron: "33 10 * * 1-5"
+    - cron: "23 11 * * 1-5"
+    - cron: "13 12 * * 1-5"
+    - cron: "3 13 * * 1-5"
   workflow_dispatch:
     inputs:
       forzar:
@@ -39,7 +61,10 @@ concurrency:
 jobs:
   preapertura:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Generoso: el run puede pasarse hasta 120 min dormido esperando su ventana.
+    timeout-minutes: 160
+    outputs:
+      resultado: ${{ steps.escaneo.outputs.resultado }}
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +83,7 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # Sale en ROJO si pierde la ventana de decisión de un día bursátil.
       - name: Escaneo pre-apertura
         id: escaneo
         run: |
@@ -73,3 +99,22 @@ jobs:
             "pre-apertura: decisiones de entrada [skip ci]" \
             "${{ steps.escaneo.outputs.resultado }}" \
             estado bitacora.csv bitacora.sqlite datos logs reportes
+
+  # Segunda opinión INDEPENDIENTE: clona el repo de nuevo desde GitHub y
+  # comprueba contra el remoto de verdad (no contra el checkout del job de
+  # arriba, que podría mentir) que la cabeza de main la escribió el bot en ESTE
+  # run. Si el escaneo dijo "procesado" y el remoto no lo refleja, rojo.
+  verificar:
+    needs: preapertura
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Verificar persistencia en el remoto
+        env:
+          RESULTADO: ${{ needs.preapertura.outputs.resultado }}
+          ESTADO_JOB: ${{ needs.preapertura.result }}
+        run: bash scripts/verificar_persistencia.sh

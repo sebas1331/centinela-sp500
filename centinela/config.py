@@ -64,6 +64,33 @@ PREAPERTURA_MAX_ANTES = 240    # hasta 4 h antes: absorbe retrasos del cron
 # Ventana post-cierre: procesamos si ya pasó el cierre (16:00 ET) del día.
 POSTCIERRE_MIN_DESPUES = 30    # al menos 30 min tras el cierre
 
+# Momento PREFERIDO de cada escaneo dentro de su ventana: 08:45 ET para la
+# pre-apertura y 18:00 ET para el post-cierre, que es el horario con el que se
+# diseñó el sistema. Solo lo usa el run que llega ANTES de tiempo para saber
+# hasta cuándo dormir; el que ya llega dentro de la ventana trabaja de
+# inmediato, porque con el cron de Actions retrasándose horas lo último que
+# conviene es regalar minutos esperando un horario bonito.
+PREAPERTURA_OBJETIVO_ANTES = 45     # 45 min antes de la apertura -> 08:45 ET
+POSTCIERRE_OBJETIVO_DESPUES = 120   # 2 h después del cierre -> 18:00 ET
+
+# Cuánto puede ESPERAR un escaneo que arrancó antes de que abriera su ventana.
+#
+# El 2026-07-27 los cinco disparos de la pre-apertura llegaron entre 2h14m y
+# 2h55m tarde, todos pasada la apertura, y el día se perdió en verde. La
+# asimetría del problema es la clave: llegar tarde es irrecuperable, llegar
+# pronto no cuesta nada. Así que ahora los crons se lanzan MUY por delante y el
+# que llega pronto duerme hasta que su ventana abre, en vez de morir.
+#
+# El tope existe para no retener el turno de concurrencia indefinidamente: si al
+# agotarlo la ventana sigue sin abrir, el run termina con "omitido:antes-de-
+# ventana" (verde, inofensivo) y el siguiente peldaño de la escalera lo recoge.
+ESPERA_VENTANA_MAX_MIN = 120
+
+# Margen del vigilante antes de dar por perdida una sesión: cuántas horas después
+# de que TOCABA hacer el post-cierre se empieza a exigir que esté commiteado.
+# Tiene que superar el peor retraso observado del cron de Actions (~3 h).
+VIGILANTE_MARGEN_HORAS = 8
+
 # --------------------------------------------------------------------------- #
 # Estrategia — filtro base y horizonte
 # --------------------------------------------------------------------------- #

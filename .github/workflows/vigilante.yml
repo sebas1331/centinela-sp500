@@ -1,0 +1,53 @@
+name: Vigilante
+
+# ---------------------------------------------------------------------------
+# La red de seguridad contra el fallo del 2026-07-27.
+#
+# Los demás workflows comprueban que un run concreto hizo su trabajo. Ninguno
+# podía detectar lo contrario: que faltara un run entero. Ese día los cinco
+# disparos de la pre-apertura se retrasaron más de dos horas, llegaron pasada la
+# apertura, terminaron los cinco en verde y la sesión se perdió. Actions no tenía
+# ni un solo run rojo que mirar.
+#
+# Este workflow pregunta lo único que importa de verdad: ¿tiene el repositorio la
+# huella de todas las sesiones que ya deberían estar hechas? Si no, ROJO. Un
+# silencio deja de ser invisible.
+#
+# Corre a diario a las 14:37 UTC, cuando el post-cierre de la sesión anterior ya
+# debería llevar horas hecho incluso con el peor retraso de cron observado.
+# ---------------------------------------------------------------------------
+on:
+  schedule:
+    - cron: "37 14 * * *"
+  workflow_dispatch:
+    inputs:
+      sesiones:
+        description: "Cuántas sesiones exigibles hacia atrás revisar"
+        type: string
+        default: "1"
+
+# Solo lee. No escribe nada en el repositorio.
+permissions:
+  contents: read
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Historial completo: el vigilante cuenta commits del bot por fecha.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # Solo necesita el calendario bursátil y pandas, no el stack de modelado.
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Revisar que no falte ninguna sesión
+        run: python scripts/vigilante.py --sesiones "${{ inputs.sesiones || '1' }}"

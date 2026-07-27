@@ -159,10 +159,19 @@ def n_cerradas_desde(fecha_iso: str | None) -> int:
 # --------------------------------------------------------------------------- #
 # decisiones.log — auditoría diaria de candidatos
 # --------------------------------------------------------------------------- #
-def log_decisiones(fecha_iso: str, lineas: list[str]) -> None:
+#: Cabecera de cada bloque del log diario. El nombre del escaneo va dentro a
+#: propósito: es la marca que permite comprobar, sesión a sesión, que los DOS
+#: escaneos del día se hicieron. Sin ella un día en el que solo corrió el
+#: post-cierre se lee igual que un día completo, y ese era justo el agujero del
+#: 2026-07-27. El vigilante busca estas cabeceras; no cambies el formato sin
+#: cambiar `vigilante.py` (hay un test que ata las dos partes).
+CABECERA_ESCANEO = "===== escaneo {escaneo} {marca} ====="
+
+
+def log_decisiones(fecha_iso: str, lineas: list[str], escaneo: str = "escaneo") -> None:
     ruta = config.LOGS_DIR / f"decisiones-{fecha_iso}.log"
     marca = datetime.now(config.TZ_ET).strftime("%Y-%m-%d %H:%M:%S ET")
     with open(ruta, "a", encoding="utf-8") as f:
-        f.write(f"\n===== escaneo {marca} =====\n")
+        f.write("\n" + CABECERA_ESCANEO.format(escaneo=escaneo, marca=marca) + "\n")
         for ln in lineas:
             f.write(ln + "\n")

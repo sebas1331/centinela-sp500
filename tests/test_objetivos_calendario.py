@@ -59,19 +59,95 @@ def test_ventana_preapertura_est():
     assert not calendario.en_ventana_preapertura(_utc("2026-01-15T14:35"))
 
 
-def test_todos_los_crons_preapertura_caen_en_ventana():
-    """Regresión del fallo del 2026-07-20: los crons programados tienen que caer
-    dentro de la ventana en AMBOS regímenes horarios, con y sin retraso."""
+def _crons(nombre_workflow):
     import re
     from pathlib import Path
-    wf = Path(__file__).resolve().parent.parent / ".github/workflows/preapertura.yml"
+    wf = Path(__file__).resolve().parent.parent / ".github/workflows" / nombre_workflow
     crons = re.findall(r'cron:\s*"(\d+) (\d+) \* \* 1-5"', wf.read_text())
-    assert crons, "no se encontraron crons en preapertura.yml"
-    for minuto, hora in crons:
-        for fecha in ("2026-07-17", "2026-01-15"):   # EDT y EST
-            t = _utc(f"{fecha}T{int(hora):02d}:{int(minuto):02d}")
-            assert calendario.en_ventana_preapertura(t), \
-                f"cron {hora}:{minuto} UTC cae fuera de la ventana el {fecha}"
+    assert crons, f"no se encontraron crons en {nombre_workflow}"
+    return [(int(h), int(m)) for m, h in crons]
+
+
+def _sirve(hora, minuto, retraso_min, fecha, fase_fn, pref_fn):
+    """¿Este cron, arrancando con `retraso_min` de retraso, acaba trabajando?
+
+    Réplica de la lógica de `_control_de_ventana`: si llega antes del momento
+    preferido, espera si cabe en el tope y si no cede el turno; si llega después,
+    trabaja siempre que siga dentro de la ventana.
+    """
+    from datetime import timedelta
+    t = (_utc(f"{fecha}T{hora:02d}:{minuto:02d}") + timedelta(minutes=retraso_min))
+    t = t.astimezone(config.TZ_ET)
+    preferido = pref_fn(t.date())
+    if preferido is None:
+        return False
+    if t < preferido:
+        faltan = (preferido - t).total_seconds() / 60.0
+        if faltan > config.ESPERA_VENTANA_MAX_MIN:
+            return False          # cede el turno a un peldaño más cercano
+        t = preferido             # durmió hasta el momento preferido
+    return fase_fn(t) == calendario.DENTRO
+
+
+# Regresión del fallo del 2026-07-27. Ese día los cinco crons de la pre-apertura
+# se retrasaron entre 2h14m y 2h55m, TODOS aterrizaron pasada la apertura y la
+# sesión se perdió en verde. La invariante correcta no es "cada cron cae dentro
+# de la ventana si arranca puntual" (eso era lo que se comprobaba antes, y pasaba
+# el 27 de julio), sino "para CUALQUIER retraso plausible queda al menos un cron
+# capaz de trabajar". Si tocas la escalera de crons, este test te dice si acabas
+# de reabrir el agujero.
+def test_escalera_de_crons_preapertura_aguanta_retrasos():
+    crons = _crons("preapertura.yml")
+    for fecha in ("2026-07-17", "2026-01-15"):          # EDT y EST
+        for retraso in range(0, 5 * 60 + 1, 10):        # de 0 a 5 h de retraso
+            assert any(_sirve(h, m, retraso, fecha,
+                              calendario.fase_preapertura,
+                              calendario.momento_preferido_preapertura)
+                       for h, m in crons), (
+                f"con {retraso} min de retraso el {fecha} ningún cron de la "
+                f"pre-apertura llega a tiempo: la sesión se perdería")
+
+
+def test_escalera_de_crons_postcierre_aguanta_retrasos():
+    crons = _crons("postcierre.yml")
+    for fecha in ("2026-07-17", "2026-01-15"):
+        for retraso in range(0, 5 * 60 + 1, 10):
+            assert any(_sirve(h, m, retraso, fecha,
+                              calendario.fase_postcierre,
+                              calendario.momento_preferido_postcierre)
+                       for h, m in crons), (
+                f"con {retraso} min de retraso el {fecha} ningún cron del "
+                f"post-cierre llega a tiempo")
+
+
+def test_fases_distinguen_pronto_de_tarde():
+    """El corazón del bug: llegar pronto y llegar tarde NO son lo mismo.
+
+    Antes ambos devolvían False y el sistema los trataba igual, así que perder la
+    ventana de decisión de un día entero salía en verde igual que un festivo.
+    """
+    # 2026-07-17 (viernes, EDT), apertura 13:30 UTC
+    assert calendario.fase_preapertura(_utc("2026-07-17T08:00")) == calendario.ANTES
+    assert calendario.fase_preapertura(_utc("2026-07-17T12:45")) == calendario.DENTRO
+    assert calendario.fase_preapertura(_utc("2026-07-17T13:20")) == calendario.DESPUES
+    assert calendario.fase_preapertura(_utc("2026-07-17T15:00")) == calendario.DESPUES
+    # sábado
+    assert calendario.fase_preapertura(_utc("2026-07-18T12:45")) == calendario.SIN_MERCADO
+    # El post-cierre no tiene techo: nunca es "tarde".
+    assert calendario.fase_postcierre(_utc("2026-07-17T18:00")) == calendario.ANTES
+    assert calendario.fase_postcierre(_utc("2026-07-17T22:00")) == calendario.DENTRO
+    assert calendario.fase_postcierre(_utc("2026-07-18T03:00")) == calendario.DENTRO
+
+
+def test_reproduce_el_fallo_del_27_de_julio():
+    """Los cinco disparos reales de aquel día caían en DESPUES, no en ANTES.
+
+    Es lo que hace que el resultado correcto sea 'fallo:ventana-perdida' (rojo) y
+    no un 'omitido:' cualquiera (verde).
+    """
+    for hora in ("13:29", "13:43", "13:59", "15:10", "15:30"):
+        assert calendario.fase_preapertura(_utc(f"2026-07-27T{hora}")) == \
+            calendario.DESPUES
 
 
 def test_ventana_postcierre():

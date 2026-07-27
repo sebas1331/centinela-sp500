@@ -10,6 +10,7 @@ Guarda:
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 
 from . import config
@@ -23,7 +24,24 @@ def nuevo_estado() -> dict:
         "posiciones": {"A": [], "B": []},
         "contador_grupo": 0,
         "actualizado": None,
+        "ultima_ejecucion": {},      # sello de prueba de vida por escaneo
     }
+
+
+def sellar_ejecucion(estado: dict, escaneo: str) -> None:
+    """Deja constancia de QUIÉN escribió y CUÁNDO.
+
+    Es la prueba de vida que se lee desde el celular sin abrir los logs: si un
+    día laborable el sello no avanza, el sistema no corrió. Guardar el run de
+    Actions permite además saltar directo al log del run culpable.
+    """
+    sello = {"cuando": datetime.now(config.TZ_ET).isoformat()}
+    run = os.environ.get("GITHUB_RUN_ID")
+    if run:
+        sello["run"] = run
+        sello["url"] = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+                        f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{run}")
+    estado.setdefault("ultima_ejecucion", {})[escaneo] = sello
 
 
 def cargar() -> dict:

@@ -1,11 +1,11 @@
 name: Reentrenamiento mensual
 
 # Reentrenamiento walk-forward mensual (workflow largo). Corre el día 1 de cada
-# mes a las 06:00 UTC (fuera de las ventanas de escaneo). Respeta la regla dura:
+# mes a las 06:07 UTC (fuera de las ventanas de escaneo). Respeta la regla dura:
 # no cambia umbral/features/stop sin >=30 operaciones cerradas nuevas.
 on:
   schedule:
-    - cron: "0 6 1 * *"
+    - cron: "7 6 1 * *"
   workflow_dispatch: {}
 
 permissions:
@@ -40,13 +40,15 @@ jobs:
       - name: Reentrenamiento mensual
         run: python scripts/reentrenar_mensual.py
 
-      # "omitido:sin-cambios-de-modelo": la regla dura (>=30 operaciones cerradas
-      # nuevas) puede impedir legítimamente cualquier cambio, así que aquí no
-      # exigimos commit; lo que sí se verifica es que, si hay commit, llegue al
-      # remoto.
+      # Se le exige "procesado" a propósito. La regla dura puede impedir que
+      # CAMBIE el umbral, pero el script siempre reajusta los pesos con datos
+      # nuevos (modelo.guardar()) y siempre añade su entrada al CHANGELOG: si
+      # termina sin dejar rastro en disco es que perdió su trabajo, no que no
+      # tocaba trabajar. Antes aquí se pasaba un "omitido:" fijo y eso hacía que
+      # un reentrenamiento sin salida pasara en verde.
       - name: Commit y push verificados (modelo, CHANGELOG)
         run: |
           scripts/commit_y_push.sh \
             "reentrenamiento mensual del modelo [skip ci]" \
-            "omitido:sin-cambios-de-modelo" \
+            "procesado" \
             modelos datos CHANGELOG.md reportes

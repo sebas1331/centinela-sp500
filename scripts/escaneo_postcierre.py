@@ -11,26 +11,61 @@ Pasos:
 
 Verifica calendario/ventana e idempotencia igual que la pre-apertura.
 """
-from _comun import parse_args, contexto, log, finalizar
+from _comun import parse_args, contexto, log, finalizar, esperar_a_ventana
 
 from centinela import (calendario, estado as est_mod, simulador, bitacora,
-                       runtime, reportes, notificaciones, ath as ath_mod)
+                       runtime, reportes, notificaciones, ath as ath_mod,
+                       resultados as res)
+
+
+def _control_de_ventana(args, ahora, hoy, hoy_iso):
+    """Decide si este disparo debe trabajar, esperar, callarse o fallar.
+
+    Devuelve None para "sigue adelante" o un resultado con el que terminar.
+    A diferencia de la pre-apertura, esta ventana no tiene techo: una vez
+    cerrada la sesión, procesarla más tarde da el mismo resultado. El fallo
+    posible aquí es otro: que el cron se retrase tanto que cruce la medianoche
+    ET y la sesión de ayer se quede sin procesar para siempre.
+    """
+    if args.forzar:
+        return None
+
+    if not calendario.es_dia_de_mercado(hoy):
+        log("hoy no hay mercado; termino sin hacer nada.")
+        return res.OMITIDO_SIN_MERCADO
+
+    if est_mod.ya_proceso_postcierre(est_mod.cargar(), hoy_iso):
+        log(f"post-cierre ya procesado para {hoy_iso}; idempotente, termino.")
+        return res.OMITIDO_YA_PROCESADO
+
+    fase = calendario.fase_postcierre(ahora)
+
+    # Mismo criterio que la pre-apertura: se apunta a las 18:00 ET.
+    preferido = calendario.momento_preferido_postcierre(hoy)
+    if preferido is not None and ahora < preferido:
+        if not esperar_a_ventana(preferido, "post-cierre", ahora):
+            return res.OMITIDO_ANTES_DE_VENTANA
+        if est_mod.ya_proceso_postcierre(est_mod.cargar(), hoy_iso):
+            log(f"otro disparo procesó {hoy_iso} mientras esperaba; termino.")
+            return res.OMITIDO_YA_PROCESADO
+        fase = calendario.fase_postcierre()
+
+    if fase != calendario.DENTRO:
+        log(f"fase inesperada '{fase}' para la ventana post-cierre.")
+        return res.OMITIDO_SIN_MERCADO
+
+    return None
 
 
 def main():
     args = parse_args("Escaneo post-cierre de Centinela SP500")
     ahora, hoy, hoy_iso = contexto(args.fecha)
 
-    if not args.forzar:
-        if not calendario.es_dia_de_mercado(hoy):
-            log("hoy no hay mercado; termino sin hacer nada."); return "omitido:sin-mercado"
-        if not calendario.en_ventana_postcierre(ahora):
-            log("aún no es la ventana post-cierre; termino sin hacer nada."); return "omitido:fuera-de-ventana"
+    desenlace = _control_de_ventana(args, ahora, hoy, hoy_iso)
+    if desenlace is not None:
+        return desenlace
 
     estado = est_mod.cargar()
-    if not args.forzar and est_mod.ya_proceso_postcierre(estado, hoy_iso):
-        log(f"post-cierre ya procesado para {hoy_iso}; idempotente, termino."); return "omitido:ya-procesado"
-
     mes_previo = (estado.get("ultima_postcierre") or "")[:7]
 
     log(f"post-cierre {hoy_iso}: preparando datos...")
@@ -53,9 +88,12 @@ def main():
               f"entradas ejecutadas: {[p['ticker'] for p in abiertas if p['portafolio']=='A']}",
               f"cambios de objetivo: {len(cambios)}",
               f"cierres: {[(c['ticker'], c['portafolio'], c['motivo_salida'], round(c['pnl_pct'],4)) for c in cerradas]}"]
-    bitacora.log_decisiones(hoy_iso, lineas)
+    # Se escribe SIEMPRE, aunque no haya habido ni entradas ni cierres: es la
+    # prueba de vida del día que vigila el vigilante.
+    bitacora.log_decisiones(hoy_iso, lineas, escaneo="postcierre")
 
     estado["ultima_postcierre"] = hoy_iso
+    est_mod.sellar_ejecucion(estado, "postcierre")
     est_mod.guardar(estado)
 
     # Reportes
@@ -69,7 +107,7 @@ def main():
             f"🛰️ Centinela post-cierre {hoy_iso}: {len(cerradas)} cierres. "
             + ", ".join(f"{c['ticker']}/{c['portafolio']} {c['pnl_pct']:.1%}" for c in cerradas))
 
-    return "procesado"
+    return res.PROCESADO
 
 
 if __name__ == "__main__":
