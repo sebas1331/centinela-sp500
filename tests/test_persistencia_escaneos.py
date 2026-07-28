@@ -219,6 +219,30 @@ def test_bash_y_python_comparten_el_mismo_vocabulario():
             f"{r} está escrito a mano en commit_y_push.sh; debe leerse de resultados.py"
 
 
+def test_los_jobs_que_escriben_hacen_checkout_de_la_punta_de_la_rama():
+    """Regresión del 2026-07-28.
+
+    `actions/checkout` sin `ref` se trae el SHA del evento, es decir el estado del
+    repo de cuando el run se ENCOLÓ. Con la escalera de crons y el grupo de
+    concurrencia, un disparo puede esperar horas antes de arrancar: si lo hace con
+    un estado rancio no ve la marca de idempotencia del run que ya trabajó,
+    repite el escaneo entero y muere en un conflicto de rebase. Pasó exactamente
+    así: el disparo de las 12:19 UTC reprocesó lo que el de las 11:04 ya había
+    commiteado.
+    """
+    import re
+    for nombre in ("preapertura.yml", "postcierre.yml", "reentrenamiento.yml"):
+        texto = (RAIZ / ".github/workflows" / nombre).read_text()
+        checkouts = re.findall(
+            r"uses:\s*actions/checkout@v\d+\s*\n(?:\s*with:\s*\n(?:\s+\S+:.*\n)*)?",
+            texto)
+        assert checkouts, f"{nombre} no hace checkout"
+        for bloque in checkouts:
+            assert "ref:" in bloque, (
+                f"{nombre} tiene un actions/checkout sin `ref:`. Se traería el SHA "
+                f"del evento y un run encolado arrancaría con estado rancio")
+
+
 def test_los_workflows_de_escaneo_verifican_la_persistencia():
     """Los dos escaneos tienen que tener su job de verificación independiente."""
     for nombre in ("preapertura.yml", "postcierre.yml"):

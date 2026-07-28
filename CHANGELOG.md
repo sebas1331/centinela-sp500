@@ -5,6 +5,49 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-07-28 — Checkout rancio en la cola de concurrencia (v0.2.1)
+
+**Infraestructura. No se tocó el modelo, el umbral, el stop ni el backtest.**
+
+Primer día completo con la arquitectura nueva. Los dos escaneos de producción
+funcionaron **clavados en su hora**: post-cierre del lunes a las **18:00:05 ET**
+(durmió 42 min esperando su ventana) y pre-apertura del martes a las **08:46:08
+ET** (durmió 100 min). El vigilante detectó correctamente que la sesión del
+2026-07-27 se quedó sin pre-apertura, incluso con `ultima_preapertura` ya
+avanzada al 28: la comprobación por sesión sobre el log diario funcionó.
+
+### El fallo
+
+Un disparo de la escalera (12:19 UTC) salió **rojo**. `actions/checkout` sin
+`ref` se trae el **SHA del evento**, es decir el estado del repo de cuando el run
+se *encoló*, no de cuando arranca. Ese disparo esperó en la cola de concurrencia
+a que el de las 11:04 terminara de dormir y commitear `dd3ebfb`; al arrancar leyó
+un `estado.json` anterior a ese commit, no vio la marca de idempotencia, **repitió
+el escaneo entero** y murió en un conflicto de rebase sobre `estado/estado.json`.
+
+El grupo de concurrencia sí serializó los jobs; lo que falló fue que cada job
+miraba una foto del repositorio congelada en el pasado. Con la escalera de crons
+y las esperas de hasta 120 min, esa foto puede tener horas de antigüedad.
+
+### Qué se cambió
+
+- `ref: ${{ github.ref_name }}` en el `actions/checkout` de los tres jobs que
+  escriben. Ahora cada job arranca con la punta real de la rama, así que la
+  comprobación de idempotencia ve el trabajo del run anterior. (El job de
+  verificación ya lo tenía, que es por lo que él sí leía el remoto correctamente.)
+- `commit_y_push.sh`: un conflicto de rebase deja de reintentarse dos veces más.
+  Reintentar no arregla un conflicto de contenido, solo entierra la causa bajo
+  ruido. Ahora corta al primero y lo nombra: fallo de **idempotencia**, no de red.
+- Test `test_los_jobs_que_escriben_hacen_checkout_de_la_punta_de_la_rama`, que
+  falla si alguien vuelve a dejar un `checkout` sin `ref` en un job que escribe.
+
+### Nota sobre los runs cancelados
+
+Es normal ver algún disparo en gris (*cancelled*): cuando un run está trabajando
+o durmiendo, el grupo de concurrencia deja uno en espera y descarta los que
+lleguen después. No se pierde nada — el que trabaja ya está haciendo la sesión — y
+los que llegan más tarde terminan en `omitido:ya-procesado`.
+
 ## 2026-07-27 — El día que se perdió una sesión en verde (v0.2.0)
 
 **Infraestructura y persistencia. No se tocó el modelo, el umbral, el stop ni el

@@ -66,7 +66,15 @@ jobs:
     outputs:
       resultado: ${{ steps.escaneo.outputs.resultado }}
     steps:
+      # `ref` explícito, NO el SHA del evento. Sin esto, un disparo que espera su
+      # turno en la cola de concurrencia se traería el estado de cuando se ENCOLÓ,
+      # no el de cuando arranca. El 2026-07-28 pasó justo eso: el disparo de las
+      # 12:19 UTC esperó a que el de las 11:04 terminara su escaneo, pero al
+      # arrancar leyó un estado.json anterior a ese commit, no vio la marca de
+      # idempotencia, repitió el escaneo entero y murió en un conflicto de rebase.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:

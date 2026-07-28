@@ -88,7 +88,15 @@ for intento in 1 2 3; do
   # job moriría igualmente en rojo, pero con un `fatal:` de git en vez de una
   # explicación. Se dejan fallar y que decida el bucle.
   git fetch origin "$rama" || true
-  git rebase "origin/$rama" || git rebase --abort || true
+  if ! git rebase "origin/$rama"; then
+    git rebase --abort || true
+    # Reintentar no arregla un conflicto de contenido, solo entierra la causa
+    # bajo dos rondas más de ruido (fue lo que pasó el 2026-07-28). Un conflicto
+    # aquí significa que otro run ya procesó esta sesión y este duplicó el
+    # trabajo: es un fallo de idempotencia y hay que decirlo por su nombre.
+    echo "::error::Conflicto al rebasar sobre origin/$rama: otro run ya escribió esta sesión y este la ha reprocesado por encima. Es un fallo de IDEMPOTENCIA, no de red. Revisa que el checkout del job use 'ref: <rama>' y no el SHA del evento, porque un run que espera en la cola de concurrencia arranca con un estado rancio y no ve la marca del run anterior."
+    exit 1
+  fi
   sleep 5
 done
 

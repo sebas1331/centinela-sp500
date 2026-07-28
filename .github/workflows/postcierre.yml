@@ -49,7 +49,11 @@ jobs:
     outputs:
       resultado: ${{ steps.escaneo.outputs.resultado }}
     steps:
+      # `ref` explícito y no el SHA del evento: ver la explicación en
+      # preapertura.yml (fallo del 2026-07-28 por checkout rancio en la cola).
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:
