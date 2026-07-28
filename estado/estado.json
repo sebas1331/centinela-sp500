@@ -1,7 +1,68 @@
 {
-  "actualizado": "2026-07-27T18:00:50.091963-04:00",
+  "actualizado": "2026-07-28T08:46:08.519414-04:00",
   "contador_grupo": 10,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 193.9571,
+      "fecha_decision": "2026-07-28",
+      "notas": "prob=0.949 score_fund=76.6 sent=-0.285 (n=10)",
+      "proba": 0.9494,
+      "resistencia": 2280.8,
+      "score_fundamental": 76.6,
+      "sector": "Information Technology",
+      "target_analista": 2217.7727,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-07-28T08:45:05.001371-04:00"
+    },
+    {
+      "atr": 28.3728,
+      "fecha_decision": "2026-07-28",
+      "notas": "prob=0.888 score_fund=54.2 sent=0.185 (n=10)",
+      "proba": 0.888,
+      "resistencia": 399.45,
+      "score_fundamental": 54.2,
+      "sector": "Information Technology",
+      "target_analista": 391.45267,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-07-28T08:45:05.001371-04:00"
+    },
+    {
+      "atr": 14.695,
+      "fecha_decision": "2026-07-28",
+      "notas": "prob=0.888 score_fund=64.8 sent=0.481 (n=10)",
+      "proba": 0.888,
+      "resistencia": 271.78,
+      "score_fundamental": 64.8,
+      "sector": "Information Technology",
+      "target_analista": 215.46667,
+      "ticker": "GLW",
+      "timestamp_escaneo": "2026-07-28T08:45:05.001371-04:00"
+    },
+    {
+      "atr": 72.1639,
+      "fecha_decision": "2026-07-28",
+      "notas": "prob=0.888 score_fund=56.0 sent=0.654 (n=10)",
+      "proba": 0.888,
+      "resistencia": 897.0,
+      "score_fundamental": 56.0,
+      "sector": "Information Technology",
+      "target_analista": 1104.8906,
+      "ticker": "LITE",
+      "timestamp_escaneo": "2026-07-28T08:45:05.001371-04:00"
+    },
+    {
+      "atr": 8.5462,
+      "fecha_decision": "2026-07-28",
+      "notas": "prob=0.886 score_fund=35.0 sent=0.082 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8863,
+      "resistencia": 142.35,
+      "score_fundamental": 35.0,
+      "sector": "Information Technology",
+      "target_analista": 115.65,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-07-28T08:45:05.001371-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -609,8 +670,13 @@
       "cuando": "2026-07-27T18:00:50.091937-04:00",
       "run": "30306239926",
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30306239926"
+    },
+    "preapertura": {
+      "cuando": "2026-07-28T08:46:08.519393-04:00",
+      "run": "30353298186",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30353298186"
     }
   },
   "ultima_postcierre": "2026-07-27",
-  "ultima_preapertura": "2026-07-24"
+  "ultima_preapertura": "2026-07-28"
 }
