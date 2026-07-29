@@ -87,6 +87,11 @@ jobs:
             estado bitacora.csv bitacora.sqlite datos logs reportes
 
   # Segunda opinión INDEPENDIENTE contra el remoto de verdad (ver preapertura.yml).
+  # OJO: depende solo de `postcierre`, no de `mfe` de abajo. El análisis MFE/MAE
+  # es un reporte extra de solo lectura; si falla, la sesión de trading YA está
+  # persistida y verificada por este job exactamente igual que antes de que
+  # existiera el análisis MFE. Un fallo del reporte no puede volver rojo lo que
+  # ya es un éxito real.
   verificar:
     needs: postcierre
     if: always()
@@ -101,3 +106,42 @@ jobs:
           RESULTADO: ${{ needs.postcierre.outputs.resultado }}
           ESTADO_JOB: ${{ needs.postcierre.result }}
         run: bash scripts/verificar_persistencia.sh
+
+  # Análisis MFE/MAE de las posiciones (solo lectura y reporting; no toca
+  # objetivos, stops ni el modelo). Deliberadamente en un JOB APARTE, no como un
+  # paso más del job `postcierre`: si este análisis falla (p.ej. yfinance caído),
+  # NO debe impedir que la persistencia crítica de arriba (bitácora, estado)
+  # quede a salvo. Solo corre si el escaneo de hoy trabajó de verdad
+  # (resultado=procesado); si otro disparo ya procesó la sesión, no tiene sentido
+  # repetir las descargas.
+  mfe:
+    needs: postcierre
+    if: needs.postcierre.result == 'success' && needs.postcierre.outputs.resultado == 'procesado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Análisis MFE/MAE (reporte, no crítico)
+        run: python scripts/analizar_mfe.py
+
+      # Rompe en rojo si no logra guardar, igual que el resto de la persistencia.
+      # Un rojo AQUÍ significa que el reporte no se actualizó, no que se perdió
+      # trabajo de trading: la bitácora y el estado ya están a salvo (job
+      # `postcierre`, verificado por `verificar` arriba, ambos ajenos a este job).
+      - name: Commit y push del reporte MFE/MAE
+        run: |
+          scripts/commit_y_push.sh \
+            "análisis MFE/MAE de posiciones [skip ci]" \
+            "procesado" \
+            reportes
