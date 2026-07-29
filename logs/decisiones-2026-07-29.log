@@ -161,3 +161,9 @@ ZBRA | dd=53.8% | prob=0.549 < umbral -> SIN SEÑAL
 ZBH | dd=42.8% | prob=0.475 < umbral -> SIN SEÑAL
 ZTS | dd=67.4% | prob=0.549 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (5): ['MRVL', 'WDC', 'STX', 'TER', 'AMAT']
+
+===== escaneo postcierre 2026-07-29 18:00:51 ET =====
+POST-CIERRE 2026-07-29
+entradas ejecutadas: ['MRVL', 'WDC', 'STX', 'TER', 'AMAT']
+cambios de objetivo: 29
+cierres: [('ON', 'A', 'stop', -0.12), ('SNDK', 'A', 'stop', -0.12), ('COHR', 'A', 'stop', -0.12), ('LITE', 'A', 'stop', -0.12), ('TER', 'A', 'stop', -0.12)]
