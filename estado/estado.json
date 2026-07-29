@@ -1,7 +1,68 @@
 {
-  "actualizado": "2026-07-28T18:01:08.505999-04:00",
+  "actualizado": "2026-07-29T08:46:20.606950-04:00",
   "contador_grupo": 15,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 19.8982,
+      "fecha_decision": "2026-07-29",
+      "notas": "prob=0.934 score_fund=57.6 sent=0.151 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 299.926,
+      "score_fundamental": 57.6,
+      "sector": "Information Technology",
+      "target_analista": 256.9142,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-07-29T08:45:05.001456-04:00"
+    },
+    {
+      "atr": 52.8046,
+      "fecha_decision": "2026-07-29",
+      "notas": "prob=0.934 score_fund=85.6 sent=-0.042 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 663.98,
+      "score_fundamental": 85.6,
+      "sector": "Information Technology",
+      "target_analista": 655.5,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-07-29T08:45:05.001456-04:00"
+    },
+    {
+      "atr": 78.5266,
+      "fecha_decision": "2026-07-29",
+      "notas": "prob=0.888 score_fund=79.4 sent=0.282 (n=10)",
+      "proba": 0.888,
+      "resistencia": 998.49,
+      "score_fundamental": 79.4,
+      "sector": "Information Technology",
+      "target_analista": 1016.2174,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-07-29T08:45:05.001456-04:00"
+    },
+    {
+      "atr": 31.2754,
+      "fecha_decision": "2026-07-29",
+      "notas": "prob=0.888 score_fund=80.0 sent=0.732 (n=10)",
+      "proba": 0.888,
+      "resistencia": 487.91,
+      "score_fundamental": 80.0,
+      "sector": "Information Technology",
+      "target_analista": 432.375,
+      "ticker": "TER",
+      "timestamp_escaneo": "2026-07-29T08:45:05.001456-04:00"
+    },
+    {
+      "atr": 42.6195,
+      "fecha_decision": "2026-07-29",
+      "notas": "prob=0.886 score_fund=77.0 sent=0.152 (n=10)",
+      "proba": 0.8863,
+      "resistencia": 739.67,
+      "score_fundamental": 77.0,
+      "sector": "Information Technology",
+      "target_analista": 627.65717,
+      "ticker": "AMAT",
+      "timestamp_escaneo": "2026-07-29T08:45:05.001456-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -784,11 +845,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30399802619"
     },
     "preapertura": {
-      "cuando": "2026-07-28T08:46:08.519393-04:00",
-      "run": "30353298186",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30353298186"
+      "cuando": "2026-07-29T08:46:20.606930-04:00",
+      "run": "30444918682",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30444918682"
     }
   },
   "ultima_postcierre": "2026-07-28",
-  "ultima_preapertura": "2026-07-28"
+  "ultima_preapertura": "2026-07-29"
 }
