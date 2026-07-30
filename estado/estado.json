@@ -1,68 +1,7 @@
 {
-  "actualizado": "2026-07-30T08:45:56.007823-04:00",
-  "contador_grupo": 20,
-  "entradas_pendientes": [
-    {
-      "atr": 191.372,
-      "fecha_decision": "2026-07-30",
-      "notas": "prob=1.000 score_fund=78.8 sent=0.157 (n=10)",
-      "proba": 1.0,
-      "resistencia": 2129.98,
-      "score_fundamental": 78.8,
-      "sector": "Information Technology",
-      "target_analista": 2217.7727,
-      "ticker": "SNDK",
-      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
-    },
-    {
-      "atr": 29.0588,
-      "fecha_decision": "2026-07-30",
-      "notas": "prob=0.949 score_fund=54.2 sent=-0.162 (n=10)",
-      "proba": 0.9494,
-      "resistencia": 386.74,
-      "score_fundamental": 54.2,
-      "sector": "Information Technology",
-      "target_analista": 391.45267,
-      "ticker": "COHR",
-      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
-    },
-    {
-      "atr": 73.8098,
-      "fecha_decision": "2026-07-30",
-      "notas": "prob=0.949 score_fund=56.0 sent=0.463 (n=10)",
-      "proba": 0.9494,
-      "resistencia": 897.0,
-      "score_fundamental": 56.0,
-      "sector": "Information Technology",
-      "target_analista": 1104.8906,
-      "ticker": "LITE",
-      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
-    },
-    {
-      "atr": 84.6195,
-      "fecha_decision": "2026-07-30",
-      "notas": "prob=0.934 score_fund=91.8 sent=0.219 (n=10)",
-      "proba": 0.9343,
-      "resistencia": 1096.8314,
-      "score_fundamental": 91.8,
-      "sector": "Information Technology",
-      "target_analista": 1507.381,
-      "ticker": "MU",
-      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
-    },
-    {
-      "atr": 32.83,
-      "fecha_decision": "2026-07-30",
-      "notas": "prob=0.934 score_fund=85.0 sent=0.569 (n=10)",
-      "proba": 0.9343,
-      "resistencia": 463.66,
-      "score_fundamental": 85.0,
-      "sector": "Information Technology",
-      "target_analista": 432.375,
-      "ticker": "TER",
-      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
-    }
-  ],
+  "actualizado": "2026-07-30T18:00:50.918716-04:00",
+  "contador_grupo": 25,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -187,10 +126,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=15.17, resistencia=240.87",
             "objetivo": 152.0983
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=14.95, resistencia=224.01",
+            "objetivo": 151.6506
           }
         ],
         "id": 25,
-        "objetivo": 152.0983,
+        "objetivo": 151.6506,
         "objetivo_inicial": 151.14,
         "portafolio": "A",
         "proba": 0.888,
@@ -220,10 +164,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=8.41, resistencia=135.74",
             "objetivo": 135.74
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=8.69, resistencia=130.74",
+            "objetivo": 130.74
           }
         ],
         "id": 29,
-        "objetivo": 135.74,
+        "objetivo": 130.74,
         "objetivo_inicial": 115.65,
         "portafolio": "A",
         "proba": 0.8863,
@@ -248,10 +197,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=19.54, resistencia=292.43",
             "objetivo": 213.1024
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=19.64, resistencia=274.88",
+            "objetivo": 274.8822
           }
         ],
         "id": 31,
-        "objetivo": 213.1024,
+        "objetivo": 274.8822,
         "objetivo_inicial": 256.9142,
         "portafolio": "A",
         "proba": 0.9343,
@@ -276,10 +230,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=52.07, resistencia=617.39",
             "objetivo": 617.39
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=54.42, resistencia=609.47",
+            "objetivo": 609.47
           }
         ],
         "id": 33,
-        "objetivo": 617.39,
+        "objetivo": 609.47,
         "objetivo_inicial": 663.98,
         "portafolio": "A",
         "proba": 0.9343,
@@ -304,10 +263,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=77.75, resistencia=937.54",
             "objetivo": 942.3522
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=81.97, resistencia=937.54",
+            "objetivo": 950.7806
           }
         ],
         "id": 35,
-        "objetivo": 942.3522,
+        "objetivo": 950.7806,
         "objetivo_inicial": 1016.2174,
         "portafolio": "A",
         "proba": 0.888,
@@ -332,10 +296,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=42.44, resistencia=693.78",
             "objetivo": 693.78
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=44.55, resistencia=657.00",
+            "objetivo": 657.0
           }
         ],
         "id": 39,
-        "objetivo": 693.78,
+        "objetivo": 657.0,
         "objetivo_inicial": 627.6572,
         "portafolio": "A",
         "proba": 0.8863,
@@ -343,6 +312,141 @@
         "sector": "Information Technology",
         "stop": 407.8096,
         "ticker": "AMAT"
+      },
+      {
+        "atr_entrada": 191.372,
+        "dia_limite": "2026-08-12",
+        "entrada": 1135.665,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 21,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 2217.7727
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=196.95, resistencia=2052.54",
+            "objetivo": 2052.54
+          }
+        ],
+        "id": 41,
+        "objetivo": 2052.54,
+        "objetivo_inicial": 2217.7727,
+        "portafolio": "A",
+        "proba": 1.0,
+        "score_fundamental": 78.8,
+        "sector": "Information Technology",
+        "stop": 999.3852,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 29.0588,
+        "dia_limite": "2026-08-12",
+        "entrada": 243.395,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 22,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 391.4527
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=29.02, resistencia=371.75",
+            "objetivo": 371.75
+          }
+        ],
+        "id": 43,
+        "objetivo": 371.75,
+        "objetivo_inicial": 391.4527,
+        "portafolio": "A",
+        "proba": 0.9494,
+        "score_fundamental": 54.2,
+        "sector": "Information Technology",
+        "stop": 214.1876,
+        "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 73.8098,
+        "dia_limite": "2026-08-12",
+        "entrada": 660.8,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 23,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 897.0
+          }
+        ],
+        "id": 45,
+        "objetivo": 897.0,
+        "objetivo_inicial": 897.0,
+        "portafolio": "A",
+        "proba": 0.9494,
+        "score_fundamental": 56.0,
+        "sector": "Information Technology",
+        "stop": 581.504,
+        "ticker": "LITE"
+      },
+      {
+        "atr_entrada": 84.6195,
+        "dia_limite": "2026-08-12",
+        "entrada": 793.135,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 24,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 1096.8314
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=88.82, resistencia=1064.48",
+            "objetivo": 1064.4763
+          }
+        ],
+        "id": 47,
+        "objetivo": 1064.4763,
+        "objetivo_inicial": 1096.8314,
+        "portafolio": "A",
+        "proba": 0.9343,
+        "score_fundamental": 91.8,
+        "sector": "Information Technology",
+        "stop": 697.9588,
+        "ticker": "MU"
+      },
+      {
+        "atr_entrada": 32.83,
+        "dia_limite": "2026-08-12",
+        "entrada": 347.9,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 25,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 463.66
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=34.03, resistencia=429.74",
+            "objetivo": 429.74
+          }
+        ],
+        "id": 49,
+        "objetivo": 429.74,
+        "objetivo_inicial": 463.66,
+        "portafolio": "A",
+        "proba": 0.9343,
+        "score_fundamental": 85.0,
+        "sector": "Information Technology",
+        "stop": 306.152,
+        "ticker": "TER"
       }
     ],
     "B": [
@@ -372,10 +476,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=191.37, resistencia=2129.98",
             "objetivo": 2129.98
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=196.95, resistencia=2052.54",
+            "objetivo": 2052.54
           }
         ],
         "id": 2,
-        "objetivo": 2129.98,
+        "objetivo": 2052.54,
         "objetivo_inicial": 2354.3899,
         "portafolio": "B",
         "proba": 0.9494,
@@ -430,10 +539,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=15.17, resistencia=240.87",
             "objetivo": 240.87
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=14.95, resistencia=224.01",
+            "objetivo": 224.01
           }
         ],
         "id": 4,
-        "objetivo": 240.87,
+        "objetivo": 224.01,
         "objetivo_inicial": 214.0667,
         "portafolio": "B",
         "proba": 0.9343,
@@ -463,10 +577,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=19.54, resistencia=292.43",
             "objetivo": 292.4278
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=19.64, resistencia=274.88",
+            "objetivo": 274.8822
           }
         ],
         "id": 6,
-        "objetivo": 292.4278,
+        "objetivo": 274.8822,
         "objetivo_inicial": 314.0925,
         "portafolio": "B",
         "proba": 0.9343,
@@ -501,10 +620,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=52.07, resistencia=617.39",
             "objetivo": 633.9129
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=54.42, resistencia=609.47",
+            "objetivo": 638.612
           }
         ],
         "id": 8,
-        "objetivo": 633.9129,
+        "objetivo": 638.612,
         "objetivo_inicial": 779.8,
         "portafolio": "B",
         "proba": 0.9343,
@@ -539,10 +663,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=29.06, resistencia=386.74",
             "objetivo": 386.74
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=29.02, resistencia=371.75",
+            "objetivo": 371.75
           }
         ],
         "id": 10,
-        "objetivo": 386.74,
+        "objetivo": 371.75,
         "objetivo_inicial": 439.68,
         "portafolio": "B",
         "proba": 0.888,
@@ -754,10 +883,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=16.42, resistencia=290.84",
             "objetivo": 290.84
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=16.43, resistencia=267.33",
+            "objetivo": 267.33
           }
         ],
         "id": 20,
-        "objetivo": 290.84,
+        "objetivo": 267.33,
         "objetivo_inicial": 307.37,
         "portafolio": "B",
         "proba": 0.8438,
@@ -782,10 +916,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=191.37, resistencia=2129.98",
             "objetivo": 2129.98
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=196.95, resistencia=2052.54",
+            "objetivo": 2052.54
           }
         ],
         "id": 22,
-        "objetivo": 2129.98,
+        "objetivo": 2052.54,
         "objetivo_inicial": 2280.8,
         "portafolio": "B",
         "proba": 0.9494,
@@ -810,10 +949,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=29.06, resistencia=386.74",
             "objetivo": 386.74
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=29.02, resistencia=371.75",
+            "objetivo": 371.75
           }
         ],
         "id": 24,
-        "objetivo": 386.74,
+        "objetivo": 371.75,
         "objetivo_inicial": 399.45,
         "portafolio": "B",
         "proba": 0.888,
@@ -843,10 +987,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=15.17, resistencia=240.87",
             "objetivo": 152.0983
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=14.95, resistencia=224.01",
+            "objetivo": 151.6506
           }
         ],
         "id": 26,
-        "objetivo": 152.0983,
+        "objetivo": 151.6506,
         "objetivo_inicial": 151.14,
         "portafolio": "B",
         "proba": 0.888,
@@ -904,10 +1053,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=8.41, resistencia=135.74",
             "objetivo": 135.74
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=8.69, resistencia=130.74",
+            "objetivo": 130.74
           }
         ],
         "id": 30,
-        "objetivo": 135.74,
+        "objetivo": 130.74,
         "objetivo_inicial": 115.65,
         "portafolio": "B",
         "proba": 0.8863,
@@ -932,10 +1086,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=19.54, resistencia=292.43",
             "objetivo": 213.1024
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=19.64, resistencia=274.88",
+            "objetivo": 274.8822
           }
         ],
         "id": 32,
-        "objetivo": 213.1024,
+        "objetivo": 274.8822,
         "objetivo_inicial": 256.9142,
         "portafolio": "B",
         "proba": 0.9343,
@@ -960,10 +1119,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=52.07, resistencia=617.39",
             "objetivo": 617.39
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=54.42, resistencia=609.47",
+            "objetivo": 609.47
           }
         ],
         "id": 34,
-        "objetivo": 617.39,
+        "objetivo": 609.47,
         "objetivo_inicial": 663.98,
         "portafolio": "B",
         "proba": 0.9343,
@@ -988,10 +1152,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=77.75, resistencia=937.54",
             "objetivo": 942.3522
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=81.97, resistencia=937.54",
+            "objetivo": 950.7806
           }
         ],
         "id": 36,
-        "objetivo": 942.3522,
+        "objetivo": 950.7806,
         "objetivo_inicial": 1016.2174,
         "portafolio": "B",
         "proba": 0.888,
@@ -1016,10 +1185,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=32.83, resistencia=463.66",
             "objetivo": 463.66
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=34.03, resistencia=429.74",
+            "objetivo": 435.9493
           }
         ],
         "id": 38,
-        "objetivo": 463.66,
+        "objetivo": 435.9493,
         "objetivo_inicial": 487.91,
         "portafolio": "B",
         "proba": 0.888,
@@ -1044,10 +1218,15 @@
             "fecha": "2026-07-29",
             "motivo": "recálculo: ATR=42.44, resistencia=693.78",
             "objetivo": 693.78
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=44.55, resistencia=657.00",
+            "objetivo": 657.0
           }
         ],
         "id": 40,
-        "objetivo": 693.78,
+        "objetivo": 657.0,
         "objetivo_inicial": 627.6572,
         "portafolio": "B",
         "proba": 0.8863,
@@ -1055,14 +1234,149 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "AMAT"
+      },
+      {
+        "atr_entrada": 191.372,
+        "dia_limite": "2026-08-12",
+        "entrada": 1135.665,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 21,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 2217.7727
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=196.95, resistencia=2052.54",
+            "objetivo": 2052.54
+          }
+        ],
+        "id": 42,
+        "objetivo": 2052.54,
+        "objetivo_inicial": 2217.7727,
+        "portafolio": "B",
+        "proba": 1.0,
+        "score_fundamental": 78.8,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 29.0588,
+        "dia_limite": "2026-08-12",
+        "entrada": 243.395,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 22,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 391.4527
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=29.02, resistencia=371.75",
+            "objetivo": 371.75
+          }
+        ],
+        "id": 44,
+        "objetivo": 371.75,
+        "objetivo_inicial": 391.4527,
+        "portafolio": "B",
+        "proba": 0.9494,
+        "score_fundamental": 54.2,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 73.8098,
+        "dia_limite": "2026-08-12",
+        "entrada": 660.8,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 23,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 897.0
+          }
+        ],
+        "id": 46,
+        "objetivo": 897.0,
+        "objetivo_inicial": 897.0,
+        "portafolio": "B",
+        "proba": 0.9494,
+        "score_fundamental": 56.0,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "LITE"
+      },
+      {
+        "atr_entrada": 84.6195,
+        "dia_limite": "2026-08-12",
+        "entrada": 793.135,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 24,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 1096.8314
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=88.82, resistencia=1064.48",
+            "objetivo": 1064.4763
+          }
+        ],
+        "id": 48,
+        "objetivo": 1064.4763,
+        "objetivo_inicial": 1096.8314,
+        "portafolio": "B",
+        "proba": 0.9343,
+        "score_fundamental": 91.8,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "MU"
+      },
+      {
+        "atr_entrada": 32.83,
+        "dia_limite": "2026-08-12",
+        "entrada": 347.9,
+        "fecha_entrada": "2026-07-30",
+        "grupo": 25,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-07-30",
+            "motivo": "objetivo inicial",
+            "objetivo": 463.66
+          },
+          {
+            "fecha": "2026-07-30",
+            "motivo": "recálculo: ATR=34.03, resistencia=429.74",
+            "objetivo": 429.74
+          }
+        ],
+        "id": 50,
+        "objetivo": 429.74,
+        "objetivo_inicial": 463.66,
+        "portafolio": "B",
+        "proba": 0.9343,
+        "score_fundamental": 85.0,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "TER"
       }
     ]
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-07-29T18:00:51.815604-04:00",
-      "run": "30490862704",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30490862704"
+      "cuando": "2026-07-30T18:00:50.918696-04:00",
+      "run": "30582777302",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30582777302"
     },
     "preapertura": {
       "cuando": "2026-07-30T08:45:56.007803-04:00",
@@ -1070,6 +1384,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30536433780"
     }
   },
-  "ultima_postcierre": "2026-07-29",
+  "ultima_postcierre": "2026-07-30",
   "ultima_preapertura": "2026-07-30"
 }
