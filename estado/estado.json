@@ -1,7 +1,68 @@
 {
-  "actualizado": "2026-07-29T18:00:51.815625-04:00",
+  "actualizado": "2026-07-30T08:45:56.007823-04:00",
   "contador_grupo": 20,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 191.372,
+      "fecha_decision": "2026-07-30",
+      "notas": "prob=1.000 score_fund=78.8 sent=0.157 (n=10)",
+      "proba": 1.0,
+      "resistencia": 2129.98,
+      "score_fundamental": 78.8,
+      "sector": "Information Technology",
+      "target_analista": 2217.7727,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
+    },
+    {
+      "atr": 29.0588,
+      "fecha_decision": "2026-07-30",
+      "notas": "prob=0.949 score_fund=54.2 sent=-0.162 (n=10)",
+      "proba": 0.9494,
+      "resistencia": 386.74,
+      "score_fundamental": 54.2,
+      "sector": "Information Technology",
+      "target_analista": 391.45267,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
+    },
+    {
+      "atr": 73.8098,
+      "fecha_decision": "2026-07-30",
+      "notas": "prob=0.949 score_fund=56.0 sent=0.463 (n=10)",
+      "proba": 0.9494,
+      "resistencia": 897.0,
+      "score_fundamental": 56.0,
+      "sector": "Information Technology",
+      "target_analista": 1104.8906,
+      "ticker": "LITE",
+      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
+    },
+    {
+      "atr": 84.6195,
+      "fecha_decision": "2026-07-30",
+      "notas": "prob=0.934 score_fund=91.8 sent=0.219 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 1096.8314,
+      "score_fundamental": 91.8,
+      "sector": "Information Technology",
+      "target_analista": 1507.381,
+      "ticker": "MU",
+      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
+    },
+    {
+      "atr": 32.83,
+      "fecha_decision": "2026-07-30",
+      "notas": "prob=0.934 score_fund=85.0 sent=0.569 (n=10)",
+      "proba": 0.9343,
+      "resistencia": 463.66,
+      "score_fundamental": 85.0,
+      "sector": "Information Technology",
+      "target_analista": 432.375,
+      "ticker": "TER",
+      "timestamp_escaneo": "2026-07-30T08:45:05.001585-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1004,11 +1065,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30490862704"
     },
     "preapertura": {
-      "cuando": "2026-07-29T08:46:20.606930-04:00",
-      "run": "30444918682",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30444918682"
+      "cuando": "2026-07-30T08:45:56.007803-04:00",
+      "run": "30536433780",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30536433780"
     }
   },
   "ultima_postcierre": "2026-07-29",
-  "ultima_preapertura": "2026-07-29"
+  "ultima_preapertura": "2026-07-30"
 }
