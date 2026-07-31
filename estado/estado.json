@@ -1,7 +1,68 @@
 {
-  "actualizado": "2026-07-30T18:00:50.918716-04:00",
+  "actualizado": "2026-07-31T08:46:23.210072-04:00",
   "contador_grupo": 25,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 27.769,
+      "fecha_decision": "2026-07-31",
+      "notas": "prob=0.888 score_fund=80.0 sent=0.541 (n=10)",
+      "proba": 0.888,
+      "resistencia": 392.5,
+      "score_fundamental": 80.0,
+      "sector": "Information Technology",
+      "target_analista": 368.3871,
+      "ticker": "LRCX",
+      "timestamp_escaneo": "2026-07-31T08:45:04.988776-04:00"
+    },
+    {
+      "atr": 21.4136,
+      "fecha_decision": "2026-07-31",
+      "notas": "prob=0.888 score_fund=80.0 sent=0.487 (n=10)",
+      "proba": 0.888,
+      "resistencia": 338.88,
+      "score_fundamental": 80.0,
+      "sector": "Industrials",
+      "target_analista": 344.19232,
+      "ticker": "VRT",
+      "timestamp_escaneo": "2026-07-31T08:45:04.988776-04:00"
+    },
+    {
+      "atr": 31.631,
+      "fecha_decision": "2026-07-31",
+      "notas": "prob=0.886 score_fund=60.0 sent=0.307 (n=10)",
+      "proba": 0.8863,
+      "resistencia": 485.69,
+      "score_fundamental": 60.0,
+      "sector": "Information Technology",
+      "target_analista": 565.7067,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-07-31T08:45:04.988776-04:00"
+    },
+    {
+      "atr": 16.4349,
+      "fecha_decision": "2026-07-31",
+      "notas": "prob=0.886 score_fund=79.2 sent=0.406 (n=10)",
+      "proba": 0.8863,
+      "resistencia": 267.33,
+      "score_fundamental": 79.2,
+      "sector": "Information Technology",
+      "target_analista": 228.5893,
+      "ticker": "KLAC",
+      "timestamp_escaneo": "2026-07-31T08:45:04.988776-04:00"
+    },
+    {
+      "atr": 9.7227,
+      "fecha_decision": "2026-07-31",
+      "notas": "prob=0.866 score_fund=54.1 sent=0.591 (n=10)",
+      "proba": 0.8655,
+      "resistencia": 152.98,
+      "score_fundamental": 54.1,
+      "sector": "Information Technology",
+      "target_analista": 160.5,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-07-31T08:45:04.988776-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1379,11 +1440,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30582777302"
     },
     "preapertura": {
-      "cuando": "2026-07-30T08:45:56.007803-04:00",
-      "run": "30536433780",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30536433780"
+      "cuando": "2026-07-31T08:46:23.210050-04:00",
+      "run": "30624700737",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30624700737"
     }
   },
   "ultima_postcierre": "2026-07-30",
-  "ultima_preapertura": "2026-07-30"
+  "ultima_preapertura": "2026-07-31"
 }
