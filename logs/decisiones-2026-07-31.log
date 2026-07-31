@@ -171,3 +171,9 @@ ZBRA | dd=53.1% | prob=0.544 < umbral -> SIN SEÑAL
 ZBH | dd=43.3% | prob=0.412 < umbral -> SIN SEÑAL
 ZTS | dd=68.0% | prob=0.544 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (5): ['LRCX', 'VRT', 'CIEN', 'KLAC', 'FLEX']
+
+===== escaneo postcierre 2026-07-31 18:00:48 ET =====
+POST-CIERRE 2026-07-31
+entradas ejecutadas: ['LRCX', 'VRT', 'CIEN', 'KLAC', 'FLEX']
+cambios de objetivo: 41
+cierres: []
