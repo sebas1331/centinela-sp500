@@ -133,3 +133,8 @@ cron EDT/EST, `--forzar` y chequeo de calendario bursátil, intactos.
 
 _A partir de aquí, cada reentrenamiento mensual y cualquier ajuste quedará
 registrado debajo con su evidencia._
+## 2026-08-02 — Reentrenamiento mensual
+- Datos: 232,566 eventos, hasta 2026-07-17.
+- Precisión walk-forward (fresca): 80.2% (señales=14332).
+- Operaciones cerradas nuevas desde 2026-07-18: 12.
+- Umbral SIN cambios (0.79). Regla dura: se requieren ≥30 cierres nuevos y evidencia. Solo se re-ajustaron los pesos con datos nuevos.
