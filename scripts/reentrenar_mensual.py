@@ -29,22 +29,38 @@ import entrenar_inicial as ei  # reutiliza helpers ya probados  # noqa: E402
 
 
 def actualizar_historico_incremental(tickers):
-    """Actualiza el histórico completo por ticker (append de datos recientes)."""
+    """Actualiza el histórico completo por ticker (append de datos recientes).
+
+    Requiere una base cacheada (.cache/historico/<ticker>.parquet) para poder
+    anexar solo lo reciente. Si la caché está fría para un ticker (runner nuevo,
+    caché de Actions con historico/ nunca guardado, ticker recién añadido al
+    índice, etc.) NO hay base sobre la que anexar: en ese caso se descarga el
+    histórico COMPLETO (period="max", vía ei.descargar_historico) para ese
+    ticker en vez de escribir solo los últimos ~30 días. Escribir un parquet de
+    ~30 días como si fuera el histórico completo lo dejaría permanentemente
+    truncado (el siguiente run lo leería como "ya cacheado" y nunca se
+    recuperaría) y vació el dataset de entrenamiento por completo el
+    2026-08-01 (ver CHANGELOG).
+    """
     hist = {}
+    sin_base = [t for t in tickers if not (ei.DIR_HIST / f"{t}.parquet").exists()]
+    if sin_base:
+        ei._log(f"  {len(sin_base)} tickers sin histórico base cacheado: descarga completa (period=max)")
+        hist.update(ei.descargar_historico(sin_base))
+
+    con_base = [t for t in tickers if t not in hist]
     hoy = pd.Timestamp(datetime.now(config.TZ_ET).date())
-    for i in range(0, len(tickers), config.LOTE_DESCARGA):
-        grupo = tickers[i:i + config.LOTE_DESCARGA]
-        # descargamos solo lo reciente (últimos ~30 días) y lo anexamos
+    for i in range(0, len(con_base), config.LOTE_DESCARGA):
+        grupo = con_base[i:i + config.LOTE_DESCARGA]
+        # ya tienen base completa cacheada: solo anexamos lo reciente (~30 días)
         recientes = datos.descargar(grupo, start=(hoy - pd.Timedelta(days=30)).strftime("%Y-%m-%d"),
                                     end=(hoy + pd.Timedelta(days=1)).strftime("%Y-%m-%d"))
         for t in grupo:
             ruta = ei.DIR_HIST / f"{t}.parquet"
-            base = None
-            if ruta.exists():
-                try:
-                    base = pd.read_parquet(ruta); base.index = pd.to_datetime(base.index)
-                except Exception:  # noqa: BLE001
-                    base = None
+            try:
+                base = pd.read_parquet(ruta); base.index = pd.to_datetime(base.index)
+            except Exception:  # noqa: BLE001
+                base = None
             fresco = recientes.get(t)
             if base is not None and fresco is not None:
                 comb = pd.concat([base, fresco])
@@ -57,7 +73,7 @@ def actualizar_historico_incremental(tickers):
                 continue
             comb.to_parquet(ruta)
             hist[t] = comb
-        ei._log(f"  histórico actualizado {min(i+config.LOTE_DESCARGA, len(tickers))}/{len(tickers)}")
+        ei._log(f"  histórico actualizado {min(i+config.LOTE_DESCARGA, len(con_base))}/{len(con_base)}")
     return hist
 
 
@@ -79,14 +95,26 @@ def main():
     tickers = universo.tickers_sp500()
     ei._log(f"reentreno mensual: {len(tickers)} tickers")
     hist = actualizar_historico_incremental(tickers)
-    # completa con lo que hubiera solo en caché (por si algún lote falló)
-    hist = {**ei.descargar_historico(tickers), **hist}
+    # rellena SOLO los tickers que ni tuvieran base ni descarga reciente (p.ej.
+    # un lote falló por red): no reemplaza lo que ya se obtuvo arriba.
+    faltantes = [t for t in tickers if t not in hist]
+    if faltantes:
+        hist.update(ei.descargar_historico(faltantes))
     ei.calcular_ath_desde_hist(hist)
 
     corte = pd.Timestamp(datetime.now(config.TZ_ET).date()) - pd.DateOffset(years=args.anios)
     hist_rec = {t: df[df.index >= corte] for t, df in hist.items()}
     ds = etiquetado.construir_dataset(hist_rec, solo_drawdown=True)
     ei._log(f"dataset: {len(ds)} filas | positivos={ds['y'].mean():.1%}")
+    if len(ds) < 1000:
+        raise RuntimeError(
+            f"dataset de reentrenamiento sospechosamente pequeño ({len(ds)} filas, "
+            f"se esperan decenas de miles con {args.anios} años x {len(tickers)} tickers). "
+            "Causa probable: histórico truncado (caché fría o corrupta en "
+            ".cache/historico/ — revisar actualizar_historico_incremental) o "
+            "universo de tickers vacío/incorrecto. Abortando en vez de entrenar "
+            "con datos incompletos."
+        )
 
     modelo_actual = Modelo.cargar()
     tipo = modelo_actual.tipo
