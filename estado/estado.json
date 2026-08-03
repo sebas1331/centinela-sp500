@@ -1,7 +1,32 @@
 {
-  "actualizado": "2026-07-31T18:00:48.311580-04:00",
+  "actualizado": "2026-08-03T08:45:56.907144-04:00",
   "contador_grupo": 30,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 10.6792,
+      "fecha_decision": "2026-08-03",
+      "notas": "prob=0.805 score_fund=15.8 sent=0.297 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8047,
+      "resistencia": 181.49,
+      "score_fundamental": 15.8,
+      "sector": "Financials",
+      "target_analista": 201.45068,
+      "ticker": "COIN",
+      "timestamp_escaneo": "2026-08-03T08:45:05.001819-04:00"
+    },
+    {
+      "atr": 6.2245,
+      "fecha_decision": "2026-08-03",
+      "notas": "prob=0.805 score_fund=53.1 sent=0.282 (n=10)",
+      "proba": 0.8047,
+      "resistencia": 102.64,
+      "score_fundamental": 53.1,
+      "sector": "Information Technology",
+      "target_analista": 113.12,
+      "ticker": "ON",
+      "timestamp_escaneo": "2026-08-03T08:45:05.001819-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1814,11 +1839,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30665793723"
     },
     "preapertura": {
-      "cuando": "2026-07-31T08:46:23.210050-04:00",
-      "run": "30624700737",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30624700737"
+      "cuando": "2026-08-03T08:45:56.907119-04:00",
+      "run": "30810074281",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30810074281"
     }
   },
   "ultima_postcierre": "2026-07-31",
-  "ultima_preapertura": "2026-07-31"
+  "ultima_preapertura": "2026-08-03"
 }
