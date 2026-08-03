@@ -170,3 +170,9 @@ ZBRA | dd=52.2% | prob=0.535 < umbral -> SIN SEÑAL
 ZBH | dd=43.9% | prob=0.467 < umbral -> SIN SEÑAL
 ZTS | dd=67.2% | prob=0.546 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (2): ['COIN', 'ON']
+
+===== escaneo postcierre 2026-08-03 18:00:44 ET =====
+POST-CIERRE 2026-08-03
+entradas ejecutadas: ['COIN', 'ON']
+cambios de objetivo: 26
+cierres: [('LRCX', 'A', 'stop', -0.12), ('SNDK', 'B', 'tiempo', -0.1471), ('GLW', 'B', 'tiempo', -0.0909), ('MRVL', 'B', 'tiempo', -0.0573), ('WDC', 'B', 'tiempo', -0.0048), ('COHR', 'B', 'tiempo', -0.0622)]
