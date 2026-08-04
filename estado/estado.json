@@ -1,7 +1,20 @@
 {
-  "actualizado": "2026-08-03T18:00:44.679944-04:00",
+  "actualizado": "2026-08-04T08:46:01.589501-04:00",
   "contador_grupo": 32,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 26.9966,
+      "fecha_decision": "2026-08-04",
+      "notas": "prob=0.881 score_fund=80.0 sent=0.227 (n=10)",
+      "proba": 0.8813,
+      "resistencia": 369.95,
+      "score_fundamental": 80.0,
+      "sector": "Information Technology",
+      "target_analista": 368.12903,
+      "ticker": "LRCX",
+      "timestamp_escaneo": "2026-08-04T08:45:05.001372-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1733,11 +1746,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30853568867"
     },
     "preapertura": {
-      "cuando": "2026-08-03T08:45:56.907119-04:00",
-      "run": "30810074281",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30810074281"
+      "cuando": "2026-08-04T08:46:01.589482-04:00",
+      "run": "30901985710",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30901985710"
     }
   },
   "ultima_postcierre": "2026-08-03",
-  "ultima_preapertura": "2026-08-03"
+  "ultima_preapertura": "2026-08-04"
 }
