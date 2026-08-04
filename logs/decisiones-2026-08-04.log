@@ -160,3 +160,9 @@ ZBRA | dd=52.6% | prob=0.546 < umbral -> SIN SEÑAL
 ZBH | dd=42.1% | prob=0.474 < umbral -> SIN SEÑAL
 ZTS | dd=67.3% | prob=0.551 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (1): ['LRCX']
+
+===== escaneo postcierre 2026-08-04 18:01:09 ET =====
+POST-CIERRE 2026-08-04
+entradas ejecutadas: ['LRCX']
+cambios de objetivo: 9
+cierres: [('SMCI', 'A', 'tiempo', 0.0954), ('MRNA', 'A', 'tiempo', -0.0401), ('CIEN', 'B', 'tiempo', 0.0357), ('ON', 'B', 'tiempo', -0.1014), ('SMCI', 'B', 'tiempo', 0.0954), ('MRNA', 'B', 'tiempo', -0.0401)]
