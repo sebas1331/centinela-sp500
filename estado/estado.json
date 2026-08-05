@@ -1,7 +1,20 @@
 {
-  "actualizado": "2026-08-04T18:01:09.542591-04:00",
+  "actualizado": "2026-08-05T08:45:51.388231-04:00",
   "contador_grupo": 33,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 2.4312,
+      "fecha_decision": "2026-08-05",
+      "notas": "prob=0.805 score_fund=56.2 sent=0.5 (n=10)",
+      "proba": 0.8047,
+      "resistencia": 32.59,
+      "score_fundamental": 56.2,
+      "sector": "Information Technology",
+      "target_analista": 37.8125,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-08-05T08:45:03.290088-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1476,11 +1489,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30951775123"
     },
     "preapertura": {
-      "cuando": "2026-08-04T08:46:01.589482-04:00",
-      "run": "30901985710",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/30901985710"
+      "cuando": "2026-08-05T08:45:51.388210-04:00",
+      "run": "31000179767",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31000179767"
     }
   },
   "ultima_postcierre": "2026-08-04",
-  "ultima_preapertura": "2026-08-04"
+  "ultima_preapertura": "2026-08-05"
 }
