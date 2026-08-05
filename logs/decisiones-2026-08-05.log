@@ -149,3 +149,9 @@ ZBRA | dd=40.0% | prob=0.600 < umbral -> SIN SEÑAL
 ZBH | dd=42.8% | prob=0.476 < umbral -> SIN SEÑAL
 ZTS | dd=67.8% | prob=0.535 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (1): ['SMCI']
+
+===== escaneo postcierre 2026-08-05 18:00:48 ET =====
+POST-CIERRE 2026-08-05
+entradas ejecutadas: ['SMCI']
+cambios de objetivo: 10
+cierres: [('COHR', 'A', 'objetivo', 0.4284), ('KLAC', 'B', 'tiempo', -0.0963), ('COHR', 'B', 'objetivo', 0.3513), ('COHR', 'B', 'objetivo', 0.4284)]
