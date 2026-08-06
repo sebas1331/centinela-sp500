@@ -81,6 +81,10 @@ def escanear(precios: dict, modelo, ath_dict: dict | None = None,
         nota = (f"prob={prob:.3f} score_fund={score_f} sent={sent['score']} "
                 f"(n={sent['n']}){etiqueta_exc}")
         decisiones.append({
+            # `dd` viaja solo para poder escribirlo en el log cuando una
+            # candidata se descarta por duplicado. No interviene en ninguna
+            # decisión: el filtro de drawdown ya se aplicó más arriba.
+            "dd": round(dd, 6),
             "ticker": ticker, "proba": round(prob, 4),
             "score_fundamental": score_f, "atr": round(atr, 4),
             "resistencia": round(resistencia, 4) if resistencia else None,

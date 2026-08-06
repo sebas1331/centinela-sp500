@@ -5,6 +5,140 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-08-06 — BUG: posiciones duplicadas del mismo ticker en una cartera (v0.4.0)
+
+**Corrección del simulador y de su reporting. No se tocó el modelo, el umbral
+(0.79), las features, los objetivos, el stop ni el backtest.**
+
+> **Las estadísticas anteriores a esta corrección están sesgadas por entradas
+> duplicadas.** Afecta casi por completo a la Cartera B y a toda comparativa
+> A vs B calculada antes del 2026-08-06.
+
+### El bug
+
+`simulador.tickers_ocupados()` decidía qué tickers ya estaban en cartera mirando
+**siempre las posiciones de la cartera A**, también cuando la pregunta era sobre
+la B:
+
+```python
+ocup = {p["ticker"] for p in estado["posiciones"].get("A", [])}   # ← siempre "A"
+```
+
+Cada entrada abre posición en A y en B a la vez. A cierra pronto —13 de 16
+cerradas fueron por stop, media de 4.75 días hábiles— mientras B, que no tiene
+stop, aguanta los 10 días completos —10 de 12 salidas por tiempo, media de 9.33
+días—. Así que en cuanto un ticker volvía a dar señal, el filtro veía el hueco
+libre de A, daba la entrada por buena y abría una **segunda posición en B encima
+de la primera, que seguía viva**.
+
+Por eso el fallo es **asimétrico por construcción**: 13 duplicados, los 13 en B y
+ninguno en A.
+
+### Casos afectados (13 entradas, todas en Cartera B)
+
+| Ticker | id duplicado | Entró | Ya abierta desde |
+|---|---|---|---|
+| COHR | 24 | 2026-07-28 | id10 (2026-07-21) |
+| COHR | 44 | 2026-07-30 | id10 y id24 |
+| SNDK | 22 | 2026-07-28 | id2 (2026-07-21) |
+| SNDK | 42 | 2026-07-30 | id2 y id22 |
+| GLW | 26 | 2026-07-28 | id4 (2026-07-21) |
+| MRVL | 32 | 2026-07-29 | id6 (2026-07-21) |
+| WDC | 34 | 2026-07-29 | id8 (2026-07-21) |
+| LITE | 46 | 2026-07-30 | id28 (2026-07-28) |
+| TER | 50 | 2026-07-30 | id38 (2026-07-29) |
+| CIEN | 56 | 2026-07-31 | id12 (2026-07-22) |
+| KLAC | 58 | 2026-07-31 | id20 (2026-07-23) |
+| ON | 64 | 2026-08-03 | id14 (2026-07-22) |
+| LRCX | 66 | 2026-08-04 | id52 (2026-07-31) |
+
+### Cuánto de la ventaja de B era el bug
+
+Solo dos duplicados han cerrado ya, y los dos fueron COHR/B (+35.13% y +42.84%).
+Bastan para dar la vuelta al resultado de la cartera:
+
+| Cartera B | Con duplicados | Sin duplicados |
+|---|---|---|
+| P&L realizado | **+31.05%** | **−46.91%** |
+| P&L total (con abiertas) | +254.39% | +45.22% |
+| Operaciones cerradas | 12 | 10 |
+| Win rate | 33.3% | 20.0% |
+| Expectancy | +2.59% | −4.69% |
+| Profit factor | 1.52 | **0.22** |
+
+La Cartera A no cambia (no tiene ni un duplicado): realizado −108.08%, win rate
+12.5%, profit factor 0.33.
+
+Es decir: **B seguía batiendo a A en P&L, pero no era rentable, y por profit
+factor pasa a ser PEOR que A** (0.22 frente a 0.33). El "B supera a A" del
+backtest no queda refutado por esto —son cosas distintas—, pero la evidencia
+en vivo que parecía respaldarlo era, en su mayor parte, el bug.
+
+### El arreglo
+
+- `tickers_ocupados(estado, cartera)` recibe ahora **la cartera** y mira sus
+  propias posiciones. Es la línea que causaba todo.
+- `registrar_decisiones_entrada()` calcula la ocupación de A y de B por separado
+  y guarda en la entrada pendiente el campo **`carteras`** con aquellas en las
+  que sí puede ejecutarse. `ejecutar_entradas_pendientes()` lo respeta y solo
+  abre ahí. Las pendientes escritas antes de este cambio no traen el campo y
+  siguen valiendo para las dos, así que un estado antiguo no rompe nada.
+- Las candidatas frenadas quedan **en el log del día**, con su drawdown y su
+  probabilidad:
+
+  ```
+  SNDK | dd=46.5% | prob=0.951 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+  COHR | dd=61.3% | prob=0.795 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
+  ```
+
+  Antes, una candidata con señal que no entraba simplemente desaparecía del
+  registro y era indistinguible de una que nunca la tuvo.
+- `screener` añade `dd` a la candidata. Es un campo **informativo** para poder
+  escribir esa línea; no interviene en ninguna decisión.
+
+**Compensación que este diseño acepta a conciencia:** la regla es por cartera,
+así que un ticker puede entrar en A y no en B. Eso rompe el emparejamiento
+perfecto A/B en esos casos concretos, y la comparativa deja de ser "las mismas
+entradas con stop y sin stop". La alternativa —bloquear en las dos si está
+ocupada en una— mantendría el emparejamiento pero haría que la cartera B, que
+retiene más tiempo, le robase entradas legítimas a la A. Se eligió lo primero
+porque distorsiona menos el comportamiento de cada cartera por separado, pero
+conviene tenerlo presente al leer la comparativa a partir de ahora.
+
+### Las duplicadas históricas NO se borran
+
+Siguen en la bitácora tal cual. Son cicatriz del bug, no fraude, y el registro
+tiene que reflejar lo que pasó de verdad. Lo que se añade es la forma de leerlas:
+
+- **Aviso en la cabecera del dashboard** (ámbar, descartable, recordado en
+  `localStorage`) diciendo que las estadísticas incluyen operaciones duplicadas
+  y que la comparativa A vs B solo es interpretable desde esta fecha.
+- **Interruptor "Solo operaciones limpias"**, que recalcula resumen, P&L por
+  cartera, comparativa A vs B, curva de equity y tabla usando únicamente las
+  entradas no duplicadas. Arranca SIEMPRE apagado: por defecto se enseña lo que
+  ocurrió, y filtrar es un acto explícito.
+- Cada entrada duplicada lleva su etiqueta **Duplicada** en la tabla.
+- `datos.json` publica los bloques paralelos `resumen_limpio`,
+  `comparativa_ab_limpia`, `pnl_por_cartera_limpio` y `curva_equity_limpia`,
+  calculados en Python por la **misma** función que los normales, para que las
+  dos vistas no puedan divergir en la definición de ninguna métrica.
+
+### Tests
+
+De 84 a **106**. `tests/test_no_duplicar_posiciones.py` (13) cubre la regla por
+cartera, la entrada parcial en la cartera libre, el formato del log, las
+pendientes del día como ocupación, la compatibilidad con estados antiguos y que
+la ejecución respete la decisión. Los otros 9 cubren la detección de duplicadas,
+el schema de los bloques limpios y que el filtro excluya lo que debe.
+
+Dry-run forzado del 2026-08-06 sobre una copia aislada del repo: de 11 señales,
+6 descartadas por duplicado con el motivo correcto en el log y 2 entradas nuevas
+(APP, MRNA) con `carteras: ["A","B"]`. Las otras 3 ni se evaluaron porque el cupo
+del día era 2 (A tenía 18 posiciones de un tope de 20), comportamiento anterior y
+ajeno a este cambio.
+
+---
+
 ## 2026-08-06 — P&L por cartera y curva de equity en el dashboard (v0.3.1)
 
 **Solo presentación. No se tocó el modelo, el umbral (0.79), las features, los

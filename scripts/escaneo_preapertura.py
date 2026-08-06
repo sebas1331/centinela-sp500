@@ -90,8 +90,13 @@ def main():
 
     decisiones, lineas, resumen = screener.escanear(precios, modelo, ath_dict, sectores)
     ts = ahora.isoformat()
-    nuevas = simulador.registrar_decisiones_entrada(estado, decisiones, hoy_iso, ts)
+    nuevas, descartes = simulador.registrar_decisiones_entrada(
+        estado, decisiones, hoy_iso, ts)
 
+    # Las candidatas frenadas por tener ya posición abierta van al log ANTES del
+    # resumen: si no, un ticker con señal que no entra desaparece del registro y
+    # no hay forma de distinguirlo de uno que nunca la tuvo.
+    lineas.extend(descartes)
     lineas.append(f"DECIDIDAS PARA ENTRAR HOY ({len(nuevas)}): "
                   f"{[n['ticker'] for n in nuevas]}")
     # Se escribe SIEMPRE, aunque no se decida ninguna entrada: es la prueba de

@@ -25,6 +25,9 @@
      azul. Aun así las dos series se distinguen TAMBIÉN por trazo (A continua,
      B discontinua), para que la lectura no dependa de percibir bien el color. */
   --serie-b:#7c3aed;
+  /* Ámbar de aviso: ni error (rojo, que aquí ya significa pérdida) ni
+     informativo (azul, que significa posición abierta). Registro propio. */
+  --aviso:#92400e; --aviso-fondo:#fef6e0; --aviso-borde:#f0c775;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-tema="light"]){
@@ -34,6 +37,7 @@
     --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
     --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
     --serie-b:#a78bfa;
+    --aviso:#fbbf24; --aviso-fondo:#33280f; --aviso-borde:#6b5119;
   }
 }
 :root[data-tema="dark"]{
@@ -43,6 +47,7 @@
   --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
   --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
   --serie-b:#a78bfa;
+  --aviso:#fbbf24; --aviso-fondo:#33280f; --aviso-borde:#6b5119;
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -76,6 +81,41 @@ header h1{font-size:1.02rem; margin:0; font-weight:650; letter-spacing:-.01em; w
   font:inherit; font-size:.78rem; cursor:pointer; line-height:1;
 }
 #tema:hover{border-color:var(--muy-tenue)}
+
+/* ------------------------------ Aviso de datos mixtos ---------------------- */
+/* Pegado bajo la cabecera pero NO fijo: se ve al llegar y se va al bajar. Un
+   aviso permanente sobre un dato histórico acabaría siendo ruido que se ignora. */
+#aviso{
+  background:var(--aviso-fondo); border-bottom:1px solid var(--aviso-borde);
+  color:var(--aviso); font-size:.75rem; line-height:1.45;
+  padding:.5rem max(.85rem,env(safe-area-inset-left));
+  display:flex; gap:.6rem; align-items:flex-start;
+}
+#aviso[hidden]{display:none}
+#aviso p{margin:0; max-width:90ch}
+#aviso a{color:inherit; text-decoration:underline}
+#cerrar-aviso{
+  margin-left:auto; flex:0 0 auto; background:none; border:0; color:inherit;
+  font:inherit; font-size:1rem; line-height:1; cursor:pointer; padding:.1rem .3rem;
+  border-radius:6px; opacity:.75;
+}
+#cerrar-aviso:hover{opacity:1; background:var(--aviso-borde)}
+
+/* --------------------------- Interruptor de vista limpia ------------------- */
+.vista{
+  display:flex; align-items:center; gap:.55rem; flex-wrap:wrap;
+  background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
+  padding:.55rem .75rem; box-shadow:var(--sombra); margin-bottom:.9rem;
+}
+.vista label{display:flex; align-items:center; gap:.5rem; cursor:pointer; font-size:.84rem}
+.vista input{width:1.02rem; height:1.02rem; accent-color:var(--acento); cursor:pointer; margin:0}
+.vista small{color:var(--tenue); font-size:.74rem}
+.vista .marca{
+  margin-left:auto; font-size:.7rem; font-weight:620; padding:.16rem .5rem;
+  border-radius:999px; background:var(--aviso-fondo); color:var(--aviso);
+  border:1px solid var(--aviso-borde);
+}
+.vista .marca[hidden]{display:none}
 
 main{max-width:1180px; margin:0 auto; padding:1rem max(.85rem,env(safe-area-inset-left)) 3rem}
 h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
@@ -202,6 +242,10 @@ th.n{text-align:right}
 .b-g{background:var(--verde-fondo); color:var(--verde); border-color:var(--verde)}
 .b-p{background:var(--rojo-fondo); color:var(--rojo); border-color:var(--rojo)}
 .b-a{background:var(--azul-fondo); color:var(--azul); border-color:var(--azul)}
+/* Marca de "esta entrada la creó el bug". Va junto al estado, sin añadir columna
+   ni romper el orden de las que pide el diseño. */
+.b-d{background:var(--aviso-fondo); color:var(--aviso); border-color:var(--aviso-borde);
+     margin-left:.25rem}
 .vacio{padding:2rem .9rem; text-align:center; color:var(--tenue); font-size:.85rem}
 
 details{background:var(--superficie); border:1px solid var(--borde);
@@ -260,7 +304,21 @@ footer a{color:var(--acento)}
   <button id="tema" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>
 </header>
 
+<div id="aviso" role="note" hidden>
+  <p id="aviso-txt"></p>
+  <button id="cerrar-aviso" type="button" aria-label="Cerrar aviso">&times;</button>
+</div>
+
 <main>
+  <div class="vista">
+    <label for="limpias">
+      <input type="checkbox" id="limpias">
+      <span>Solo operaciones limpias</span>
+    </label>
+    <small id="limpias-detalle"></small>
+    <span class="marca" id="marca-limpia" hidden>Vista filtrada</span>
+  </div>
+
   <div class="resumen" id="kpis"></div>
 
   <h2>P&amp;L acumulado por cartera</h2>
@@ -426,81 +484,140 @@ function iniciar(D){
   }
   if(meta.repo) document.getElementById("repo").href = meta.repo;
 
+  /* --- Aviso de datos mixtos ------------------------------------------- */
+  /* Solo aparece si de verdad hay operaciones duplicadas en el fichero. El día
+     que la bitácora deje de tenerlas, el aviso desaparece solo. */
+  var nDup = meta.duplicadas || 0, fechaFix = meta.corregido_el || "";
+  if(nDup > 0){
+    var aviso = document.getElementById("aviso");
+    document.getElementById("aviso-txt").textContent =
+      "Las estadísticas incluyen operaciones duplicadas del mismo ticker por un bug " +
+      "corregido el " + fecha(fechaFix) + ". Ver CHANGELOG. La comparativa A vs B es " +
+      "interpretable solo desde esa fecha.";
+    /* La marca de descartado va atada a la fecha de la corrección: si mañana hay
+       un aviso distinto, vuelve a salir en vez de quedar enterrado por el cierre
+       de este. */
+    var clave = "centinela-aviso-" + fechaFix;
+    var visto = null;
+    try{ visto = localStorage.getItem(clave); }catch(e){}
+    aviso.hidden = visto === "1";
+    document.getElementById("cerrar-aviso").addEventListener("click", function(){
+      aviso.hidden = true;
+      try{ localStorage.setItem(clave, "1"); }catch(e){}
+    });
+    document.getElementById("limpias-detalle").textContent =
+      "Oculta " + nDup + (nDup === 1 ? " entrada duplicada" : " entradas duplicadas") +
+      " y recalcula resumen, comparativa y curva.";
+  } else {
+    document.querySelector(".vista").hidden = true;
+  }
+
+  /* --- Vista activa ----------------------------------------------------- */
+  /* Los dos juegos de cifras vienen YA calculados de Python. Aquí no se recalcula
+     nada: solo se elige cuál se pinta. */
+  var limpio = false, R = {}, CARTS = {}, CURVA = [];
+  function aplicarVista(){
+    if(limpio){
+      R = D.resumen_limpio || {};
+      CURVA = D.curva_equity_limpia || [];
+      var comp = D.comparativa_ab_limpia || {}, pl = D.pnl_por_cartera_limpio || {};
+      CARTS = {};
+      ["A","B"].forEach(function(k){
+        CARTS[k] = {};
+        [comp[k] || {}, pl[k] || {}].forEach(function(o){
+          for(var p in o) if(o.hasOwnProperty(p)) CARTS[k][p] = o[p];
+        });
+      });
+    } else {
+      R = D.resumen || {};
+      CARTS = D.carteras || {};
+      CURVA = D.curva_equity || [];
+    }
+  }
+
   /* --- 4 tarjetas de resumen ------------------------------------------ */
-  var R = D.resumen || {};
-  [["cerradas", R.cerradas, "Operaciones cerradas", false],
-   ["wr", R.win_rate, "Win rate global", true],
-   ["pnl", R.pnl_acumulado, "P&L acumulado", true],
-   ["abiertas", R.abiertas, "Posiciones abiertas", false]
-  ].forEach(function(k){
-    var caja = el("div","kpi");
-    var valor = k[3] ? pct(k[1], 1, k[0] !== "wr")
-                     : (k[1] === null || k[1] === undefined ? "—" : String(k[1]));
-    /* El win rate no se colorea por signo: siempre es positivo y pintarlo de
-       verde daría una impresión de "va bien" que el número no respalda. Solo
-       se colorea el P&L, donde el signo sí significa ganar o perder. */
-    var clase = "v num" + (k[0] === "pnl" ? " " + signo(k[1]) : "");
-    caja.appendChild(el("div", clase, valor));
-    caja.appendChild(el("div","e", k[2]));
-    document.getElementById("kpis").appendChild(caja);
-  });
+  function pintarKpis(){
+    var zona = document.getElementById("kpis");
+    zona.textContent = "";
+    [["cerradas", R.cerradas, "Operaciones cerradas", false],
+     ["wr", R.win_rate, "Win rate global", true],
+     ["pnl", R.pnl_acumulado, "P&L acumulado", true],
+     ["abiertas", R.abiertas, "Posiciones abiertas", false]
+    ].forEach(function(k){
+      var caja = el("div","kpi");
+      var valor = k[3] ? pct(k[1], 1, k[0] !== "wr")
+                       : (k[1] === null || k[1] === undefined ? "—" : String(k[1]));
+      /* El win rate no se colorea por signo: siempre es positivo y pintarlo de
+         verde daría una impresión de "va bien" que el número no respalda. Solo
+         se colorea el P&L, donde el signo sí significa ganar o perder. */
+      var clase = "v num" + (k[0] === "pnl" ? " " + signo(k[1]) : "");
+      caja.appendChild(el("div", clase, valor));
+      caja.appendChild(el("div","e", k[2]));
+      zona.appendChild(caja);
+    });
+  }
 
   /* --- P&L acumulado por cartera (realizado vs. no realizado) ---------- */
-  var contPnl = document.getElementById("pnl-carteras"), huecos = 0;
-  ["A","B"].forEach(function(nombre){
-    var c = (D.carteras || {})[nombre] || {};
-    huecos += (c.abiertas_sin_pnl || 0);
-    var col = el("div","pnlcol");
-    col.appendChild(el("h3","","Cartera " + nombre));
-    var par = el("div","pnlpar");
-    [["Realizado", c.pnl_realizado, "solo cerradas"],
-     ["Total", c.pnl_total, "cerradas + abiertas"]].forEach(function(t){
-      var k = el("div","kpi kpi-sm");
-      k.appendChild(el("div","v num " + signoCero(t[1]), pct(t[1])));
-      k.appendChild(el("div","e", t[0] + " (" + t[2] + ")"));
-      par.appendChild(k);
+  function pintarPnlCarteras(){
+    var contPnl = document.getElementById("pnl-carteras"), huecos = 0;
+    contPnl.textContent = "";
+    ["A","B"].forEach(function(nombre){
+      var c = CARTS[nombre] || {};
+      huecos += (c.abiertas_sin_pnl || 0);
+      var col = el("div","pnlcol");
+      col.appendChild(el("h3","","Cartera " + nombre));
+      var par = el("div","pnlpar");
+      [["Realizado", c.pnl_realizado, "solo cerradas"],
+       ["Total", c.pnl_total, "cerradas + abiertas"]].forEach(function(t){
+        var k = el("div","kpi kpi-sm");
+        k.appendChild(el("div","v num " + signoCero(t[1]), pct(t[1])));
+        k.appendChild(el("div","e", t[0] + " (" + t[2] + ")"));
+        par.appendChild(k);
+      });
+      col.appendChild(par);
+      contPnl.appendChild(col);
     });
-    col.appendChild(par);
-    contPnl.appendChild(col);
-  });
-  /* Si alguna abierta no tiene aún fila en el informe MFE, el total va corto.
-     Se dice, en vez de servir una cifra incompleta con aire de definitiva. */
-  if(huecos > 0)
-    document.getElementById("nota-hueco").textContent =
-      " " + huecos + (huecos === 1
-        ? " posición abierta todavía no tiene P&L en el informe MFE/MAE, así que el total va corto."
-        : " posiciones abiertas todavía no tienen P&L en el informe MFE/MAE, así que el total va corto.");
+    /* Si alguna abierta no tiene aún fila en el informe MFE, el total va corto.
+       Se dice, en vez de servir una cifra incompleta con aire de definitiva. */
+    document.getElementById("nota-hueco").textContent = huecos > 0
+      ? " " + huecos + (huecos === 1
+          ? " posición abierta todavía no tiene P&L en el informe MFE/MAE, así que el total va corto."
+          : " posiciones abiertas todavía no tienen P&L en el informe MFE/MAE, así que el total va corto.")
+      : "";
+  }
 
   /* --- Comparativa A vs B --------------------------------------------- */
-  var cont = document.getElementById("carteras");
-  ["A","B"].forEach(function(nombre){
-    var c = (D.carteras || {})[nombre] || {};
-    var caja = el("div","cartera");
-    var h = el("h3","","Cartera " + nombre);
-    h.appendChild(el("span","", (c.abiertas || 0) + " abiertas ahora"));
-    caja.appendChild(h);
-    var dl = el("dl");
-    function fila(etiqueta, valor, clase){
-      dl.appendChild(el("dt","",etiqueta));
-      dl.appendChild(el("dd", clase || "", valor));
-    }
-    fila("Operaciones cerradas", c.cerradas === undefined ? "—" : String(c.cerradas));
-    fila("Win rate", pct(c.win_rate, 1, false));
-    fila("Expectancy", pct(c.expectancy), signo(c.expectancy));
-    /* profit_factor null = no hubo ni una pérdida, así que el cociente no está
-       definido. Se dice con el símbolo, no con un número inventado. */
-    fila("Profit factor", c.profit_factor === null || c.profit_factor === undefined
-         ? (c.cerradas ? "∞" : "—") : c.profit_factor.toFixed(2));
-    if(c.mejor) fila("Mejor trade", c.mejor.ticker + "  " + pct(c.mejor.pnl_pct), "pos");
-    if(c.peor)  fila("Peor trade",  c.peor.ticker  + "  " + pct(c.peor.pnl_pct),  "neg");
-    caja.appendChild(dl);
-    cont.appendChild(caja);
-  });
+  function pintarComparativa(){
+    var cont = document.getElementById("carteras");
+    cont.textContent = "";
+    ["A","B"].forEach(function(nombre){
+      var c = CARTS[nombre] || {};
+      var caja = el("div","cartera");
+      var h = el("h3","","Cartera " + nombre);
+      h.appendChild(el("span","", (c.abiertas || 0) + " abiertas ahora"));
+      caja.appendChild(h);
+      var dl = el("dl");
+      function fila(etiqueta, valor, clase){
+        dl.appendChild(el("dt","",etiqueta));
+        dl.appendChild(el("dd", clase || "", valor));
+      }
+      fila("Operaciones cerradas", c.cerradas === undefined ? "—" : String(c.cerradas));
+      fila("Win rate", pct(c.win_rate, 1, false));
+      fila("Expectancy", pct(c.expectancy), signo(c.expectancy));
+      /* profit_factor null = no hubo ni una pérdida, así que el cociente no está
+         definido. Se dice con el símbolo, no con un número inventado. */
+      fila("Profit factor", c.profit_factor === null || c.profit_factor === undefined
+           ? (c.cerradas ? "∞" : "—") : c.profit_factor.toFixed(2));
+      if(c.mejor) fila("Mejor trade", c.mejor.ticker + "  " + pct(c.mejor.pnl_pct), "pos");
+      if(c.peor)  fila("Peor trade",  c.peor.ticker  + "  " + pct(c.peor.pnl_pct),  "neg");
+      caja.appendChild(dl);
+      cont.appendChild(caja);
+    });
+  }
 
   /* --- Curva de equity ------------------------------------------------- */
   /* SVG a mano, sin librería (regla del proyecto). Los datos vienen ya
      acumulados desde Python: aquí solo se escalan a píxeles y se pintan. */
-  var CURVA = D.curva_equity || [];
 
   function ticksY(min, max, cuantos){
     var span = (max - min) || 1;
@@ -673,7 +790,6 @@ function iniciar(D){
     svg.addEventListener("pointerup", function(e){ if(e.pointerType !== "mouse") ocultar(); });
   }
 
-  dibujarCurva();
   /* El ancho manda en el trazado, así que un cambio de tamaño obliga a repintar.
      El tema NO: los colores son variables CSS y se actualizan solos. */
   var temporizador;
@@ -759,6 +875,9 @@ function iniciar(D){
   });
 
   function coincide(o){
+    /* En vista limpia la tabla también se filtra: si no, los números de arriba
+       dirían 26 cerradas y la tabla seguiría enseñando 28. */
+    if(limpio && o.duplicada) return false;
     var por = {};
     Object.keys(activos).forEach(function(id){ (por[activos[id]] = por[activos[id]] || []).push(id); });
     /* Dentro de un grupo los chips suman (Cartera A o Cartera B); entre grupos
@@ -824,8 +943,18 @@ function iniciar(D){
       celda("ticker", el("span","tk",o.ticker));
       celda("cartera", o.cartera);
       var et = etiqueta(o);
-      celda("estado", el("span","badge " + (et === "Abierta" ? "b-a" :
+      var celdaEstado = document.createDocumentFragment();
+      celdaEstado.appendChild(el("span","badge " + (et === "Abierta" ? "b-a" :
             (et === "Ganadora" ? "b-g" : "b-p")), et));
+      /* En la vista completa las duplicadas se señalan una a una: si no, están
+         mezcladas con las legítimas y no hay forma de saber cuál es cuál. */
+      if(o.duplicada){
+        var dup = el("span","badge b-d","Duplicada");
+        dup.title = "Segunda entrada del mismo ticker en esta cartera teniendo "
+                  + "otra abierta. La creó el bug corregido el " + fecha(fechaFix) + ".";
+        celdaEstado.appendChild(dup);
+      }
+      celda("estado", celdaEstado);
       celda("fecha_entrada", fecha(o.fecha_entrada));
       celda("precio_entrada", precio(o.precio_entrada), "n");
       celda("fecha_salida", fecha(o.fecha_salida));
@@ -845,7 +974,26 @@ function iniciar(D){
   }
 
   document.getElementById("buscar").addEventListener("input", pintar);
-  pintar();
+
+  /* --- Interruptor de vista --------------------------------------------- */
+  function pintarTodo(){
+    aplicarVista();
+    pintarKpis();
+    pintarPnlCarteras();
+    pintarComparativa();
+    dibujarCurva();
+    pintar();
+  }
+  document.getElementById("limpias").addEventListener("change", function(e){
+    limpio = e.target.checked;
+    /* Distintivo permanente mientras la vista está filtrada: estos números NO
+       son los del registro, y eso tiene que verse sin releer el interruptor. */
+    document.getElementById("marca-limpia").hidden = !limpio;
+    pintarTodo();
+  });
+  /* Arranca SIEMPRE en la vista completa, sin recordar la elección anterior: por
+     defecto se enseña lo que de verdad pasó, y filtrar es un acto explícito. */
+  pintarTodo();
 
   /* --- MFE / MAE ------------------------------------------------------- */
   var cuerpoMfe = document.getElementById("cuerpo-mfe");

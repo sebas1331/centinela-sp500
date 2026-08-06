@@ -22,6 +22,13 @@ y **B (sin stop)**.
 Panel web con todo el experimento de un vistazo. **Se regenera solo tras cada
 post-cierre**, así que lo que se ve ahí es siempre la última sesión cerrada.
 
+> ⚠️ **Los datos hasta el 2026-08-06 llevan operaciones duplicadas** por el bug
+> descrito en el [CHANGELOG](CHANGELOG.md): el simulador podía abrir una segunda
+> posición del mismo ticker en la misma cartera teniendo la primera aún viva. El
+> dashboard lo avisa y trae un interruptor **"Solo operaciones limpias"** que
+> recalcula todo sin esas entradas. En corto: el P&L realizado de la Cartera B
+> pasa de **+31.05% a −46.91%** al quitarlas.
+
 Está pensado **para el móvil primero**: en pantalla pequeña cada operación se
 convierte en una tarjeta con el ticker y su P&L destacados, sin scroll lateral.
 

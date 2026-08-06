@@ -125,8 +125,10 @@ def datos(tmp_path, monkeypatch) -> dict:
 # 1. Contrato de datos.json
 # --------------------------------------------------------------------------- #
 def test_schema_datos_json(datos):
-    assert set(datos) == {"resumen", "carteras", "curva_equity", "operaciones",
-                          "mfe", "meta"}
+    assert set(datos) == {"resumen", "carteras", "curva_equity",
+                          "resumen_limpio", "comparativa_ab_limpia",
+                          "pnl_por_cartera_limpio", "curva_equity_limpia",
+                          "operaciones", "mfe", "meta"}
 
     r = datos["resumen"]
     assert set(r) == {"cerradas", "abiertas", "win_rate", "pnl_acumulado", "ultima_cerrada"}
@@ -159,7 +161,8 @@ def test_schema_datos_json(datos):
     for o in datos["operaciones"]:
         assert set(o) == {"id", "ticker", "cartera", "estado", "fecha_entrada",
                           "precio_entrada", "fecha_salida", "precio_salida",
-                          "pnl_pct", "no_realizado", "motivo"}
+                          "pnl_pct", "no_realizado", "duplicada", "motivo"}
+        assert isinstance(o["duplicada"], bool)
         assert isinstance(o["id"], int)
         assert o["estado"] in ("abierta", "cerrada")
         assert o["cartera"] in ("A", "B")
@@ -173,7 +176,29 @@ def test_schema_datos_json(datos):
         assert isinstance(p["toco_5"], bool)
 
     assert set(datos["meta"]) == {"actualizado", "mfe_generado", "ultima_preapertura",
-                                  "ultima_postcierre", "repo"}
+                                  "ultima_postcierre", "repo",
+                                  "duplicadas", "corregido_el"}
+    assert isinstance(datos["meta"]["duplicadas"], int)
+
+
+def test_schema_de_los_bloques_limpios(datos):
+    """Los bloques _limpio tienen EXACTAMENTE la forma de sus equivalentes.
+
+    El HTML pinta los dos juegos con el mismo código: en cuanto uno se desvíe del
+    otro, la vista filtrada empieza a enseñar huecos en vez de números.
+    """
+    assert set(datos["resumen_limpio"]) == set(datos["resumen"])
+    assert set(datos["comparativa_ab_limpia"]) == {"A", "B"}
+    assert set(datos["pnl_por_cartera_limpio"]) == {"A", "B"}
+    for c in ("A", "B"):
+        # `carteras` es la fusión de los dos bloques limpios: juntas, las claves
+        # de comparativa y pnl tienen que dar exactamente las de carteras.
+        fusion = set(datos["comparativa_ab_limpia"][c]) | set(datos["pnl_por_cartera_limpio"][c])
+        assert fusion == set(datos["carteras"][c])
+    assert isinstance(datos["curva_equity_limpia"], list)
+    for p in datos["curva_equity_limpia"]:
+        assert set(p) == {"fecha", "pl_acumulado_a", "pl_acumulado_b",
+                          "n_cerradas_a", "n_cerradas_b"}
 
 
 def test_datos_json_es_serializable_y_sin_nan(datos):
@@ -390,6 +415,133 @@ def test_sin_ninguna_operacion_cerrada(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# 2d. Operaciones duplicadas y vista limpia
+# --------------------------------------------------------------------------- #
+# Reproduce el caso real de COHR/B: una posición abierta el día 1 que sigue viva
+# cuando entra la segunda el día 3. La de la cartera A no solapa (cerró antes),
+# así que A queda limpia entera, igual que en la bitácora de verdad.
+FILAS_DUP = [
+    # id, ticker, cartera, f_entrada, precio, f_salida, precio_sal, motivo, pnl, estado
+    (1, "COHR", "A", "2026-07-01", 100.0, "2026-07-02", 88.0, "stop", -0.12, "cerrada"),
+    (2, "COHR", "B", "2026-07-01", 100.0, "2026-07-10", 90.0, "tiempo", -0.10, "cerrada"),
+    # Día 3: A está libre (cerró el 2) -> legítima. B sigue abierta -> DUPLICADA.
+    (3, "COHR", "A", "2026-07-03", 90.0, "2026-07-08", 99.0, "objetivo", 0.10, "cerrada"),
+    (4, "COHR", "B", "2026-07-03", 90.0, "2026-07-08", 126.0, "objetivo", 0.40, "cerrada"),
+    (5, "OTRO", "A", "2026-07-06", 50.0, "2026-07-07", 55.0, "objetivo", 0.10, "cerrada"),
+    (6, "OTRO", "B", "2026-07-06", 50.0, "2026-07-07", 55.0, "objetivo", 0.10, "cerrada"),
+]
+
+MFE_VACIO = """# Análisis MFE/MAE de posiciones
+
+_Generado 2026-07-11 18:00 ET_
+
+## Posiciones abiertas
+
+| Ticker | Cartera | Entrada | Precio entrada | MFE % | Fecha MFE | MAE % | Fecha MAE | P&L actual % | ¿Tocó +5%? | ¿Tocó objetivo? | Objetivo inicial |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+## Resumen
+"""
+
+
+@pytest.fixture
+def datos_dup(tmp_path, monkeypatch) -> dict:
+    return _construir(tmp_path, monkeypatch, filas=FILAS_DUP, mfe_md=MFE_VACIO)
+
+
+def test_marca_solo_la_segunda_entrada_solapada(datos_dup):
+    """La primera entrada es legítima; se marca la que se montó encima."""
+    por_id = {o["id"]: o for o in datos_dup["operaciones"]}
+    assert por_id[4]["duplicada"] is True     # COHR/B entró con la del día 1 viva
+    assert por_id[2]["duplicada"] is False    # esa primera, no
+    # COHR/A del día 3 NO es duplicada: la de A cerró por stop el día 2.
+    assert por_id[3]["duplicada"] is False
+    assert por_id[1]["duplicada"] is False
+    assert datos_dup["meta"]["duplicadas"] == 1
+
+
+def test_la_regla_es_por_cartera_no_por_ticker(datos_dup):
+    """Que COHR estuviera abierta en B no convierte en duplicada la de A."""
+    dups = [(o["ticker"], o["cartera"]) for o in datos_dup["operaciones"] if o["duplicada"]]
+    assert dups == [("COHR", "B")]
+
+
+def test_la_vista_limpia_excluye_las_duplicadas(datos_dup):
+    """Los agregados limpios se calculan sin la entrada que creó el bug.
+
+    B cerradas: −10% y +40% -> con el duplicado suma +30. Sin él, solo −10.
+    A no cambia: no tiene ninguna duplicada.
+    """
+    assert datos_dup["resumen"]["cerradas"] == 6
+    assert datos_dup["resumen_limpio"]["cerradas"] == 5
+
+    b_todo = datos_dup["carteras"]["B"]
+    b_limpio = {**datos_dup["comparativa_ab_limpia"]["B"],
+                **datos_dup["pnl_por_cartera_limpio"]["B"]}
+    assert b_todo["pnl_realizado"] == pytest.approx(40.0)      # −10 +40 +10
+    assert b_limpio["pnl_realizado"] == pytest.approx(0.0)     # −10 +10
+    assert b_todo["cerradas"] == 3 and b_limpio["cerradas"] == 2
+
+    a_todo = datos_dup["carteras"]["A"]
+    a_limpio = {**datos_dup["comparativa_ab_limpia"]["A"],
+                **datos_dup["pnl_por_cartera_limpio"]["A"]}
+    assert a_limpio["pnl_realizado"] == pytest.approx(a_todo["pnl_realizado"])
+    assert a_limpio["cerradas"] == a_todo["cerradas"]
+
+
+def test_la_curva_limpia_no_cuenta_la_duplicada(datos_dup):
+    """El último punto de B en la curva limpia cuadra con su realizado limpio."""
+    limpia = datos_dup["curva_equity_limpia"]
+    b_limpio = datos_dup["pnl_por_cartera_limpio"]["B"]
+    assert limpia[-1]["pl_acumulado_b"] == pytest.approx(b_limpio["pnl_realizado"])
+    # Y una cerrada menos en el contador de B que en la curva completa.
+    assert (limpia[-1]["n_cerradas_b"]
+            == datos_dup["curva_equity"][-1]["n_cerradas_b"] - 1)
+    # La serie A es idéntica en las dos curvas: A no tiene duplicadas.
+    assert ([p["pl_acumulado_a"] for p in limpia]
+            == [p["pl_acumulado_a"] for p in datos_dup["curva_equity"]])
+
+
+def test_sin_duplicadas_las_dos_vistas_coinciden(datos):
+    """La bitácora sintética base no tiene solapes: limpio == completo.
+
+    Si algún día el sistema deja de generar duplicados, las dos vistas tienen que
+    converger solas, sin tocar el dashboard.
+    """
+    assert datos["meta"]["duplicadas"] == 0
+    assert all(not o["duplicada"] for o in datos["operaciones"])
+    assert datos["resumen_limpio"] == datos["resumen"]
+    assert datos["curva_equity_limpia"] == datos["curva_equity"]
+    for c in ("A", "B"):
+        fusion = {**datos["comparativa_ab_limpia"][c], **datos["pnl_por_cartera_limpio"][c]}
+        assert fusion == datos["carteras"][c]
+
+
+def test_marcar_duplicadas_cuenta_el_cierre_del_mismo_dia_como_solape():
+    """Cerrar a las 16:00 y abrir otra al open del MISMO día es tener dos vivas."""
+    import pandas as pd
+    bit = pd.DataFrame([
+        {"id": 1, "ticker": "X", "portafolio": "B",
+         "fecha_entrada": "2026-07-01", "fecha_salida": "2026-07-03"},
+        {"id": 2, "ticker": "X", "portafolio": "B",
+         "fecha_entrada": "2026-07-03", "fecha_salida": None},
+    ])
+    assert list(gd.marcar_duplicadas(bit)) == [False, True]
+
+
+def test_marcar_duplicadas_no_marca_lo_que_no_solapa():
+    """Reentrar después de haber cerrado es el comportamiento correcto."""
+    import pandas as pd
+    bit = pd.DataFrame([
+        {"id": 1, "ticker": "X", "portafolio": "A",
+         "fecha_entrada": "2026-07-01", "fecha_salida": "2026-07-02"},
+        {"id": 2, "ticker": "X", "portafolio": "A",
+         "fecha_entrada": "2026-07-03", "fecha_salida": None},
+    ])
+    assert list(gd.marcar_duplicadas(bit)) == [False, False]
+
+
+# --------------------------------------------------------------------------- #
 # 3. Abiertas vs cerradas
 # --------------------------------------------------------------------------- #
 def test_abiertas_marcadas_y_fuera_de_las_estadisticas(datos):
@@ -574,6 +726,32 @@ def test_html_dibuja_la_curva_sin_librerias_externas(html_generado):
     assert "stroke-dasharray" in html_generado
     # Referencia del 0% y rejilla.
     assert ".cero-linea" in html_generado and ".rejilla" in html_generado
+
+
+def test_html_tiene_el_aviso_de_duplicadas_y_el_filtro(html_generado):
+    """El aviso y el interruptor son la forma de que los datos mixtos se lean
+    como mixtos. Si desaparecen, el dashboard vuelve a dar por buenas unas
+    estadísticas que llevan dentro las entradas de un bug."""
+    # El mensaje se arma concatenando literales para no pasar de 90 columnas, así
+    # que primero se sueldan los literales adyacentes (`" + "`). La fecha va en
+    # medio como expresión, de ahí que se compruebe en dos mitades.
+    unido = " ".join(html_generado.split()).replace('" + "', "")
+    assert ("Las estadísticas incluyen operaciones duplicadas del mismo ticker "
+            "por un bug corregido el ") in unido
+    assert (". Ver CHANGELOG. La comparativa A vs B es interpretable solo desde "
+            "esa fecha.") in unido
+    # Descartable y recordado, para que no vuelva en cada visita.
+    assert 'id="cerrar-aviso"' in html_generado
+    assert 'localStorage.setItem(clave, "1")' in html_generado
+    # Interruptor de vista limpia y los cuatro bloques que consume.
+    assert "Solo operaciones limpias" in html_generado
+    for bloque in ("resumen_limpio", "comparativa_ab_limpia",
+                   "pnl_por_cartera_limpio", "curva_equity_limpia"):
+        assert bloque in html_generado, f"el HTML no lee {bloque}"
+    # Arranca en la vista completa: filtrar tiene que ser un acto explícito.
+    assert "var limpio = false" in html_generado
+    # Y las duplicadas se señalan una a una en la tabla.
+    assert '"badge b-d","Duplicada"' in html_generado
 
 
 def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado):

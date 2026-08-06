@@ -67,6 +67,10 @@ MAX_OPERACIONES = 5000
 #: minúscula y con vocabulario cerrado (objetivo / stop / tiempo).
 MOTIVOS = {"objetivo": "Objetivo", "stop": "Stop", "tiempo": "Tiempo"}
 
+#: Día en que el simulador dejó de poder abrir dos posiciones del mismo ticker en
+#: la misma cartera. Todo lo anterior puede llevar duplicados; lo posterior no.
+FECHA_CORRECCION_DUPLICADOS = "2026-08-06"
+
 
 # --------------------------------------------------------------------------- #
 # Lectura del informe MFE/MAE (markdown)
@@ -255,6 +259,65 @@ def curva_equity(cerradas: pd.DataFrame) -> list[dict]:
     return puntos
 
 
+def marcar_duplicadas(bit: pd.DataFrame) -> pd.Series:
+    """True en cada entrada que se abrió teniendo ya ese ticker vivo en su cartera.
+
+    Es la cicatriz del bug corregido el 2026-08-06 (ver CHANGELOG): el filtro de
+    tickers ocupados miraba siempre la cartera A, así que cuando el stop cerraba
+    la posición de A pero la de B seguía abierta, el ticker volvía a entrar y B
+    acababa con dos posiciones del mismo valor a la vez.
+
+    Se marca la SEGUNDA y siguientes, nunca la primera: la primera entrada era
+    legítima. Una posición que cierra el mismo día en que se abre la siguiente
+    cuenta como solape, porque durante esa sesión las dos estuvieron vivas.
+    """
+    dup = pd.Series(False, index=bit.index)
+    entrada = pd.to_datetime(bit["fecha_entrada"])
+    salida = pd.to_datetime(bit["fecha_salida"])
+    # Una posición abierta ocupa hasta hoy; se usa el máximo del fichero como
+    # "hoy" para que el cálculo no dependa de cuándo se ejecute este script.
+    fin = salida.fillna(max(entrada.max(), salida.max()))
+
+    for _, grupo in bit.groupby([bit["ticker"], bit["portafolio"]], sort=False):
+        orden = grupo.sort_values(["fecha_entrada", "id"]).index
+        for pos, idx in enumerate(orden):
+            if any(fin[previo] >= entrada[idx] for previo in orden[:pos]):
+                dup[idx] = True
+    return dup
+
+
+def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
+    """Los cuatro bloques agregados a partir de un subconjunto de operaciones.
+
+    Se calcula dos veces: con todo, y solo con las operaciones limpias. Que sea
+    la MISMA función garantiza que las dos vistas no puedan divergir en la
+    definición de win rate, expectancy o P&L; si una cambia, cambian las dos.
+    """
+    pnl = cerradas["pnl_pct_pp"]
+    fechas = cerradas["fecha_salida"].dropna() if not cerradas.empty else []
+    return {
+        "resumen": {
+            "cerradas": int(len(cerradas)),
+            "abiertas": int(len(abiertas)),
+            "win_rate": _redondear(100.0 * (pnl > 0).sum() / len(cerradas))
+                        if len(cerradas) else None,
+            "pnl_acumulado": _redondear(pnl.sum()) if len(cerradas) else None,
+            "ultima_cerrada": str(max(fechas)) if len(fechas) else None,
+        },
+        "comparativa": {
+            c: {**metricas_cartera(cerradas[cerradas["portafolio"] == c]),
+                "abiertas": int((abiertas["portafolio"] == c).sum())}
+            for c in ("A", "B")
+        },
+        "pnl_por_cartera": {
+            c: pnl_por_cartera(cerradas[cerradas["portafolio"] == c],
+                               abiertas[abiertas["portafolio"] == c])
+            for c in ("A", "B")
+        },
+        "curva": curva_equity(cerradas),
+    }
+
+
 def _ultimo_commit_de_datos() -> str | None:
     """Fecha ISO del último commit que tocó datos reales (no docs/).
 
@@ -301,8 +364,12 @@ def construir_datos() -> dict:
         pnl_abiertas.get(clave)
         for clave in zip(bit["ticker"], bit["portafolio"], bit["fecha_entrada"])
     ]
+    bit["duplicada"] = marcar_duplicadas(bit)
     cerradas = bit[bit["estado"] == "cerrada"].copy()
     abiertas = bit[bit["estado"] != "cerrada"].copy()
+    limpias = bit[~bit["duplicada"]]
+    cerradas_ok = limpias[limpias["estado"] == "cerrada"].copy()
+    abiertas_ok = limpias[limpias["estado"] != "cerrada"].copy()
 
     operaciones = []
     for _, r in bit.iterrows():
@@ -323,36 +390,34 @@ def construir_datos() -> dict:
             # una marca a mercado contra el último cierre disponible, no dinero
             # realizado, y no entra en ninguna estadística de cerradas.
             "no_realizado": not es_cerrada,
+            # Segunda (o siguiente) entrada del mismo ticker en la misma cartera
+            # con la anterior aún viva: la huella del bug del 2026-08-06.
+            "duplicada": bool(r["duplicada"]),
             "motivo": (MOTIVOS.get(r["motivo_salida"], r["motivo_salida"])
                        if es_cerrada else "Abierta"),
         })
 
-    pnl_cerradas = cerradas["pnl_pct_pp"]
-    fechas_salida = cerradas["fecha_salida"].dropna() if not cerradas.empty else []
-    ultima_cerrada = str(max(fechas_salida)) if len(fechas_salida) else None
+    # P&L acumulado = SUMA de los retornos de cada operación cerrada. Es la
+    # lectura correcta para carteras de posiciones equiponderadas e
+    # independientes como estas, donde cada entrada arriesga el mismo tamaño;
+    # NO es un retorno compuesto de una curva de capital, que exigiría un modelo
+    # de asignación de capital que este experimento no tiene.
+    todo = _vista(cerradas, abiertas)
+    # Vista paralela sin las entradas duplicadas por el bug. Se publica aparte y
+    # NO sustituye a la de arriba: la bitácora es el registro de lo que pasó de
+    # verdad, cicatrices incluidas, y borrarla de la vista por defecto sería
+    # maquillar el histórico en vez de explicarlo.
+    limpio = _vista(cerradas_ok, abiertas_ok)
 
     return {
-        # P&L acumulado = SUMA de los retornos de cada operación cerrada. Es la
-        # lectura correcta para carteras de posiciones equiponderadas e
-        # independientes como estas, donde cada entrada arriesga el mismo tamaño;
-        # NO es un retorno compuesto de una curva de capital, que exigiría un
-        # modelo de asignación de capital que este experimento no tiene.
-        "resumen": {
-            "cerradas": int(len(cerradas)),
-            "abiertas": int(len(abiertas)),
-            "win_rate": _redondear(100.0 * (pnl_cerradas > 0).sum() / len(cerradas))
-                        if len(cerradas) else None,
-            "pnl_acumulado": _redondear(pnl_cerradas.sum()) if len(cerradas) else None,
-            "ultima_cerrada": ultima_cerrada,
-        },
-        "carteras": {
-            c: {**metricas_cartera(cerradas[cerradas["portafolio"] == c]),
-                **pnl_por_cartera(cerradas[cerradas["portafolio"] == c],
-                                  abiertas[abiertas["portafolio"] == c]),
-                "abiertas": int((abiertas["portafolio"] == c).sum())}
-            for c in ("A", "B")
-        },
-        "curva_equity": curva_equity(cerradas),
+        "resumen": todo["resumen"],
+        "carteras": {c: {**todo["comparativa"][c], **todo["pnl_por_cartera"][c]}
+                     for c in ("A", "B")},
+        "curva_equity": todo["curva"],
+        "resumen_limpio": limpio["resumen"],
+        "comparativa_ab_limpia": limpio["comparativa"],
+        "pnl_por_cartera_limpio": limpio["pnl_por_cartera"],
+        "curva_equity_limpia": limpio["curva"],
         "operaciones": operaciones,
         "mfe": mfe,
         "meta": {
@@ -361,6 +426,10 @@ def construir_datos() -> dict:
             "ultima_preapertura": estado.get("ultima_preapertura"),
             "ultima_postcierre": estado.get("ultima_postcierre"),
             "repo": "https://github.com/sebas1331/centinela-sp500",
+            # Lo que necesita el aviso de la cabecera: cuántas operaciones están
+            # afectadas y desde cuándo el sistema ya no las puede crear.
+            "duplicadas": int(bit["duplicada"].sum()),
+            "corregido_el": FECHA_CORRECCION_DUPLICADOS,
         },
     }
 

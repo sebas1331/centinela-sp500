@@ -28,6 +28,10 @@ from .features import _atr
 # --------------------------------------------------------------------------- #
 # Decisión de entradas (pre-apertura)
 # --------------------------------------------------------------------------- #
+#: Las dos carteras del experimento: A con stop, B sin él.
+CARTERAS = ("A", "B")
+
+
 def capacidad_entradas(estado: dict) -> int:
     """Cuántas entradas nuevas caben hoy (tope de posiciones y de entradas/día)."""
     abiertas = len(estado["posiciones"].get("A", []))
@@ -37,24 +41,37 @@ def capacidad_entradas(estado: dict) -> int:
 
 
 def registrar_decisiones_entrada(estado: dict, decisiones: list[dict],
-                                 fecha_iso: str, timestamp_escaneo: str) -> list:
+                                 fecha_iso: str, timestamp_escaneo: str
+                                 ) -> tuple[list, list[str]]:
     """Registra en el estado las entradas decididas (pendientes de ejecutar).
 
-    Evita duplicar tickers ya en cartera o ya pendientes. Respeta la capacidad.
+    Devuelve (entradas nuevas, líneas para el log de decisiones). Las líneas
+    explican, candidata a candidata, qué se descartó por tener ya una posición
+    abierta de ese mismo ticker: sin ellas, un ticker con señal que no entra
+    desaparece del log y es indistinguible de uno que nunca la tuvo.
+
     'decisiones' viene ordenada por prioridad (mayor probabilidad primero).
     """
-    ya = tickers_ocupados(estado)
+    ocupados = {c: tickers_ocupados(estado, c) for c in CARTERAS}
     cupo = capacidad_entradas(estado)
-    nuevas = []
+    nuevas, notas = [], []
     for d in decisiones:
         if cupo <= 0:
             break
-        if d["ticker"] in ya:
+        tk = d["ticker"]
+        bloqueadas = [c for c in CARTERAS if tk in ocupados[c]]
+        libres = [c for c in CARTERAS if c not in bloqueadas]
+        if bloqueadas:
+            notas.append(_linea_duplicado(d, bloqueadas, libres))
+        if not libres:
             continue
         entrada = {
-            "ticker": d["ticker"],
+            "ticker": tk,
             "fecha_decision": fecha_iso,
             "timestamp_escaneo": timestamp_escaneo,
+            # Carteras en las que ESTA entrada se ejecutará. Normalmente las dos;
+            # solo se recorta cuando la otra ya tiene el ticker abierto.
+            "carteras": libres,
             "proba": d.get("proba"),
             "score_fundamental": d.get("score_fundamental"),
             "atr": d.get("atr"),
@@ -65,14 +82,46 @@ def registrar_decisiones_entrada(estado: dict, decisiones: list[dict],
         }
         estado["entradas_pendientes"].append(entrada)
         nuevas.append(entrada)
-        ya.add(d["ticker"])
+        for c in libres:
+            ocupados[c].add(tk)
         cupo -= 1
-    return nuevas
+    return nuevas, notas
 
 
-def tickers_ocupados(estado: dict) -> set:
-    ocup = {p["ticker"] for p in estado["posiciones"].get("A", [])}
-    ocup |= {e["ticker"] for e in estado.get("entradas_pendientes", [])}
+def _carteras_en_texto(carteras) -> str:
+    nombres = [f"Cartera {c}" for c in carteras]
+    return " y ".join(nombres) if len(nombres) < 3 else ", ".join(nombres)
+
+
+def _linea_duplicado(d: dict, bloqueadas: list, libres: list) -> str:
+    """Línea del log para una candidata que choca con una posición ya abierta."""
+    dd = d.get("dd")
+    cab = f"{d['ticker']} | dd={dd:.1%} | " if dd is not None else f"{d['ticker']} | "
+    prob = d.get("proba")
+    cab += f"prob={prob:.3f} | " if prob is not None else ""
+    if not libres:
+        return (cab + "ENTRADA DESCARTADA: ya hay posición abierta en "
+                + _carteras_en_texto(bloqueadas) + ".")
+    return (cab + "ENTRADA SOLO EN " + _carteras_en_texto(libres).upper()
+            + ": ya hay posición abierta en " + _carteras_en_texto(bloqueadas) + ".")
+
+
+def tickers_ocupados(estado: dict, cartera: str) -> set:
+    """Tickers que YA no pueden volver a entrar hoy en `cartera`.
+
+    POR CARTERA, y ahí está el bug que esto corrige (ver CHANGELOG 2026-08-06):
+    antes esta función miraba SIEMPRE las posiciones de A, para las dos carteras.
+    Como cada entrada abre posición en A y en B a la vez, y A cierra pronto por
+    stop mientras B aguanta los 10 días sin él, en cuanto un ticker volvía a dar
+    señal se veía el hueco libre de A y se abría una SEGUNDA posición en B sobre
+    la primera, que seguía viva. Trece veces, todas en B.
+    """
+    ocup = {p["ticker"] for p in estado["posiciones"].get(cartera, [])}
+    # Las pendientes de hoy también ocupan sitio: si no, dos disparos del mismo
+    # día decidirían el mismo ticker dos veces. `carteras` puede faltar en las
+    # pendientes escritas antes de esta corrección; entonces valen para las dos.
+    ocup |= {e["ticker"] for e in estado.get("entradas_pendientes", [])
+             if cartera in e.get("carteras", CARTERAS)}
     return ocup
 
 
@@ -118,7 +167,14 @@ def ejecutar_entradas_pendientes(estado: dict, precios: dict, fecha_iso: str) ->
         hist_ini = [{"fecha": sesion_iso, "objetivo": round(objetivo, 4),
                      "motivo": "objetivo inicial"}]
 
+        # Normalmente las dos carteras. Se recorta cuando la decisión encontró el
+        # ticker ya abierto en una de ellas (ver registrar_decisiones_entrada);
+        # las pendientes anteriores a esa corrección no traen el campo y siguen
+        # valiendo para las dos.
+        carteras = e.get("carteras", CARTERAS)
         for cart, usa_stop in [("A", True), ("B", False)]:
+            if cart not in carteras:
+                continue
             datos_bit = {
                 "grupo": grupo, "ticker": e["ticker"], "portafolio": cart,
                 "sector": e.get("sector"), "fecha_entrada": sesion_iso,
