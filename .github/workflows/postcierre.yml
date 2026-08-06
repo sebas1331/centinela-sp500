@@ -145,3 +145,55 @@ jobs:
             "análisis MFE/MAE de posiciones [skip ci]" \
             "procesado" \
             reportes
+
+  # Publicación del dashboard de docs/ que sirve GitHub Pages. JOB APARTE por la
+  # misma razón que `mfe`: es presentación, no trading. Va el ÚLTIMO (needs:
+  # postcierre + mfe) para publicar ya con el informe MFE/MAE del día dentro; si
+  # revienta, lo único que pasa es que la web se queda con los datos de ayer,
+  # mientras que la bitácora, el estado y su verificación contra el remoto
+  # quedaron cerrados y en verde varios jobs antes, sin depender de este.
+  #
+  # `always()` porque `mfe` puede quedar SKIPPED (solo corre si el escaneo
+  # procesó de verdad) y sin esto arrastraría a este job al skip. La condición
+  # real es la de abajo: se republica cuando el post-cierre trabajó, haya ido
+  # como haya ido el reporte MFE.
+  dashboard:
+    needs: [postcierre, mfe]
+    if: always() && needs.postcierre.result == 'success' && needs.postcierre.outputs.resultado == 'procesado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # `ref` explícito (la punta de la rama, no el SHA del evento): aquí ya han
+      # commiteado `postcierre` y casi siempre `mfe`, y el dashboard tiene que
+      # leer esos datos, no los de antes de que este run empezara.
+      # `fetch-depth: 0` porque el sello de "última actualización" sale de un
+      # `git log` sobre los ficheros de datos: con un clon superficial saldría
+      # una fecha falsa.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Generar dashboard
+        id: dash
+        run: python scripts/generar_dashboard.py
+
+      # Solo se commitea si el generador dice que cambió algo, y entonces se
+      # exige de verdad: commit, push y confirmación contra el remoto. Así se
+      # evita el commit diario de ruido sin comprarlo al precio de dejar de
+      # comprobar la persistencia cuando sí había algo que guardar.
+      - name: Commit y push del dashboard
+        if: steps.dash.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "dashboard: republicado tras el post-cierre [skip ci]" \
+            "procesado" \
+            docs

@@ -5,6 +5,90 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-08-06 — Dashboard en GitHub Pages y blindaje del Vigilante (v0.3.0)
+
+**Infraestructura y presentación. No se tocó el modelo, el umbral (0.79), las
+features, los objetivos, el stop ni el backtest.**
+
+### El Vigilante #12 en rojo tras 15m02s
+
+**No se colgó: nunca llegó a ejecutarse.** GitHub no consiguió asignarle máquina
+—`The job was not acquired by Runner of type hosted even after multiple
+attempts`— y el job se quedó **encolado** hasta agotar el `timeout-minutes: 15`.
+La API de jobs lo confirma: la lista de `steps` venía **vacía**, ni siquiera
+corrió *Set up job*. Incidencia de infraestructura de Actions, ajena al
+repositorio. **El trading no se vio afectado**: los escaneos del día terminaron
+todos en verde y la sesión se procesó con normalidad.
+
+Contra la falta de runner no hay código posible. Lo que sí se controla es cuánto
+tarda en verse, y de paso se cerraron todas las vías por las que *este* código
+podría colgarse de verdad algún día:
+
+- `timeout-minutes` de 15 → **5**. Un Vigilante sano tarda 30-45 s; pasados 5
+  minutos o está roto o no hay máquina, y en ambos casos morir pronto y en rojo
+  es mejor que un run colgado un cuarto de hora fingiendo que trabaja.
+- **Timeout de socket global de 30 s.** Hoy el Vigilante no hace ni una petición
+  de red, pero un import futuro que la hiciera heredaría el *default* de Python,
+  que es esperar para siempre.
+- **Timeout de 60 s** en el subproceso `git log`.
+- **Cotas superiores explícitas** en todo lo que se itera: `MAX_SESIONES = 30`
+  (aplicado de verdad: `--sesiones 999999` revisa 30) y
+  `MAX_COMMITS_LISTADOS = 200`, para que el coste no crezca con el repositorio.
+
+### Los dos escaneos "amarillos" de esa mañana: no era yfinance
+
+Los runs de pre-apertura `31096040571` (42m09s) y `31098882077` (35m11s)
+aparecieron cancelados. **No fue rate-limit ni red lenta: fue la escalera de
+crons funcionando como está diseñada.** El disparo de las 10:46 UTC entró en el
+grupo de concurrencia `centinela-escritura` y **durmió ~2 h** esperando su
+ventana de las 08:45 ET (`ESPERA_VENTANA_MAX_MIN = 120`). Mientras tanto GitHub
+solo mantiene **un run pendiente por grupo**, así que cada disparo nuevo
+desalojaba al anterior. Las cuentas cuadran al segundo: el de las 11:08 murió a
+los 42m09s = 11:50:20, justo cuando se encoló el de las 11:50; y ese murió a los
+35m11s = 12:25:29, justo cuando se encoló el de las 12:25, que fue el que
+finalmente hizo el escaneo en 4 s. Comportamiento correcto y sin pérdida de
+trabajo. **Amarillo aquí significa "otro peldaño de la escalera llegó primero",
+no "algo falló".**
+
+### Dashboard en GitHub Pages
+
+Panel estático servido desde `docs/`, **regenerado tras cada post-cierre**:
+<https://sebas1331.github.io/centinela-sp500/>
+
+- `scripts/generar_dashboard.py` lee `bitacora.csv`, `reportes/mfe_actual.md` y
+  `estado/estado.json`, calcula **todos** los agregados en Python y los escribe
+  en `docs/datos.json`. El HTML no calcula nada: solo pinta. Una sola fuente de
+  verdad y comprobable por los tests sin navegador.
+- **Solo lectura sobre el sistema de trading.** No toca modelo, umbral, features,
+  objetivos, stops ni bitácora.
+- **Job aparte** (`needs: [postcierre, mfe]`, el último del workflow), por la
+  misma razón que `mfe`: si la publicación revienta, lo peor que pasa es que la
+  web se quede con los datos de ayer, mientras la bitácora y su verificación
+  contra el remoto ya quedaron cerradas y en verde varios jobs antes.
+- **Idempotente sin aflojar la verificación.** La marca de "última
+  actualización" es la fecha del último commit que tocó *datos* (no la hora de
+  ejecución), así que dos pasadas iguales producen el mismo byte y no hay commit
+  de ruido. El generador publica `cambios=si|no` y el paso de commit solo corre
+  si hubo cambios — y entonces se exige commit, push y confirmación contra el
+  remoto con el mismo `commit_y_push.sh` de siempre. No se añadió ningún motivo
+  nuevo al vocabulario cerrado de `resultados.py`.
+- Presupuestos verificados en cada ejecución: `index.html` < 50 KB (25 KB hoy) y
+  `datos.json` < 500 KB (21 KB hoy).
+
+### Tests
+
+De 54 a **73**. Los 19 nuevos (`tests/test_dashboard.py`) cubren el contrato de
+`datos.json`, la aritmética de win rate / expectancy / profit factor contra una
+bitácora sintética de resultados conocidos, que las **posiciones abiertas no
+contaminen** las estadísticas de cerradas, que el HTML esté bien formado y sea
+autocontenido, la idempotencia, y las cotas del Vigilante.
+
+Un test que ya existía (`test_los_jobs_que_escriben_hacen_checkout_de_la_punta_de_la_rama`)
+cazó el job nuevo por tener un comentario entre `with:` y `ref:`. Se movió el
+comentario; **el guardarraíl no se tocó**.
+
+---
+
 ## 2026-07-28 — Checkout rancio en la cola de concurrencia (v0.2.1)
 
 **Infraestructura. No se tocó el modelo, el umbral, el stop ni el backtest.**

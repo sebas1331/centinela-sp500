@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="es" data-tema="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Centinela SP500</title>
+<meta name="description" content="Panel de seguimiento del experimento de paper trading Centinela SP500.">
+<style>
+/* --------------------------------------------------------------------------
+   Tema. Claro por defecto; oscuro si el sistema lo pide; y el toggle manda
+   sobre ambos escribiendo data-tema en <html>.
+   -------------------------------------------------------------------------- */
+:root{
+  --fondo:#f6f7f9; --superficie:#ffffff; --superficie-2:#f0f2f5;
+  --borde:#dfe3e8; --texto:#1c2024; --tenue:#606a76; --muy-tenue:#8b95a1;
+  --verde:#0a7d3b; --rojo:#c2410c; --azul:#0369a1;
+  --verde-fondo:#e6f4ec; --rojo-fondo:#fdeee6; --azul-fondo:#e4f1f9;
+  --acento:#0369a1; --sombra:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-tema="light"]){
+    --fondo:#101418; --superficie:#181d23; --superficie-2:#212831;
+    --borde:#2c343d; --texto:#e7ebef; --tenue:#9aa5b1; --muy-tenue:#6e7a87;
+    --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
+    --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
+    --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-tema="dark"]{
+  --fondo:#101418; --superficie:#181d23; --superficie-2:#212831;
+  --borde:#2c343d; --texto:#e7ebef; --tenue:#9aa5b1; --muy-tenue:#6e7a87;
+  --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
+  --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
+  --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--fondo); color:var(--texto);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",ui-sans-serif,system-ui,
+    Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.pos{color:var(--verde)} .neg{color:var(--rojo)} .neu{color:var(--tenue)}
+
+/* ---------------------------------- Cabecera fija ---------------------- */
+header{
+  position:sticky; top:0; z-index:20;
+  background:var(--superficie); border-bottom:1px solid var(--borde);
+  padding:.6rem max(.85rem,env(safe-area-inset-left));
+  display:flex; align-items:center; gap:.75rem;
+}
+header h1{font-size:1.02rem; margin:0; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+#sello{font-size:.72rem; color:var(--tenue); margin-left:auto; text-align:right; line-height:1.25}
+#sello b{display:block; font-weight:600; color:var(--texto); font-variant-numeric:tabular-nums}
+#tema{
+  flex:0 0 auto; background:var(--superficie-2); color:var(--texto);
+  border:1px solid var(--borde); border-radius:8px; padding:.36rem .5rem;
+  font:inherit; font-size:.78rem; cursor:pointer; line-height:1;
+}
+#tema:hover{border-color:var(--muy-tenue)}
+
+main{max-width:1180px; margin:0 auto; padding:1rem max(.85rem,env(safe-area-inset-left)) 3rem}
+h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
+   color:var(--tenue); font-weight:650; margin:1.6rem 0 .6rem}
+
+/* ---------------------------------- Tarjetas --------------------------- */
+.resumen{display:grid; grid-template-columns:repeat(2,1fr); gap:.6rem}
+@media (min-width:720px){.resumen{grid-template-columns:repeat(4,1fr)}}
+.kpi{
+  background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
+  padding:.85rem .9rem; box-shadow:var(--sombra);
+}
+.kpi .v{font-size:1.75rem; font-weight:660; letter-spacing:-.02em; line-height:1.1;
+        font-variant-numeric:tabular-nums}
+.kpi .e{font-size:.72rem; color:var(--tenue); margin-top:.28rem; letter-spacing:.01em}
+
+.carteras{display:grid; grid-template-columns:1fr; gap:.6rem}
+@media (min-width:620px){.carteras{grid-template-columns:1fr 1fr}}
+.cartera{background:var(--superficie); border:1px solid var(--borde);
+         border-radius:12px; padding:.85rem .9rem; box-shadow:var(--sombra)}
+.cartera h3{margin:0 0 .55rem; font-size:.95rem; font-weight:650;
+            display:flex; align-items:baseline; gap:.45rem}
+.cartera h3 span{font-size:.72rem; color:var(--tenue); font-weight:400}
+.cartera dl{margin:0; display:grid; grid-template-columns:1fr auto;
+            gap:.3rem .8rem; font-size:.84rem}
+.cartera dt{color:var(--tenue)}
+.cartera dd{margin:0; text-align:right; font-variant-numeric:tabular-nums; font-weight:560}
+
+/* ---------------------------------- Controles -------------------------- */
+.controles{display:flex; flex-direction:column; gap:.55rem; margin-bottom:.7rem}
+#buscar{
+  width:100%; padding:.55rem .7rem; font:inherit; font-size:.9rem;
+  background:var(--superficie); color:var(--texto);
+  border:1px solid var(--borde); border-radius:9px;
+}
+#buscar:focus{outline:2px solid var(--acento); outline-offset:-1px; border-color:var(--acento)}
+.chips{display:flex; flex-wrap:wrap; gap:.35rem}
+.chip{
+  background:var(--superficie); color:var(--tenue); border:1px solid var(--borde);
+  border-radius:999px; padding:.32rem .68rem; font:inherit; font-size:.78rem;
+  cursor:pointer; white-space:nowrap; line-height:1.2;
+}
+.chip:hover{border-color:var(--muy-tenue); color:var(--texto)}
+.chip[aria-pressed="true"]{
+  background:var(--azul-fondo); border-color:var(--azul); color:var(--azul); font-weight:600;
+}
+#cuenta{font-size:.75rem; color:var(--tenue); font-variant-numeric:tabular-nums}
+
+/* ---------------------------------- Tablas ----------------------------- */
+.caja{background:var(--superficie); border:1px solid var(--borde);
+      border-radius:12px; box-shadow:var(--sombra); overflow:hidden}
+table{width:100%; border-collapse:collapse; font-size:.86rem}
+thead th{
+  position:sticky; top:0; background:var(--superficie-2); color:var(--tenue);
+  font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:650;
+  text-align:left; padding:.5rem .6rem; white-space:nowrap; cursor:pointer;
+  border-bottom:1px solid var(--borde); user-select:none;
+}
+thead th:hover{color:var(--texto)}
+thead th .dir{color:var(--acento); font-size:.62rem; margin-left:.15rem}
+tbody td{padding:.5rem .6rem; border-top:1px solid var(--borde); vertical-align:middle}
+tbody tr:hover{background:var(--superficie-2)}
+td.n{text-align:right; font-variant-numeric:tabular-nums}
+th.n{text-align:right}
+.tk{font-weight:660; letter-spacing:-.01em}
+.pnl{font-weight:660; font-size:.95rem; font-variant-numeric:tabular-nums}
+.badge{
+  display:inline-block; padding:.13rem .45rem; border-radius:999px;
+  font-size:.7rem; font-weight:620; white-space:nowrap; border:1px solid transparent;
+}
+.b-g{background:var(--verde-fondo); color:var(--verde); border-color:var(--verde)}
+.b-p{background:var(--rojo-fondo); color:var(--rojo); border-color:var(--rojo)}
+.b-a{background:var(--azul-fondo); color:var(--azul); border-color:var(--azul)}
+.vacio{padding:2rem .9rem; text-align:center; color:var(--tenue); font-size:.85rem}
+
+details{background:var(--superficie); border:1px solid var(--borde);
+        border-radius:12px; box-shadow:var(--sombra); overflow:hidden}
+summary{padding:.75rem .9rem; cursor:pointer; font-weight:600; font-size:.88rem;
+        list-style:none; display:flex; align-items:center; gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+"; color:var(--acento); font-weight:700; width:.8rem}
+details[open] summary::before{content:"−"}
+summary small{color:var(--tenue); font-weight:400; margin-left:auto; font-size:.75rem}
+details .envoltorio{border-top:1px solid var(--borde)}
+
+footer{margin-top:2.2rem; padding-top:1rem; border-top:1px solid var(--borde);
+       color:var(--tenue); font-size:.75rem; display:flex; flex-wrap:wrap; gap:.35rem 1rem}
+footer a{color:var(--acento)}
+
+/* --------------------------------------------------------------------------
+   MÓVIL: cada fila deja de ser fila y se convierte en tarjeta. Las etiquetas de
+   columna se recuperan desde data-col con ::before, así que nunca hay scroll
+   horizontal ni una cabecera que se pierde de vista.
+   -------------------------------------------------------------------------- */
+@media (max-width:719px){
+  main{padding-left:.7rem; padding-right:.7rem}
+  .caja{background:transparent; border:0; box-shadow:none; overflow:visible}
+  table, tbody, tr, td{display:block; width:100%}
+  thead{display:none}
+  tbody tr{
+    background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
+    padding:.65rem .8rem; margin-bottom:.5rem; box-shadow:var(--sombra);
+    display:grid; grid-template-columns:1fr auto; gap:.05rem .6rem;
+  }
+  tbody tr:hover{background:var(--superficie)}
+  /* Todo baja en una sola columna salvo el P&L, que se ancla arriba a la
+     derecha para quedar en la misma línea que el ticker. Colocación explícita:
+     dejarlo al autoflow del grid daría un orden distinto según qué celdas
+     existan en cada tabla. */
+  tbody td{border:0; padding:.09rem 0; font-size:.8rem; color:var(--tenue); grid-column:1}
+  tbody td::before{content:attr(data-col) ": "; color:var(--muy-tenue)}
+  tbody td.n{text-align:left}
+  /* Ticker y P&L mandan: primera línea de la tarjeta, grandes y sin rótulo. */
+  tbody td.c-ticker,tbody td.c-pnl{
+    font-size:1.12rem; padding-bottom:.3rem; color:var(--texto); align-self:center;
+  }
+  tbody td.c-ticker::before,tbody td.c-pnl::before,tbody td.c-estado::before{content:""}
+  tbody td.c-pnl{grid-column:2; grid-row:1; text-align:right}
+  tbody td.c-estado{padding-bottom:.35rem}
+  details .caja{padding:.6rem .7rem 0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Centinela SP500</h1>
+  <div id="sello"><b>—</b>última actualización</div>
+  <button id="tema" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>
+</header>
+
+<main>
+  <div class="resumen" id="kpis"></div>
+
+  <h2>Comparativa A vs B</h2>
+  <div class="carteras" id="carteras"></div>
+
+  <h2>Operaciones</h2>
+  <div class="controles">
+    <input id="buscar" type="search" placeholder="Buscar ticker…" autocomplete="off"
+           spellcheck="false" aria-label="Buscar por ticker">
+    <div class="chips" id="chips"></div>
+    <div id="cuenta"></div>
+  </div>
+  <div class="caja">
+    <table id="tabla">
+      <thead><tr id="cabecera"></tr></thead>
+      <tbody id="cuerpo"></tbody>
+    </table>
+    <div class="vacio" id="vacio" hidden>Ninguna operación coincide con los filtros.</div>
+  </div>
+
+  <h2>Detalle de posiciones abiertas</h2>
+  <details id="det-mfe">
+    <summary>Posiciones abiertas — MFE/MAE <small id="mfe-sello"></small></summary>
+    <div class="envoltorio">
+      <div class="caja">
+        <table>
+          <thead><tr>
+            <th>Ticker</th><th>Cartera</th><th class="n">MFE %</th><th class="n">MAE %</th>
+            <th class="n">P&amp;L actual</th><th>¿Tocó +5%?</th>
+          </tr></thead>
+          <tbody id="cuerpo-mfe"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    <a id="repo" href="https://github.com/sebas1331/centinela-sp500">Repositorio en GitHub</a>
+    <span id="ult-cerrada"></span>
+    <span>Paper trading — sin dinero real.</span>
+  </footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------------------------------------------------------- Tema ---- */
+var raiz = document.documentElement, btnTema = document.getElementById("tema");
+try{ var g = localStorage.getItem("centinela-tema"); if(g) raiz.dataset.tema = g; }catch(e){}
+function pintarBoton(){
+  var oscuro = raiz.dataset.tema === "dark" || (raiz.dataset.tema !== "light" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches);
+  btnTema.textContent = oscuro ? "Claro" : "Oscuro";
+}
+btnTema.addEventListener("click", function(){
+  var oscuro = raiz.dataset.tema === "dark" || (raiz.dataset.tema !== "light" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches);
+  raiz.dataset.tema = oscuro ? "light" : "dark";
+  try{ localStorage.setItem("centinela-tema", raiz.dataset.tema); }catch(e){}
+  pintarBoton();
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", pintarBoton);
+pintarBoton();
+
+/* ------------------------------------------------------------- Formato ---- */
+var MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+/* Las fechas del sistema son días de bolsa en formato YYYY-MM-DD. Se parten a
+   mano: pasarlas por new Date() las interpretaría como medianoche UTC y en
+   cualquier huso al oeste de Greenwich se pintaría el día anterior. */
+function fecha(iso){
+  if(!iso) return "—";
+  var p = String(iso).slice(0,10).split("-");
+  if(p.length !== 3) return "—";
+  var m = MESES[parseInt(p[1],10)-1];
+  return m ? (parseInt(p[2],10) + " " + m + " " + p[0]) : "—";
+}
+function precio(v){
+  if(v === null || v === undefined) return "—";
+  return "$" + v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+/* `conSigno` por defecto SÍ, porque casi todo lo que se pinta aquí es un
+   resultado que puede ir a favor o en contra y el signo es la mitad del dato.
+   Se apaga en las magnitudes que no tienen signo (el win rate), donde un "+"
+   delante sugiere una ganancia que ese número no significa. */
+function pct(v, decimales, conSigno){
+  if(v === null || v === undefined) return "—";
+  var d = decimales === undefined ? 2 : decimales;
+  var mas = (conSigno === false || v <= 0) ? "" : "+";
+  return mas + v.toFixed(d) + "%";
+}
+function signo(v){ return v === null || v === undefined ? "neu" : (v > 0 ? "pos" : (v < 0 ? "neg" : "neu")); }
+function el(tag, clase, texto){
+  var n = document.createElement(tag);
+  if(clase) n.className = clase;
+  if(texto !== undefined && texto !== null) n.textContent = texto;
+  return n;
+}
+
+/* ------------------------------------------------------------ Arranque ---- */
+fetch("datos.json", {cache:"no-cache"})
+  .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(iniciar)
+  .catch(function(err){
+    document.getElementById("cuerpo").appendChild(
+      el("tr","", "No se pudo cargar datos.json: " + err.message));
+    document.getElementById("cuenta").textContent = "Error al cargar los datos.";
+  });
+
+function iniciar(D){
+  var ops = D.operaciones || [], mfe = D.mfe || [], meta = D.meta || {};
+
+  /* --- Cabecera ------------------------------------------------------- */
+  if(meta.actualizado){
+    var d = new Date(meta.actualizado);
+    if(!isNaN(d)){
+      document.getElementById("sello").innerHTML = "";
+      var b = el("b","", d.toLocaleString(undefined,
+        {day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}));
+      document.getElementById("sello").appendChild(b);
+      document.getElementById("sello").appendChild(document.createTextNode("última actualización"));
+    }
+  }
+  if(meta.repo) document.getElementById("repo").href = meta.repo;
+
+  /* --- 4 tarjetas de resumen ------------------------------------------ */
+  var R = D.resumen || {};
+  [["cerradas", R.cerradas, "Operaciones cerradas", false],
+   ["wr", R.win_rate, "Win rate global", true],
+   ["pnl", R.pnl_acumulado, "P&L acumulado", true],
+   ["abiertas", R.abiertas, "Posiciones abiertas", false]
+  ].forEach(function(k){
+    var caja = el("div","kpi");
+    var valor = k[3] ? pct(k[1], 1, k[0] !== "wr")
+                     : (k[1] === null || k[1] === undefined ? "—" : String(k[1]));
+    /* El win rate no se colorea por signo: siempre es positivo y pintarlo de
+       verde daría una impresión de "va bien" que el número no respalda. Solo
+       se colorea el P&L, donde el signo sí significa ganar o perder. */
+    var clase = "v num" + (k[0] === "pnl" ? " " + signo(k[1]) : "");
+    caja.appendChild(el("div", clase, valor));
+    caja.appendChild(el("div","e", k[2]));
+    document.getElementById("kpis").appendChild(caja);
+  });
+
+  /* --- Comparativa A vs B --------------------------------------------- */
+  var cont = document.getElementById("carteras");
+  ["A","B"].forEach(function(nombre){
+    var c = (D.carteras || {})[nombre] || {};
+    var caja = el("div","cartera");
+    var h = el("h3","","Cartera " + nombre);
+    h.appendChild(el("span","", (c.abiertas || 0) + " abiertas ahora"));
+    caja.appendChild(h);
+    var dl = el("dl");
+    function fila(etiqueta, valor, clase){
+      dl.appendChild(el("dt","",etiqueta));
+      dl.appendChild(el("dd", clase || "", valor));
+    }
+    fila("Operaciones cerradas", c.cerradas === undefined ? "—" : String(c.cerradas));
+    fila("Win rate", pct(c.win_rate, 1, false));
+    fila("Expectancy", pct(c.expectancy), signo(c.expectancy));
+    /* profit_factor null = no hubo ni una pérdida, así que el cociente no está
+       definido. Se dice con el símbolo, no con un número inventado. */
+    fila("Profit factor", c.profit_factor === null || c.profit_factor === undefined
+         ? (c.cerradas ? "∞" : "—") : c.profit_factor.toFixed(2));
+    if(c.mejor) fila("Mejor trade", c.mejor.ticker + "  " + pct(c.mejor.pnl_pct), "pos");
+    if(c.peor)  fila("Peor trade",  c.peor.ticker  + "  " + pct(c.peor.pnl_pct),  "neg");
+    caja.appendChild(dl);
+    cont.appendChild(caja);
+  });
+
+  /* --- Tabla de operaciones ------------------------------------------- */
+  var COLS = [
+    {id:"ticker",  txt:"Ticker",         num:false},
+    {id:"cartera", txt:"Cartera",        num:false},
+    {id:"estado",  txt:"Estado",         num:false},
+    {id:"fecha_entrada",  txt:"Fecha entrada",  num:false},
+    {id:"precio_entrada", txt:"Precio entrada", num:true},
+    {id:"fecha_salida",   txt:"Fecha salida",   num:false},
+    {id:"precio_salida",  txt:"Precio salida",  num:true},
+    {id:"pnl_pct", txt:"P&L %",          num:true},
+    {id:"motivo",  txt:"Motivo",         num:false}
+  ];
+  var orden = {col:"fecha_entrada", asc:false};
+
+  /* Rótulo que ::before pone delante de cada dato cuando la fila se convierte en
+     tarjeta en móvil. La clave es el sufijo de la clase c-…, no el campo del
+     JSON, porque "pnl_pct" se pinta en una celda que se llama "pnl". */
+  var ETIQUETAS = {
+    ticker:"Ticker", cartera:"Cartera", estado:"Estado",
+    fecha_entrada:"Fecha entrada", precio_entrada:"Precio entrada",
+    fecha_salida:"Fecha salida", precio_salida:"Precio salida",
+    pnl:"P&L %", motivo:"Motivo", mfe:"MFE %", mae:"MAE %", toco:"¿Tocó +5%?"
+  };
+
+  var GRUPOS = {
+    estado:   {abiertas:"abierta", cerradas:"cerrada"},
+    cartera:  {a:"A", b:"B"},
+    resultado:{ganadoras:1, perdedoras:-1}
+  };
+  var CHIPS = [
+    {id:"todas",      txt:"Todas"},
+    {id:"abiertas",   txt:"Abiertas",   grupo:"estado"},
+    {id:"cerradas",   txt:"Cerradas",   grupo:"estado"},
+    {id:"a",          txt:"Cartera A",  grupo:"cartera"},
+    {id:"b",          txt:"Cartera B",  grupo:"cartera"},
+    {id:"ganadoras",  txt:"Ganadoras",  grupo:"resultado"},
+    {id:"perdedoras", txt:"Perdedoras", grupo:"resultado"}
+  ];
+  var activos = {};
+
+  var zonaChips = document.getElementById("chips");
+  CHIPS.forEach(function(c){
+    var b = el("button","chip",c.txt);
+    b.type = "button"; b.dataset.id = c.id;
+    b.setAttribute("aria-pressed", c.id === "todas" ? "true" : "false");
+    if(c.id === "ganadoras" || c.id === "perdedoras")
+      b.title = "Solo operaciones ya cerradas: una posición abierta no ha ganado ni perdido todavía.";
+    b.addEventListener("click", function(){
+      if(c.id === "todas"){ activos = {}; }
+      else if(activos[c.id]){ delete activos[c.id]; }
+      else { activos[c.id] = c.grupo; }
+      zonaChips.querySelectorAll(".chip").forEach(function(x){
+        var puesto = x.dataset.id === "todas"
+          ? Object.keys(activos).length === 0 : !!activos[x.dataset.id];
+        x.setAttribute("aria-pressed", puesto ? "true" : "false");
+      });
+      pintar();
+    });
+    zonaChips.appendChild(b);
+  });
+
+  var cabecera = document.getElementById("cabecera");
+  COLS.forEach(function(c){
+    var th = el("th", c.num ? "n" : "", c.txt);
+    th.dataset.col = c.id;
+    th.setAttribute("scope","col");
+    th.addEventListener("click", function(){
+      if(orden.col === c.id) orden.asc = !orden.asc;
+      /* Estreno de columna: los números y las fechas se leen mejor de mayor a
+         menor (lo último y lo más grande primero); el texto, alfabético. */
+      else { orden.col = c.id; orden.asc = !(c.num || c.id.indexOf("fecha") === 0); }
+      pintar();
+    });
+    cabecera.appendChild(th);
+  });
+
+  function coincide(o){
+    var por = {};
+    Object.keys(activos).forEach(function(id){ (por[activos[id]] = por[activos[id]] || []).push(id); });
+    /* Dentro de un grupo los chips suman (Cartera A o Cartera B); entre grupos
+       se cruzan (Cartera A y además Ganadoras). */
+    var grupos = Object.keys(por);
+    for(var i = 0; i < grupos.length; i++){
+      var g = grupos[i], alguno = false;
+      for(var j = 0; j < por[g].length; j++){
+        var v = GRUPOS[g][por[g][j]];
+        if(g === "estado"   && o.estado  === v) alguno = true;
+        if(g === "cartera"  && o.cartera === v) alguno = true;
+        if(g === "resultado" && o.estado === "cerrada" && o.pnl_pct !== null &&
+           o.pnl_pct !== undefined && (v > 0 ? o.pnl_pct > 0 : o.pnl_pct < 0)) alguno = true;
+      }
+      if(!alguno) return false;
+    }
+    var q = document.getElementById("buscar").value.trim().toUpperCase();
+    return !q || o.ticker.toUpperCase().indexOf(q) !== -1;
+  }
+
+  function comparar(a, b){
+    var va = a[orden.col], vb = b[orden.col];
+    if(orden.col === "estado"){ va = etiqueta(a); vb = etiqueta(b); }
+    var na = va === null || va === undefined, nb = vb === null || vb === undefined;
+    if(na && nb) return a.id - b.id;
+    if(na) return 1;   /* los huecos caen siempre al final, se ordene como se ordene */
+    if(nb) return -1;
+    var c = (typeof va === "number" && typeof vb === "number")
+      ? va - vb : String(va).localeCompare(String(vb), "es");
+    if(c === 0) return a.id - b.id;
+    return orden.asc ? c : -c;
+  }
+
+  function etiqueta(o){
+    if(o.estado !== "cerrada") return "Abierta";
+    return (o.pnl_pct !== null && o.pnl_pct !== undefined && o.pnl_pct > 0)
+      ? "Ganadora" : "Perdedora";
+  }
+
+  var cuerpo = document.getElementById("cuerpo");
+  function pintar(){
+    cabecera.querySelectorAll("th").forEach(function(th){
+      var flecha = th.querySelector(".dir");
+      if(flecha) flecha.remove();
+      if(th.dataset.col === orden.col)
+        th.appendChild(el("span","dir", orden.asc ? "▲" : "▼"));
+    });
+
+    var lista = ops.filter(coincide).sort(comparar);
+    cuerpo.textContent = "";
+    var frag = document.createDocumentFragment();
+    lista.forEach(function(o){
+      var tr = el("tr");
+      /* `col` da a la vez la clase (c-…, de la que depende el layout de tarjeta
+         en móvil) y, vía ETIQUETAS, el data-col que ::before usa como rótulo. */
+      function celda(col, contenido, clase){
+        var td = el("td", (clase || "") + " c-" + col);
+        td.dataset.col = ETIQUETAS[col];
+        if(typeof contenido === "string") td.textContent = contenido;
+        else if(contenido) td.appendChild(contenido);
+        tr.appendChild(td);
+      }
+      celda("ticker", el("span","tk",o.ticker));
+      celda("cartera", o.cartera);
+      var et = etiqueta(o);
+      celda("estado", el("span","badge " + (et === "Abierta" ? "b-a" :
+            (et === "Ganadora" ? "b-g" : "b-p")), et));
+      celda("fecha_entrada", fecha(o.fecha_entrada));
+      celda("precio_entrada", precio(o.precio_entrada), "n");
+      celda("fecha_salida", fecha(o.fecha_salida));
+      celda("precio_salida", precio(o.precio_salida), "n");
+      /* La tilde delante marca P&L NO REALIZADO: es la marca a mercado contra el
+         último cierre disponible, no un resultado cerrado. */
+      var texto = o.pnl_pct === null || o.pnl_pct === undefined ? "—"
+        : (o.no_realizado ? "~" : "") + pct(o.pnl_pct);
+      celda("pnl", el("span","pnl num " + signo(o.pnl_pct), texto), "n");
+      celda("motivo", o.motivo || "—");
+      frag.appendChild(tr);
+    });
+    cuerpo.appendChild(frag);
+    document.getElementById("vacio").hidden = lista.length > 0;
+    document.getElementById("cuenta").textContent =
+      lista.length + " de " + ops.length + " operaciones";
+  }
+
+  document.getElementById("buscar").addEventListener("input", pintar);
+  pintar();
+
+  /* --- MFE / MAE ------------------------------------------------------- */
+  var cuerpoMfe = document.getElementById("cuerpo-mfe");
+  var ordenadas = mfe.slice().sort(function(a,b){
+    var x = a.mfe_pct, y = b.mfe_pct;
+    if(x === null || x === undefined) return 1;
+    if(y === null || y === undefined) return -1;
+    return y - x;
+  });
+  ordenadas.forEach(function(p){
+    var tr = el("tr");
+    function c(col, nodo, clase){
+      var td = el("td",(clase || "") + " c-" + col);
+      td.dataset.col = ETIQUETAS[col];
+      if(typeof nodo === "string") td.textContent = nodo; else if(nodo) td.appendChild(nodo);
+      tr.appendChild(td);
+    }
+    c("ticker", el("span","tk",p.ticker));
+    c("cartera", p.cartera);
+    c("mfe", el("span","num pos", pct(p.mfe_pct)), "n");
+    c("mae", el("span","num neg", pct(p.mae_pct)), "n");
+    c("pnl", el("span","num " + signo(p.pnl_actual_pct), pct(p.pnl_actual_pct)), "n");
+    c("toco", p.toco_5 ? "Sí" : "No");
+    cuerpoMfe.appendChild(tr);
+  });
+  document.getElementById("mfe-sello").textContent =
+    ordenadas.length + " posiciones" + (meta.mfe_generado ? " · " + meta.mfe_generado : "");
+
+  /* --- Pie -------------------------------------------------------------- */
+  if(R.ultima_cerrada)
+    document.getElementById("ult-cerrada").textContent =
+      "Última operación cerrada: " + fecha(R.ultima_cerrada) + ".";
+}
+})();
+</script>
+</body>
+</html>

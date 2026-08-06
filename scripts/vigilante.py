@@ -24,10 +24,44 @@ para no dar falsos positivos por los retrasos normales del cron de Actions.
 from __future__ import annotations
 
 import argparse
+import socket
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# BLINDAJE CONTRA CUELGUES (raíz: el run 31119690487 del 2026-08-06)
+#
+# Aquel run murió a los 15 minutos, pero no por culpa de este script: GitHub
+# nunca le asignó runner y el job se quedó encolado hasta agotar el timeout (ver
+# la cabecera de .github/workflows/vigilante.yml). Aun así el episodio dejó claro
+# que un Vigilante tardando minutos es indistinguible de uno colgado, así que
+# aquí se cierran todas las vías por las que ESTE código podría bloquearse:
+#
+#   - Timeout de socket global. Hoy el Vigilante no hace ni una petición de red
+#     (solo lee ficheros del repo y llama a `git log`), pero un import futuro que
+#     la hiciera heredaría el default de Python, que es ESPERAR PARA SIEMPRE.
+#     Con esto, cualquier socket que alguien introduzca aquí muere a los 30 s.
+#   - Timeout duro en el subproceso `git`.
+#   - Cota superior explícita en todo lo que se itera (sesiones y commits), para
+#     que el coste no crezca con el repositorio.
+# ---------------------------------------------------------------------------
+TIMEOUT_RED_S = 30
+socket.setdefaulttimeout(TIMEOUT_RED_S)
+
+#: Techo para el subproceso `git log`. En un repo sano tarda milisegundos.
+TIMEOUT_GIT_S = 60
+
+#: Cota superior de sesiones a revisar. El uso normal es 1-5; el techo existe
+#: para que un `--sesiones 100000` no ponga a recorrer el calendario sin fin.
+MAX_SESIONES = 30
+
+#: Cota superior de commits del bot a listar. El repo crece un puñado de commits
+#: al día, pero la ventana es de tiempo, no de tamaño: sin este techo un día raro
+#: (reprocesado masivo, migración) podría devolver miles de líneas y llenar el
+#: log del run. Solo se usan para informar y para saber si hay ALGUNO.
+MAX_COMMITS_LISTADOS = 200
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -49,17 +83,24 @@ def _marca(escaneo: str) -> str:
 
 
 def _commits_del_bot(horas: int) -> list[str]:
-    """Commits del bot en las últimas `horas` (según el árbol ya clonado)."""
+    """Commits del bot en las últimas `horas` (según el árbol ya clonado).
+
+    Acotado por los dos lados: `-n` limita cuántos commits puede devolver git por
+    muy grande que se ponga el repositorio, y `timeout` impide que un `git` que se
+    quede pensando (o esperando un lock del índice) cuelgue el run entero.
+    """
     salida = subprocess.run(
-        ["git", "log", f"--since={horas} hours ago", f"--author={AUTOR_BOT}",
-         "--format=%h %ad %s", "--date=iso"],
+        ["git", "log", f"-n{MAX_COMMITS_LISTADOS}", f"--since={horas} hours ago",
+         f"--author={AUTOR_BOT}", "--format=%h %ad %s", "--date=iso"],
         cwd=config.BASE_DIR, capture_output=True, text=True, check=True,
+        timeout=TIMEOUT_GIT_S,
     ).stdout.strip()
     return [ln for ln in salida.splitlines() if ln]
 
 
 def sesiones_a_exigir(n: int, ahora: datetime | None = None) -> list[str]:
     """Las n sesiones más recientes cuyo trabajo ya debería estar commiteado."""
+    n = max(1, min(int(n), MAX_SESIONES))
     ultima = calendario.ultima_sesion_exigible(ahora)
     if ultima is None:
         return []

@@ -15,6 +15,23 @@ name: Vigilante
 #
 # Corre a diario a las 14:37 UTC, cuando el post-cierre de la sesión anterior ya
 # debería llevar horas hecho incluso con el peor retraso de cron observado.
+#
+# ---------------------------------------------------------------------------
+# EL FALLO DEL 2026-08-06 (run 31119690487): 15m02s y rojo
+#
+# No se colgó el Vigilante: NUNCA LLEGÓ A EJECUTARSE. GitHub no consiguió
+# asignarle una máquina ("The job was not acquired by Runner of type hosted even
+# after multiple attempts"), el job se quedó encolado 15 minutos y el
+# timeout-minutes lo mató. La API de jobs lo confirma: `steps` venía VACÍO, ni
+# siquiera corrió "Set up job". Fue una incidencia de infraestructura de Actions,
+# ajena a este repositorio, y el trading no se vio afectado (los escaneos del día
+# terminaron todos en verde).
+#
+# Contra eso no hay código que valga: no podemos forzar a GitHub a darnos runner.
+# Lo que sí controlamos es CUÁNTO tarda en verse. El timeout baja de 15 a 5
+# minutos: un Vigilante sano tarda 30-45 s, así que pasados 5 minutos o está roto
+# o no hay máquina, y en ambos casos la respuesta correcta es morir en rojo ya en
+# vez de tener el run colgado un cuarto de hora fingiendo que trabaja.
 # ---------------------------------------------------------------------------
 on:
   schedule:
@@ -33,7 +50,10 @@ permissions:
 jobs:
   vigilar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Un Vigilante sano tarda 30-45 s (solo lee ficheros del repo y `git log`; no
+    # descarga precios ni llama a ninguna API). Si pasa de 5 minutos está roto por
+    # definición, y morir pronto y en rojo es preferible a colgarse.
+    timeout-minutes: 5
     steps:
       # Historial completo: el vigilante cuenta commits del bot por fecha.
       - uses: actions/checkout@v4

@@ -15,6 +15,47 @@ y **B (sin stop)**.
 
 ---
 
+## 📊 Dashboard
+
+**→ [sebas1331.github.io/centinela-sp500](https://sebas1331.github.io/centinela-sp500/)**
+
+Panel web con todo el experimento de un vistazo. **Se regenera solo tras cada
+post-cierre**, así que lo que se ve ahí es siempre la última sesión cerrada.
+
+Está pensado **para el móvil primero**: en pantalla pequeña cada operación se
+convierte en una tarjeta con el ticker y su P&L destacados, sin scroll lateral.
+
+Qué hay dentro:
+
+- **Cuatro cifras de cabecera** — operaciones cerradas, win rate global, P&L
+  acumulado y posiciones abiertas ahora mismo.
+- **Comparativa A vs B** — nº de cerradas, win rate, expectancy, profit factor y
+  el mejor y el peor trade de cada cartera, lado a lado.
+- **Tabla de todas las operaciones**, abiertas y cerradas, con filtros
+  combinables (`Abiertas`, `Cerradas`, `Cartera A`, `Cartera B`, `Ganadoras`,
+  `Perdedoras`), buscador por ticker y cualquier columna ordenable. El P&L de una
+  posición abierta va precedido de **`~`**: es una marca a mercado contra el
+  último cierre disponible, **no** un resultado realizado, y **no** cuenta en el
+  win rate ni en el P&L acumulado.
+- **Sección plegable MFE/MAE** de las posiciones abiertas, ordenada por MFE.
+- **Tema claro/oscuro**, que respeta el del sistema y recuerda tu elección.
+
+Es HTML+CSS+JS plano, sin frameworks ni CDNs: unos 25 KB que se sirven estáticos
+desde [`docs/`](docs/). Todos los agregados los calcula
+[`scripts/generar_dashboard.py`](scripts/generar_dashboard.py) en Python y viajan
+ya hechos en `docs/datos.json` — el HTML solo pinta, así que no hay dos sitios
+donde una misma cifra pueda salir distinta.
+
+Para verlo en local hace falta servirlo (el navegador bloquea `fetch` sobre
+`file://`):
+
+```bash
+python scripts/generar_dashboard.py
+python -m http.server 8000 --directory docs   # y abrir http://localhost:8000
+```
+
+---
+
 ## 📱 Cómo consultar la bitácora desde el celular
 
 Todo el registro vive en el propio repositorio. Desde el navegador del teléfono:
