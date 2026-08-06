@@ -192,6 +192,69 @@ def metricas_cartera(cerradas: pd.DataFrame) -> dict:
     }
 
 
+def pnl_por_cartera(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
+    """P&L acumulado de una cartera, separando lo realizado de lo que no lo es.
+
+      - realizado  = suma del P&L de las operaciones YA CERRADAS. Es dinero
+        (simulado) hecho: no puede cambiar.
+      - total      = realizado + suma del P&L actual de las ABIERTAS. Ese segundo
+        sumando es una marca a mercado contra el último cierre disponible y se
+        mueve cada día, así que el total es una foto, no un resultado.
+
+    Las dos cifras son SUMAS de retornos de posiciones equiponderadas, no una
+    curva de capital compuesta (ver la nota que el dashboard enseña debajo).
+
+    `abiertas_sin_pnl` cuenta las posiciones abiertas para las que el informe
+    MFE/MAE todavía no tiene fila —típicamente una entrada de hoy—, porque si no
+    el total saldría corto sin que nada lo dijera.
+    """
+    realizado = float(cerradas["pnl_pct_pp"].sum()) if len(cerradas) else 0.0
+    no_realizado = abiertas["pnl_abierta_pp"].dropna()
+    return {
+        "pnl_realizado": _redondear(realizado),
+        "pnl_total": _redondear(realizado + float(no_realizado.sum())),
+        "abiertas_sin_pnl": int(abiertas["pnl_abierta_pp"].isna().sum()),
+    }
+
+
+def curva_equity(cerradas: pd.DataFrame) -> list[dict]:
+    """Evolución del P&L acumulado REALIZADO de A y B, punto por fecha de salida.
+
+    Solo entran operaciones cerradas: la curva es de resultado hecho. Lo no
+    realizado de las abiertas está en las tarjetas de arriba, que sí avisan de
+    que se mueve; mezclarlo aquí convertiría el histórico en algo que cambia de
+    forma cada día hacia atrás, que es justo lo que una curva no debe hacer.
+
+    Todas las operaciones que cierran el mismo día se agregan en un solo punto.
+    En cada fecha se registra el acumulado de AMBAS carteras, aunque ese día solo
+    haya cerrado una: así la otra serie queda plana en su último valor y el HTML
+    puede dibujar las dos sobre el mismo eje sin interpolar nada por su cuenta.
+    """
+    if cerradas.empty:
+        return []
+    df = cerradas.dropna(subset=["fecha_salida"])
+    if df.empty:
+        return []
+
+    acumulado = {"A": 0.0, "B": 0.0}
+    n = {"A": 0, "B": 0}
+    puntos = []
+    for fecha in sorted(df["fecha_salida"].unique()):
+        del_dia = df[df["fecha_salida"] == fecha]
+        for c in ("A", "B"):
+            de_la_cartera = del_dia[del_dia["portafolio"] == c]
+            acumulado[c] += float(de_la_cartera["pnl_pct_pp"].sum())
+            n[c] += int(len(de_la_cartera))
+        puntos.append({
+            "fecha": str(fecha),
+            "pl_acumulado_a": _redondear(acumulado["A"]),
+            "pl_acumulado_b": _redondear(acumulado["B"]),
+            "n_cerradas_a": n["A"],
+            "n_cerradas_b": n["B"],
+        })
+    return puntos
+
+
 def _ultimo_commit_de_datos() -> str | None:
     """Fecha ISO del último commit que tocó datos reales (no docs/).
 
@@ -231,15 +294,21 @@ def construir_datos() -> dict:
                     for p in mfe}
 
     bit["pnl_pct_pp"] = bit["pnl_pct"] * 100.0  # fracción -> puntos porcentuales
+    # El P&L no realizado, como columna: así las tarjetas de "P&L por cartera" y
+    # la tabla de operaciones leen exactamente el mismo dato en vez de repetir
+    # cada una su propio cruce contra el informe MFE.
+    bit["pnl_abierta_pp"] = [
+        pnl_abiertas.get(clave)
+        for clave in zip(bit["ticker"], bit["portafolio"], bit["fecha_entrada"])
+    ]
     cerradas = bit[bit["estado"] == "cerrada"].copy()
     abiertas = bit[bit["estado"] != "cerrada"].copy()
 
     operaciones = []
     for _, r in bit.iterrows():
         es_cerrada = r["estado"] == "cerrada"
-        clave = (r["ticker"], r["portafolio"], r["fecha_entrada"])
         pnl = (_redondear(r["pnl_pct_pp"]) if es_cerrada
-               else _redondear(pnl_abiertas.get(clave)))
+               else _redondear(r["pnl_abierta_pp"]))
         operaciones.append({
             "id": int(r["id"]),
             "ticker": r["ticker"],
@@ -278,9 +347,12 @@ def construir_datos() -> dict:
         },
         "carteras": {
             c: {**metricas_cartera(cerradas[cerradas["portafolio"] == c]),
+                **pnl_por_cartera(cerradas[cerradas["portafolio"] == c],
+                                  abiertas[abiertas["portafolio"] == c]),
                 "abiertas": int((abiertas["portafolio"] == c).sum())}
             for c in ("A", "B")
         },
+        "curva_equity": curva_equity(cerradas),
         "operaciones": operaciones,
         "mfe": mfe,
         "meta": {

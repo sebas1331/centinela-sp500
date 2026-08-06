@@ -29,8 +29,18 @@ Qué hay dentro:
 
 - **Cuatro cifras de cabecera** — operaciones cerradas, win rate global, P&L
   acumulado y posiciones abiertas ahora mismo.
+- **P&L acumulado por cartera** — para A y para B, lo **realizado** (solo
+  cerradas, ya no cambia) junto al **total** (realizado + marca a mercado de las
+  abiertas, que se mueve cada día). Son **sumas de retornos equiponderados**, no
+  una curva de capital compuesta: este experimento no modela asignación de
+  capital, y el dashboard lo dice ahí mismo.
 - **Comparativa A vs B** — nº de cerradas, win rate, expectancy, profit factor y
   el mejor y el peor trade de cada cartera, lado a lado.
+- **Curva de equity** — evolución del P&L acumulado **realizado** de las dos
+  carteras (A azul continuo, B violeta discontinuo), con referencia en 0%. Al
+  pasar el ratón —o mantener el dedo en el móvil— aparece el detalle de esa
+  fecha: acumulado y nº de cerradas de cada cartera. Es SVG dibujado a mano, sin
+  ninguna librería de gráficos.
 - **Tabla de todas las operaciones**, abiertas y cerradas, con filtros
   combinables (`Abiertas`, `Cerradas`, `Cartera A`, `Cartera B`, `Ganadoras`,
   `Perdedoras`), buscador por ticker y cualquier columna ordenable. El P&L de una

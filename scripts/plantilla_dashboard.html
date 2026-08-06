@@ -17,6 +17,14 @@
   --verde:#0a7d3b; --rojo:#c2410c; --azul:#0369a1;
   --verde-fondo:#e6f4ec; --rojo-fondo:#fdeee6; --azul-fondo:#e4f1f9;
   --acento:#0369a1; --sombra:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.04);
+  /* Identidad de cartera para la curva de equity. Ahí el color dice QUÉ CARTERA
+     es, no si va bien o mal, así que no puede reutilizar el verde/rojo sin
+     mentir. La Cartera A toma el azul que el sistema ya usa para "posición
+     abierta" (mismo registro: informativo, no valorativo) y la B necesita un
+     tono nuevo: el violeta es el único frío que no colisiona con verde, rojo ni
+     azul. Aun así las dos series se distinguen TAMBIÉN por trazo (A continua,
+     B discontinua), para que la lectura no dependa de percibir bien el color. */
+  --serie-b:#7c3aed;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-tema="light"]){
@@ -25,6 +33,7 @@
     --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
     --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
     --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
+    --serie-b:#a78bfa;
   }
 }
 :root[data-tema="dark"]{
@@ -33,6 +42,7 @@
   --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
   --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
   --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
+  --serie-b:#a78bfa;
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -46,6 +56,9 @@ body{
 }
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .pos{color:var(--verde)} .neg{color:var(--rojo)} .neu{color:var(--tenue)}
+/* Un acumulado exactamente en cero no es ni ganancia ni pérdida: azul, el mismo
+   registro neutro-informativo que el badge de "Abierta". */
+.cero{color:var(--azul)}
 
 /* ---------------------------------- Cabecera fija ---------------------- */
 header{
@@ -78,6 +91,59 @@ h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
 .kpi .v{font-size:1.75rem; font-weight:660; letter-spacing:-.02em; line-height:1.1;
         font-variant-numeric:tabular-nums}
 .kpi .e{font-size:.72rem; color:var(--tenue); margin-top:.28rem; letter-spacing:.01em}
+
+/* ------------------------- P&L acumulado por cartera ------------------------ */
+/* Dos columnas SIEMPRE (A izquierda, B derecha) para que la comparación sea
+   inmediata también en el móvil. Lo que cambia con el ancho es cómo se colocan
+   las dos tarjetas de cada columna: apiladas en móvil, en fila en escritorio. */
+.pnlgrid{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.pnlcol h3{margin:0 0 .4rem; font-size:.8rem; font-weight:650; color:var(--tenue)}
+.pnlpar{display:grid; grid-template-columns:1fr; gap:.5rem}
+@media (min-width:720px){.pnlpar{grid-template-columns:1fr 1fr}}
+.kpi-sm{padding:.6rem .7rem}
+.kpi-sm .v{font-size:1.28rem}
+.nota{
+  margin:.7rem 0 0; font-size:.72rem; line-height:1.5; color:var(--tenue); max-width:74ch;
+}
+
+/* ------------------------------ Curva de equity ----------------------------- */
+/* Tarjeta propia y NO `.caja`: en móvil `.caja` se despoja de fondo y borde a
+   propósito (ahí la tabla se convierte en tarjetas sueltas), y el gráfico sí
+   tiene que seguir siendo una tarjeta en cualquier ancho. */
+#curva{
+  position:relative; background:var(--superficie); border:1px solid var(--borde);
+  border-radius:12px; box-shadow:var(--sombra); padding:.6rem .55rem .3rem;
+}
+#curva svg{display:block; width:100%; height:auto; touch-action:pan-y}
+.rejilla{stroke:var(--borde); stroke-width:1}
+.cero-linea{stroke:var(--muy-tenue); stroke-width:1; stroke-dasharray:4 3}
+.eje-txt{fill:var(--tenue); font-size:10px; font-variant-numeric:tabular-nums}
+.serie{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
+.serie-a{stroke:var(--azul)}
+.serie-b{stroke:var(--serie-b); stroke-dasharray:6 4}
+.guia{stroke:var(--muy-tenue); stroke-width:1}
+.punto-a{fill:var(--azul)} .punto-b{fill:var(--serie-b)}
+.punto-a,.punto-b{stroke:var(--superficie); stroke-width:2}
+.leyenda{display:flex; gap:.9rem; justify-content:flex-end; align-items:center;
+         padding:0 .3rem .35rem; font-size:.74rem; color:var(--tenue)}
+.leyenda span{display:inline-flex; align-items:center; gap:.34rem}
+/* Sin acotar a .leyenda: el globo del gráfico reutiliza estos mismos distintivos
+   y, si las reglas de color colgaran de .leyenda, allí saldrían grises. */
+.la,.lb{width:16px; height:0; border-top-width:2px; display:inline-block}
+.la{border-top-style:solid; border-top-color:var(--azul)}
+.lb{border-top-style:dashed; border-top-color:var(--serie-b)}
+#globo{
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .08s;
+  background:var(--superficie); border:1px solid var(--borde); border-radius:9px;
+  box-shadow:0 4px 12px rgba(16,24,40,.14); padding:.45rem .55rem;
+  font-size:.74rem; line-height:1.5; white-space:nowrap; z-index:5;
+}
+#globo.visible{opacity:1}
+#globo b{display:block; font-size:.76rem; margin-bottom:.2rem; color:var(--texto)}
+#globo .fila{display:flex; align-items:center; gap:.35rem; color:var(--tenue)}
+#globo .fila i{flex:0 0 auto}
+#globo .fila .v{margin-left:auto; padding-left:.7rem; font-variant-numeric:tabular-nums; font-weight:620}
+.sin-datos{padding:2.4rem 1rem; text-align:center; color:var(--tenue); font-size:.84rem}
 
 .carteras{display:grid; grid-template-columns:1fr; gap:.6rem}
 @media (min-width:620px){.carteras{grid-template-columns:1fr 1fr}}
@@ -197,8 +263,26 @@ footer a{color:var(--acento)}
 <main>
   <div class="resumen" id="kpis"></div>
 
+  <h2>P&amp;L acumulado por cartera</h2>
+  <div class="pnlgrid" id="pnl-carteras"></div>
+  <p class="nota">
+    Suma de retornos con posiciones equiponderadas (cada trade pesa igual). No es
+    una curva de capital compuesta — este experimento no modela asignación de
+    capital.<span id="nota-hueco"></span>
+  </p>
+
   <h2>Comparativa A vs B</h2>
   <div class="carteras" id="carteras"></div>
+
+  <h2>Curva de equity</h2>
+  <div id="curva">
+    <div class="leyenda">
+      <span><i class="la"></i>Cartera A</span>
+      <span><i class="lb"></i>Cartera B</span>
+    </div>
+    <div id="lienzo"></div>
+    <div id="globo" role="status" aria-live="polite"></div>
+  </div>
 
   <h2>Operaciones</h2>
   <div class="controles">
@@ -288,11 +372,32 @@ function pct(v, decimales, conSigno){
   return mas + v.toFixed(d) + "%";
 }
 function signo(v){ return v === null || v === undefined ? "neu" : (v > 0 ? "pos" : (v < 0 ? "neg" : "neu")); }
+/* Igual que signo(), pero un cero exacto se pinta en azul en vez de en gris:
+   en un acumulado, "ni gano ni pierdo" es un dato, no un valor ausente. */
+function signoCero(v){
+  if(v === null || v === undefined) return "neu";
+  return v > 0 ? "pos" : (v < 0 ? "neg" : "cero");
+}
 function el(tag, clase, texto){
   var n = document.createElement(tag);
   if(clase) n.className = clase;
   if(texto !== undefined && texto !== null) n.textContent = texto;
   return n;
+}
+function svgEl(tag, attrs){
+  var n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for(var k in attrs) if(attrs.hasOwnProperty(k)) n.setAttribute(k, attrs[k]);
+  return n;
+}
+/* Fecha ISO -> instante UTC. Se construye a mano, igual que fecha(): dejárselo a
+   new Date() haría que el eje se desplazara un día en husos al oeste. */
+function marca(iso){
+  var p = String(iso).slice(0,10).split("-");
+  return Date.UTC(+p[0], +p[1]-1, +p[2]);
+}
+function fechaCorta(iso){
+  var p = String(iso).slice(0,10).split("-");
+  return parseInt(p[2],10) + " " + MESES[parseInt(p[1],10)-1];
 }
 
 /* ------------------------------------------------------------ Arranque ---- */
@@ -340,6 +445,32 @@ function iniciar(D){
     document.getElementById("kpis").appendChild(caja);
   });
 
+  /* --- P&L acumulado por cartera (realizado vs. no realizado) ---------- */
+  var contPnl = document.getElementById("pnl-carteras"), huecos = 0;
+  ["A","B"].forEach(function(nombre){
+    var c = (D.carteras || {})[nombre] || {};
+    huecos += (c.abiertas_sin_pnl || 0);
+    var col = el("div","pnlcol");
+    col.appendChild(el("h3","","Cartera " + nombre));
+    var par = el("div","pnlpar");
+    [["Realizado", c.pnl_realizado, "solo cerradas"],
+     ["Total", c.pnl_total, "cerradas + abiertas"]].forEach(function(t){
+      var k = el("div","kpi kpi-sm");
+      k.appendChild(el("div","v num " + signoCero(t[1]), pct(t[1])));
+      k.appendChild(el("div","e", t[0] + " (" + t[2] + ")"));
+      par.appendChild(k);
+    });
+    col.appendChild(par);
+    contPnl.appendChild(col);
+  });
+  /* Si alguna abierta no tiene aún fila en el informe MFE, el total va corto.
+     Se dice, en vez de servir una cifra incompleta con aire de definitiva. */
+  if(huecos > 0)
+    document.getElementById("nota-hueco").textContent =
+      " " + huecos + (huecos === 1
+        ? " posición abierta todavía no tiene P&L en el informe MFE/MAE, así que el total va corto."
+        : " posiciones abiertas todavía no tienen P&L en el informe MFE/MAE, así que el total va corto.");
+
   /* --- Comparativa A vs B --------------------------------------------- */
   var cont = document.getElementById("carteras");
   ["A","B"].forEach(function(nombre){
@@ -364,6 +495,191 @@ function iniciar(D){
     if(c.peor)  fila("Peor trade",  c.peor.ticker  + "  " + pct(c.peor.pnl_pct),  "neg");
     caja.appendChild(dl);
     cont.appendChild(caja);
+  });
+
+  /* --- Curva de equity ------------------------------------------------- */
+  /* SVG a mano, sin librería (regla del proyecto). Los datos vienen ya
+     acumulados desde Python: aquí solo se escalan a píxeles y se pintan. */
+  var CURVA = D.curva_equity || [];
+
+  function ticksY(min, max, cuantos){
+    var span = (max - min) || 1;
+    var mag = Math.pow(10, Math.floor(Math.log(span / cuantos) / Math.LN10));
+    var norm = (span / cuantos) / mag;
+    /* Cortes en las medias geométricas (√2, √10, √50) y no en 1/2/5 a pelo: con
+       los cortes ingenuos, un paso ideal de 5.6 se redondeaba a 10 y el eje se
+       quedaba en dos marcas. Estos reparten el error y dan siempre un número de
+       líneas cercano al pedido. */
+    var paso = (norm >= 7.0711 ? 10 : norm >= 3.1623 ? 5 : norm >= 1.4142 ? 2 : 1) * mag;
+    var t = [], v = Math.ceil(min / paso) * paso;
+    for(var g = 0; v <= max + 1e-9 && g < 40; v += paso, g++)
+      t.push(Math.round(v * 1e6) / 1e6);
+    return t;
+  }
+
+  function dibujarCurva(){
+    var lienzo = document.getElementById("lienzo");
+    var globo = document.getElementById("globo");
+    var leyenda = document.querySelector("#curva .leyenda");
+    lienzo.textContent = "";
+    globo.className = "";
+
+    /* Con menos de 3 cerradas cualquier "curva" sería ruido con forma de línea. */
+    if((R.cerradas || 0) < 3 || CURVA.length === 0){
+      leyenda.style.display = "none";
+      lienzo.appendChild(el("div","sin-datos",
+        "Aún no hay suficientes operaciones cerradas para dibujar la curva. " +
+        "Se necesitan al menos 3."));
+      return;
+    }
+    leyenda.style.display = "";
+
+    var movil = window.matchMedia("(max-width:719px)").matches;
+    var W = Math.max(lienzo.clientWidth || 0, 260);
+    var H = movil ? 240 : 320;
+    var M = {t:12, r:12, b:26, l:46};
+    var ancho = W - M.l - M.r, alto = H - M.t - M.b;
+
+    var t0 = marca(CURVA[0].fecha), t1 = marca(CURVA[CURVA.length-1].fecha);
+    var spanT = (t1 - t0) || 1;
+    /* Un solo punto se dibuja centrado: no hay recta que trazar, pero tampoco
+       hay razón para esconder el dato. */
+    function X(i){
+      return CURVA.length === 1
+        ? M.l + ancho / 2
+        : M.l + (marca(CURVA[i].fecha) - t0) / spanT * ancho;
+    }
+
+    var vals = [0];
+    CURVA.forEach(function(p){ vals.push(p.pl_acumulado_a, p.pl_acumulado_b); });
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    var pad = ((hi - lo) || 1) * 0.10;          /* 10% arriba y abajo */
+    lo -= pad; hi += pad;
+    function Y(v){ return M.t + (hi - v) / ((hi - lo) || 1) * alto; }
+
+    var svg = svgEl("svg", {width:W, height:H, viewBox:"0 0 " + W + " " + H,
+                            role:"img", "aria-label":"Curva de P&L acumulado de las carteras A y B"});
+
+    var marcasY = ticksY(lo, hi, movil ? 4 : 5);
+    /* Los decimales los fija el PASO del eje, no cada valor por su cuenta: si no,
+       un mismo eje acaba mezclando "-150%" con "-50.0%". */
+    var pasoY = marcasY.length > 1 ? Math.abs(marcasY[1] - marcasY[0]) : 1;
+    var decY = pasoY >= 1 ? 0 : (pasoY >= 0.1 ? 1 : 2);
+    marcasY.forEach(function(v){
+      svg.appendChild(svgEl("line", {class:"rejilla", x1:M.l, x2:W-M.r, y1:Y(v), y2:Y(v)}));
+      var tx = svgEl("text", {class:"eje-txt", x:M.l-7, y:Y(v)+3, "text-anchor":"end"});
+      tx.textContent = (v > 0 ? "+" : "") + v.toFixed(decY) + "%";
+      svg.appendChild(tx);
+    });
+    /* Referencia dura del 0%: el eje se fuerza a incluirlo para que esta línea
+       exista siempre, aunque las dos carteras estén todo el rato en negativo. */
+    if(lo <= 0 && hi >= 0)
+      svg.appendChild(svgEl("line", {class:"cero-linea", x1:M.l, x2:W-M.r, y1:Y(0), y2:Y(0)}));
+
+    /* Etiquetas del eje X: una cada ~semana (~2 en móvil), la última siempre, y
+       nunca dos tan juntas que se pisen. */
+    var pasoDias = movil ? 14 : 7, marcas = [], ultima = -Infinity;
+    CURVA.forEach(function(p, i){
+      var t = marca(p.fecha);
+      if(i === 0 || t - ultima >= pasoDias * 86400000){ marcas.push(i); ultima = t; }
+    });
+    if(marcas[marcas.length-1] !== CURVA.length-1) marcas.push(CURVA.length-1);
+    var minPx = movil ? 52 : 64;
+    for(var k = marcas.length - 1; k > 0; k--)
+      if(X(marcas[k]) - X(marcas[k-1]) < minPx) marcas.splice(k-1, 1);
+    marcas.forEach(function(i){
+      var tx = svgEl("text", {class:"eje-txt", x:X(i), y:H-8, "text-anchor":"middle"});
+      tx.textContent = fechaCorta(CURVA[i].fecha);
+      svg.appendChild(tx);
+    });
+
+    function trazo(campo){
+      return CURVA.map(function(p, i){
+        return (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p[campo]).toFixed(1);
+      }).join(" ");
+    }
+    if(CURVA.length > 1){
+      svg.appendChild(svgEl("path", {class:"serie serie-a", d:trazo("pl_acumulado_a")}));
+      svg.appendChild(svgEl("path", {class:"serie serie-b", d:trazo("pl_acumulado_b")}));
+    }
+
+    var guia = svgEl("line", {class:"guia", y1:M.t, y2:M.t+alto, opacity:0});
+    var pa = svgEl("circle", {class:"punto-a", r:4, opacity:0});
+    var pb = svgEl("circle", {class:"punto-b", r:4, opacity:0});
+    /* Con un único punto no hay línea, así que los círculos se dejan fijos para
+       que el dato siga siendo visible sin necesidad de hover. */
+    if(CURVA.length === 1){
+      pa.setAttribute("opacity",1); pa.setAttribute("cx",X(0)); pa.setAttribute("cy",Y(CURVA[0].pl_acumulado_a));
+      pb.setAttribute("opacity",1); pb.setAttribute("cx",X(0)); pb.setAttribute("cy",Y(CURVA[0].pl_acumulado_b));
+    }
+    svg.appendChild(guia); svg.appendChild(pa); svg.appendChild(pb);
+    lienzo.appendChild(svg);
+
+    /* ---- Interacción (puntero unificado: ratón, lápiz y dedo) ---------- */
+    function cercano(clientX){
+      var r = svg.getBoundingClientRect();
+      var px = (clientX - r.left) * (W / (r.width || W));
+      var idx = 0, mejor = Infinity;
+      for(var i = 0; i < CURVA.length; i++){
+        var d = Math.abs(X(i) - px);
+        if(d < mejor){ mejor = d; idx = i; }
+      }
+      return idx;
+    }
+    function mostrar(e){
+      var i = cercano(e.clientX), p = CURVA[i];
+      guia.setAttribute("x1", X(i)); guia.setAttribute("x2", X(i)); guia.setAttribute("opacity", 1);
+      pa.setAttribute("cx", X(i)); pa.setAttribute("cy", Y(p.pl_acumulado_a)); pa.setAttribute("opacity", 1);
+      pb.setAttribute("cx", X(i)); pb.setAttribute("cy", Y(p.pl_acumulado_b)); pb.setAttribute("opacity", 1);
+
+      globo.textContent = "";
+      globo.appendChild(el("b","",fecha(p.fecha)));
+      [["la", "A", p.pl_acumulado_a, p.n_cerradas_a],
+       ["lb", "B", p.pl_acumulado_b, p.n_cerradas_b]].forEach(function(s){
+        var f = el("div","fila");
+        f.appendChild(el("i", s[0]));
+        f.appendChild(el("span","", "Cartera " + s[1] + " · " + s[3] +
+          (s[3] === 1 ? " cerrada" : " cerradas")));
+        f.appendChild(el("span","v num " + signoCero(s[2]), pct(s[2])));
+        globo.appendChild(f);
+      });
+      globo.className = "visible";
+
+      var rs = svg.getBoundingClientRect(), rc = document.getElementById("curva").getBoundingClientRect();
+      var escala = (rs.width || W) / W;
+      var izq = (rs.left - rc.left) + X(i) * escala + 14;
+      if(izq + globo.offsetWidth > rc.width - 8) izq = (rs.left - rc.left) + X(i) * escala - globo.offsetWidth - 14;
+      globo.style.left = Math.max(6, izq) + "px";
+      globo.style.top = ((rs.top - rc.top) + 6) + "px";
+    }
+    function ocultar(){
+      globo.className = "";
+      if(CURVA.length > 1){
+        guia.setAttribute("opacity", 0);
+        pa.setAttribute("opacity", 0); pb.setAttribute("opacity", 0);
+      }
+    }
+    svg.addEventListener("pointerdown", function(e){
+      /* Capturar el puntero permite el "tap sostenido" del móvil: el dedo puede
+         salirse del SVG mientras arrastra y los eventos siguen llegando aquí. */
+      try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+      mostrar(e);
+    });
+    svg.addEventListener("pointermove", mostrar);
+    svg.addEventListener("pointerleave", ocultar);
+    svg.addEventListener("pointercancel", ocultar);
+    /* Con ratón el globo se queda mientras el cursor esté encima (lo cierra
+       pointerleave); con dedo o lápiz se cierra al levantar. */
+    svg.addEventListener("pointerup", function(e){ if(e.pointerType !== "mouse") ocultar(); });
+  }
+
+  dibujarCurva();
+  /* El ancho manda en el trazado, así que un cambio de tamaño obliga a repintar.
+     El tema NO: los colores son variables CSS y se actualizan solos. */
+  var temporizador;
+  window.addEventListener("resize", function(){
+    clearTimeout(temporizador);
+    temporizador = setTimeout(dibujarCurva, 150);
   });
 
   /* --- Tabla de operaciones ------------------------------------------- */

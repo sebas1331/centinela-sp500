@@ -5,6 +5,76 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-08-06 — P&L por cartera y curva de equity en el dashboard (v0.3.1)
+
+**Solo presentación. No se tocó el modelo, el umbral (0.79), las features, los
+objetivos, el stop ni el backtest.** El dashboard sigue siendo de solo lectura
+sobre la bitácora.
+
+### P&L acumulado por cartera (realizado vs. total)
+
+Cuatro tarjetas nuevas entre el resumen y la comparativa A vs B, agrupadas en dos
+columnas. Por cartera: **realizado** (solo cerradas, no puede cambiar) y **total**
+(realizado + marca a mercado de las abiertas, que se mueve cada día). El P&L no
+realizado sale del informe MFE/MAE que ya existía; no se recalcula nada.
+
+Debajo, la nota que evita la lectura equivocada: *"Suma de retornos con posiciones
+equiponderadas (cada trade pesa igual). No es una curva de capital compuesta —
+este experimento no modela asignación de capital."* Si alguna posición abierta
+todavía no tiene fila en el informe MFE, la nota **lo dice y cuenta cuántas**, en
+vez de servir un total corto con aire de definitivo (`abiertas_sin_pnl`).
+
+### Curva de equity
+
+Gráfico de líneas **SVG construido a mano con JS vanilla** — sin Chart.js, D3 ni
+ningún CDN, como manda la regla del proyecto. Un punto por fecha de salida, con
+los cierres del mismo día agregados; eje X temporal real (los fines de semana se
+ven como tramos más anchos), eje Y automático con 10% de margen y línea de
+referencia punteada en 0%.
+
+- **Solo operaciones cerradas.** La curva es de resultado realizado: mezclar lo
+  no realizado la haría cambiar de forma hacia atrás cada día. Lo no realizado
+  vive en las tarjetas de arriba, que sí avisan de que se mueve.
+- Cartera A en azul continuo, Cartera B en violeta discontinuo. Las series se
+  distinguen **también por trazo**, para que la lectura no dependa de percibir
+  bien el color. El violeta es el único tono frío que no colisiona con el
+  verde/rojo (ganancia/pérdida) ni con el azul.
+- Interacción con eventos de puntero unificados (`pointerdown/move/up/cancel`) y
+  `setPointerCapture`: hover en escritorio y **tap sostenido** en móvil, con
+  línea guía, círculos en ambas series y globo con fecha, acumulado de A y B y
+  nº de cerradas hasta esa fecha. `touch-action:pan-y` para no secuestrar el
+  scroll vertical de la página.
+- Con **menos de 3 operaciones cerradas** no se dibuja nada: se explica que aún
+  no hay suficientes. El JSON se genera igual y válido.
+
+Alto 320 px en escritorio y 240 px en móvil, repintado al cambiar de tamaño. El
+tema NO obliga a repintar: los colores son variables CSS.
+
+### Detalles que costaron una segunda pasada
+
+- El eje Y se quedaba en dos marcas en móvil. El redondeo a "número bonito" con
+  cortes en 1/2/5 convertía un paso ideal de 5.6 en 10. Ahora los cortes están en
+  las medias geométricas (√2, √10, √50) y el eje da siempre ~4 líneas.
+- Los decimales del eje los fija el **paso**, no cada valor: antes convivían
+  `-150%` y `-50.0%` en el mismo eje.
+- El gráfico no usa `.caja`: en móvil esa clase se despoja de fondo y borde a
+  propósito (ahí la tabla se vuelve tarjetas), y el gráfico debe seguir siendo
+  una tarjeta a cualquier ancho.
+
+### Tests
+
+De 73 a **84**. Los 11 nuevos cubren el schema ampliado, el realizado/total por
+cartera (incluido el caso de una abierta sin P&L conocido), la curva punto a
+punto contra una bitácora sintética, la agregación de cierres del mismo día, que
+las abiertas no entren en la curva, y los casos de <3 cerradas y de 0 cerradas.
+
+Un test propio (`test_html_es_autocontenido_y_responsive`) falló al añadir SVG,
+porque el **namespace XML** `http://www.w3.org/2000/svg` contiene `http://`. Es un
+identificador, no una descarga: se descuenta explícitamente antes de auditar en
+vez de relajar la prohibición, que es la que impide colar un CDN de verdad.
+
+---
+
 ## 2026-08-06 — Dashboard en GitHub Pages y blindaje del Vigilante (v0.3.0)
 
 **Infraestructura y presentación. No se tocó el modelo, el umbral (0.79), las

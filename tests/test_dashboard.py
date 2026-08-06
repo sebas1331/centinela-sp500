@@ -88,9 +88,9 @@ ESTADO_SINTETICO = {
 }
 
 
-def _csv_sintetico() -> str:
+def _csv_sintetico(filas=None) -> str:
     lineas = [CABECERA]
-    for (oid, tk, cart, fe, pe, fs, ps, motivo, pnl, estado) in FILAS:
+    for (oid, tk, cart, fe, pe, fs, ps, motivo, pnl, estado) in (FILAS if filas is None else filas):
         lineas.append(",".join([
             str(oid), "1", tk, cart, "Information Technology", fe,
             "", "", "", f"{pe}", "0.9", "60.0", "", "", '""', "",
@@ -100,13 +100,12 @@ def _csv_sintetico() -> str:
     return "\n".join(lineas) + "\n"
 
 
-@pytest.fixture
-def datos(tmp_path, monkeypatch) -> dict:
-    """datos.json construido a partir de la bitácora sintética de arriba."""
+def _construir(tmp_path, monkeypatch, filas=None, mfe_md=None) -> dict:
+    """Redirige las tres entradas del generador a ficheros temporales."""
     bit = tmp_path / "bitacora.csv"
-    bit.write_text(_csv_sintetico(), encoding="utf-8")
+    bit.write_text(_csv_sintetico(filas), encoding="utf-8")
     mfe = tmp_path / "mfe_actual.md"
-    mfe.write_text(MFE_SINTETICO, encoding="utf-8")
+    mfe.write_text(MFE_SINTETICO if mfe_md is None else mfe_md, encoding="utf-8")
     est = tmp_path / "estado.json"
     est.write_text(json.dumps(ESTADO_SINTETICO), encoding="utf-8")
 
@@ -116,11 +115,18 @@ def datos(tmp_path, monkeypatch) -> dict:
     return gd.construir_datos()
 
 
+@pytest.fixture
+def datos(tmp_path, monkeypatch) -> dict:
+    """datos.json construido a partir de la bitácora sintética de arriba."""
+    return _construir(tmp_path, monkeypatch)
+
+
 # --------------------------------------------------------------------------- #
 # 1. Contrato de datos.json
 # --------------------------------------------------------------------------- #
 def test_schema_datos_json(datos):
-    assert set(datos) == {"resumen", "carteras", "operaciones", "mfe", "meta"}
+    assert set(datos) == {"resumen", "carteras", "curva_equity", "operaciones",
+                          "mfe", "meta"}
 
     r = datos["resumen"]
     assert set(r) == {"cerradas", "abiertas", "win_rate", "pnl_acumulado", "ultima_cerrada"}
@@ -131,8 +137,21 @@ def test_schema_datos_json(datos):
     assert set(datos["carteras"]) == {"A", "B"}
     for c in datos["carteras"].values():
         assert set(c) == {"cerradas", "win_rate", "expectancy", "profit_factor",
-                          "mejor", "peor", "abiertas"}
+                          "mejor", "peor", "abiertas",
+                          "pnl_realizado", "pnl_total", "abiertas_sin_pnl"}
         assert isinstance(c["cerradas"], int) and isinstance(c["abiertas"], int)
+        assert isinstance(c["pnl_realizado"], float)
+        assert isinstance(c["pnl_total"], float)
+        assert isinstance(c["abiertas_sin_pnl"], int)
+
+    assert isinstance(datos["curva_equity"], list)
+    for p in datos["curva_equity"]:
+        assert set(p) == {"fecha", "pl_acumulado_a", "pl_acumulado_b",
+                          "n_cerradas_a", "n_cerradas_b"}
+        assert isinstance(p["fecha"], str) and len(p["fecha"]) == 10
+        assert isinstance(p["pl_acumulado_a"], float)
+        assert isinstance(p["pl_acumulado_b"], float)
+        assert isinstance(p["n_cerradas_a"], int) and isinstance(p["n_cerradas_b"], int)
         for extremo in (c["mejor"], c["peor"]):
             assert set(extremo) == {"ticker", "pnl_pct", "fecha_salida"}
             assert isinstance(extremo["pnl_pct"], float)
@@ -219,6 +238,155 @@ def test_cartera_sin_operaciones_cerradas_no_revienta():
     m = gd.metricas_cartera(pd.DataFrame(columns=["ticker", "pnl_pct_pp", "fecha_salida"]))
     assert m == {"cerradas": 0, "win_rate": None, "expectancy": None,
                  "profit_factor": None, "mejor": None, "peor": None}
+
+
+# --------------------------------------------------------------------------- #
+# 2b. P&L acumulado por cartera (realizado vs. total)
+# --------------------------------------------------------------------------- #
+def test_pnl_realizado_y_total_por_cartera(datos):
+    """Realizado = solo cerradas. Total = realizado + marca a mercado de abiertas.
+
+    A cerradas: +20 −10 +5 −15 = 0 ; su única abierta (EEE A) va +8  -> total +8
+    B cerradas: +30 −10          = +20 ; su única abierta (EEE B) va +8 -> total +28
+    """
+    a, b = datos["carteras"]["A"], datos["carteras"]["B"]
+    assert a["pnl_realizado"] == pytest.approx(0.0)
+    assert a["pnl_total"] == pytest.approx(8.0)
+    assert b["pnl_realizado"] == pytest.approx(20.0)
+    assert b["pnl_total"] == pytest.approx(28.0)
+    assert a["abiertas_sin_pnl"] == 0 and b["abiertas_sin_pnl"] == 0
+
+
+def test_realizado_por_cartera_suma_el_acumulado_global(datos):
+    """Las dos cifras vienen de sitios distintos y tienen que cuadrar."""
+    suma = (datos["carteras"]["A"]["pnl_realizado"]
+            + datos["carteras"]["B"]["pnl_realizado"])
+    assert suma == pytest.approx(datos["resumen"]["pnl_acumulado"])
+
+
+def test_una_abierta_sin_fila_en_el_informe_mfe_se_cuenta_y_no_se_inventa(
+        tmp_path, monkeypatch):
+    """El total no puede quedarse corto en silencio.
+
+    Se quita del informe MFE la posición abierta de la cartera A: su P&L deja de
+    conocerse, así que NO puede sumarse al total, y el hueco tiene que quedar
+    contado para que el dashboard lo pueda decir.
+    """
+    sin_a = MFE_SINTETICO.replace(
+        "| EEE | A | 2026-07-20 | 10.00 | +12.00% | 2026-07-21 | -3.00% | "
+        "2026-07-20 | +8.00% | ✅ sí | no | 14.00 |\n", "")
+    d = _construir(tmp_path, monkeypatch, mfe_md=sin_a)
+
+    a = d["carteras"]["A"]
+    assert a["abiertas_sin_pnl"] == 1
+    assert a["pnl_total"] == pytest.approx(a["pnl_realizado"])   # sin sumar nada
+    assert d["carteras"]["B"]["abiertas_sin_pnl"] == 0
+    # Y la operación aparece igualmente en la tabla, con P&L desconocido.
+    abierta_a = [o for o in d["operaciones"]
+                 if o["estado"] == "abierta" and o["cartera"] == "A"][0]
+    assert abierta_a["pnl_pct"] is None
+
+
+# --------------------------------------------------------------------------- #
+# 2c. Curva de equity
+# --------------------------------------------------------------------------- #
+def test_curva_equity_puntos_y_acumulados(datos):
+    """Un punto por fecha de salida, ordenados, con el acumulado de AMBAS series.
+
+    Salidas: A el 08 (+20), 09 (−10), 10 (+5) y 13 (−15); B el 14 (+30) y 15 (−10).
+    B no cierra nada hasta el 14, así que hasta entonces su acumulado es 0 y su
+    contador también: la serie va plana, no ausente.
+    """
+    curva = datos["curva_equity"]
+    assert [p["fecha"] for p in curva] == [
+        "2026-07-08", "2026-07-09", "2026-07-10",
+        "2026-07-13", "2026-07-14", "2026-07-15"]
+
+    assert [p["pl_acumulado_a"] for p in curva] == [
+        pytest.approx(x) for x in (20.0, 10.0, 15.0, 0.0, 0.0, 0.0)]
+    assert [p["pl_acumulado_b"] for p in curva] == [
+        pytest.approx(x) for x in (0.0, 0.0, 0.0, 0.0, 30.0, 20.0)]
+    assert [p["n_cerradas_a"] for p in curva] == [1, 2, 3, 4, 4, 4]
+    assert [p["n_cerradas_b"] for p in curva] == [0, 0, 0, 0, 1, 2]
+
+
+def test_curva_equity_cierra_donde_dice_el_realizado(datos):
+    """El último punto de cada serie es, por definición, su P&L realizado."""
+    ultimo = datos["curva_equity"][-1]
+    assert ultimo["pl_acumulado_a"] == pytest.approx(datos["carteras"]["A"]["pnl_realizado"])
+    assert ultimo["pl_acumulado_b"] == pytest.approx(datos["carteras"]["B"]["pnl_realizado"])
+    assert (ultimo["n_cerradas_a"] + ultimo["n_cerradas_b"]
+            == datos["resumen"]["cerradas"])
+
+
+def test_curva_equity_agrega_los_cierres_del_mismo_dia(tmp_path, monkeypatch):
+    """Tres operaciones que cierran el mismo día son UN punto, no tres."""
+    filas = [
+        (1, "AAA", "A", "2026-07-01", 100.0, "2026-07-08", 110.0, "objetivo", 0.10, "cerrada"),
+        (2, "BBB", "A", "2026-07-01", 100.0, "2026-07-08", 95.0, "stop", -0.05, "cerrada"),
+        (3, "CCC", "B", "2026-07-01", 100.0, "2026-07-08", 120.0, "objetivo", 0.20, "cerrada"),
+        (4, "DDD", "A", "2026-07-02", 100.0, "2026-07-09", 90.0, "stop", -0.10, "cerrada"),
+    ]
+    curva = _construir(tmp_path, monkeypatch, filas=filas)["curva_equity"]
+    assert len(curva) == 2
+    # Día 1: A suma +10 y −5 en un solo punto; B suma +20.
+    assert curva[0]["fecha"] == "2026-07-08"
+    assert curva[0]["pl_acumulado_a"] == pytest.approx(5.0)
+    assert curva[0]["pl_acumulado_b"] == pytest.approx(20.0)
+    assert curva[0]["n_cerradas_a"] == 2 and curva[0]["n_cerradas_b"] == 1
+    # Día 2: solo cierra A; B se queda plana en su último valor.
+    assert curva[1]["pl_acumulado_a"] == pytest.approx(-5.0)
+    assert curva[1]["pl_acumulado_b"] == pytest.approx(20.0)
+    assert curva[1]["n_cerradas_b"] == 1
+
+
+def test_curva_equity_ignora_las_abiertas(datos):
+    """La curva es de resultado REALIZADO: lo no realizado no la toca.
+
+    Las dos abiertas van +8% cada una. Si se colaran, el último punto no
+    coincidiría con el realizado de su cartera.
+    """
+    assert datos["resumen"]["abiertas"] == 2
+    assert len(datos["curva_equity"]) == 6           # 6 fechas de salida, ni una más
+    assert datos["curva_equity"][-1]["pl_acumulado_a"] == pytest.approx(0.0)
+    assert datos["curva_equity"][-1]["pl_acumulado_b"] == pytest.approx(20.0)
+
+
+def test_pocas_operaciones_cerradas_no_rompe_nada(tmp_path, monkeypatch):
+    """Menos de 3 cerradas: se generan datos válidos igualmente.
+
+    El HTML es quien decide no dibujar (enseña el aviso), pero el JSON no puede
+    salir a medias ni reventar: el dashboard tiene que abrir desde el día uno.
+    """
+    filas = [
+        (1, "AAA", "A", "2026-07-01", 100.0, "2026-07-08", 110.0, "objetivo", 0.10, "cerrada"),
+        (2, "EEE", "A", "2026-07-20", 10.0, None, None, None, None, "abierta"),
+        (3, "EEE", "B", "2026-07-20", 10.0, None, None, None, None, "abierta"),
+    ]
+    d = _construir(tmp_path, monkeypatch, filas=filas)
+    assert d["resumen"]["cerradas"] == 1
+    assert len(d["curva_equity"]) == 1
+    assert d["curva_equity"][0]["pl_acumulado_a"] == pytest.approx(10.0)
+    assert d["curva_equity"][0]["pl_acumulado_b"] == pytest.approx(0.0)
+    assert d["carteras"]["B"]["pnl_realizado"] == pytest.approx(0.0)
+    assert d["carteras"]["B"]["pnl_total"] == pytest.approx(8.0)
+    json.dumps(d, allow_nan=False)      # serializable pese a la cartera vacía
+
+
+def test_sin_ninguna_operacion_cerrada(tmp_path, monkeypatch):
+    """Caso extremo del día uno: solo posiciones abiertas."""
+    filas = [
+        (1, "EEE", "A", "2026-07-20", 10.0, None, None, None, None, "abierta"),
+        (2, "EEE", "B", "2026-07-20", 10.0, None, None, None, None, "abierta"),
+    ]
+    d = _construir(tmp_path, monkeypatch, filas=filas)
+    assert d["curva_equity"] == []
+    assert d["resumen"]["cerradas"] == 0
+    assert d["resumen"]["pnl_acumulado"] is None
+    for c in d["carteras"].values():
+        assert c["pnl_realizado"] == pytest.approx(0.0)
+        assert c["pnl_total"] == pytest.approx(8.0)   # solo lo no realizado
+    json.dumps(d, allow_nan=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -323,15 +491,23 @@ def test_html_tiene_los_anclajes_que_el_script_rellena(html_generado):
     v.feed(html_generado)
     for ident in ("sello", "tema", "kpis", "carteras", "buscar", "chips", "cuenta",
                   "cabecera", "cuerpo", "vacio", "cuerpo-mfe", "mfe-sello",
-                  "repo", "ult-cerrada", "det-mfe", "tabla"):
+                  "repo", "ult-cerrada", "det-mfe", "tabla",
+                  "pnl-carteras", "nota-hueco", "curva", "lienzo", "globo"):
         assert ident in v.ids, f"falta id={ident}"
+
+
+#: El namespace XML de SVG es un IDENTIFICADOR, no una descarga: createElementNS
+#: nunca va a la red a buscarlo. Se descuenta antes de auditar, en vez de relajar
+#: la prohibición de "http://", que es la que impide un CDN colado de verdad.
+NS_SVG = "http://www.w3.org/2000/svg"
 
 
 def test_html_es_autocontenido_y_responsive(html_generado):
     """Ni CDNs ni frameworks: el dashboard tiene que abrir sin red externa."""
+    auditable = html_generado.lower().replace(NS_SVG, "")
     for prohibido in ("http://", "cdn.", "react", "tailwind", "jquery", "unpkg",
                       "jsdelivr", "googleapis"):
-        assert prohibido not in html_generado.lower(), f"referencia externa: {prohibido}"
+        assert prohibido not in auditable, f"referencia externa: {prohibido}"
     # El único origen que se contacta es el propio datos.json, mismo directorio.
     assert 'fetch("datos.json"' in html_generado
     assert html_generado.count("<script") == 1
@@ -343,7 +519,8 @@ def test_html_es_autocontenido_y_responsive(html_generado):
 
 
 def test_html_contiene_las_secciones_del_diseno(html_generado):
-    for texto in ("Centinela SP500", "Comparativa A vs B", "Operaciones",
+    for texto in ("Centinela SP500", "P&amp;L acumulado por cartera",
+                  "Comparativa A vs B", "Curva de equity", "Operaciones",
                   "Posiciones abiertas — MFE/MAE", "Paper trading — sin dinero real",
                   "Buscar ticker"):
         assert texto in html_generado, f"falta la sección/rótulo: {texto}"
@@ -361,6 +538,42 @@ def test_html_contiene_las_secciones_del_diseno(html_generado):
     for color in ("#0a7d3b", "#4ade80", "#c2410c", "#f87171", "#0369a1", "#60a5fa"):
         assert color in html_generado, f"falta el color {color}"
     assert "details" in html_generado and "open" not in html_generado.split("<details")[1][:40]
+
+
+def test_html_tiene_la_nota_de_honestidad_de_los_acumulados(html_generado):
+    """La nota que explica QUÉ es esa suma no es decorativa: sin ella los cuatro
+    números se leen como un retorno de cartera, que es justo lo que no son."""
+    normalizado = " ".join(html_generado.split())
+    assert ("Suma de retornos con posiciones equiponderadas (cada trade pesa igual). "
+            "No es una curva de capital compuesta — este experimento no modela "
+            "asignación de capital.") in normalizado
+    # Pequeña y en color secundario, no un titular.
+    assert ".nota{" in html_generado
+    assert "color:var(--tenue)" in html_generado.split(".nota{")[1].split("}")[0]
+
+
+def test_html_dibuja_la_curva_sin_librerias_externas(html_generado):
+    """SVG a mano. Cualquier librería de gráficos aquí sería una regresión."""
+    for prohibido in ("chart.js", "d3.", "recharts", "plotly", "highcharts",
+                      "echarts", "apexcharts"):
+        assert prohibido not in html_generado.lower(), f"librería externa: {prohibido}"
+    assert "createElementNS" in html_generado          # SVG construido a mano
+    assert 'svgEl("path"' in html_generado
+    # Interacción con eventos de puntero, no con librerías de gestos.
+    for ev in ("pointerdown", "pointermove", "pointerup", "pointercancel"):
+        assert ev in html_generado, f"falta el evento {ev}"
+    assert "setPointerCapture" in html_generado        # tap sostenido en móvil
+    # Alturas del diseño y aviso de datos insuficientes.
+    assert "movil ? 240 : 320" in html_generado
+    assert ("Aún no hay suficientes operaciones cerradas para dibujar la curva."
+            in html_generado)
+    assert "Se necesitan al menos 3." in html_generado
+    assert "(R.cerradas || 0) < 3" in html_generado
+    # Las dos series se distinguen también por trazo, no solo por color.
+    assert "--serie-b" in html_generado
+    assert "stroke-dasharray" in html_generado
+    # Referencia del 0% y rejilla.
+    assert ".cero-linea" in html_generado and ".rejilla" in html_generado
 
 
 def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado):
