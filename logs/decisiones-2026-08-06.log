@@ -150,3 +150,9 @@ ZBRA | dd=40.0% | prob=0.551 < umbral -> SIN SEÑAL
 ZBH | dd=41.4% | prob=0.517 < umbral -> SIN SEÑAL
 ZTS | dd=68.5% | prob=0.546 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-08-06 20:55:41 ET =====
+POST-CIERRE 2026-08-06
+entradas ejecutadas: []
+cambios de objetivo: 35
+cierres: [('WDC', 'A', 'stop', -0.12)]
