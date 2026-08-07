@@ -1,7 +1,55 @@
 {
-  "actualizado": "2026-08-06T20:55:41.490247-04:00",
+  "actualizado": "2026-08-07T08:46:06.874348-04:00",
   "contador_grupo": 34,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 55.7511,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-07",
+      "notas": "prob=0.951 score_fund=91.4 sent=0.145 (n=10)",
+      "proba": 0.9505,
+      "resistencia": 589.65,
+      "score_fundamental": 91.4,
+      "sector": "Information Technology",
+      "target_analista": 665.25,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-08-07T08:45:05.001528-04:00"
+    },
+    {
+      "atr": 29.5887,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-07",
+      "notas": "prob=0.859 score_fund=91.0 sent=0.323 (n=10)",
+      "proba": 0.8593,
+      "resistencia": 534.03,
+      "score_fundamental": 91.0,
+      "sector": "Information Technology",
+      "target_analista": 569.5,
+      "ticker": "APP",
+      "timestamp_escaneo": "2026-08-07T08:45:05.001528-04:00"
+    },
+    {
+      "atr": 3.9803,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-07",
+      "notas": "prob=0.849 score_fund=16.3 sent=0.312 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8493,
+      "resistencia": 76.722,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 50.84211,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-08-07T08:45:05.001528-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1532,11 +1580,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31136234951"
     },
     "preapertura": {
-      "cuando": "2026-08-06T08:45:49.023096-04:00",
-      "run": "31094555447",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31094555447"
+      "cuando": "2026-08-07T08:46:06.874326-04:00",
+      "run": "31173709207",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31173709207"
     }
   },
   "ultima_postcierre": "2026-08-06",
-  "ultima_preapertura": "2026-08-06"
+  "ultima_preapertura": "2026-08-07"
 }
