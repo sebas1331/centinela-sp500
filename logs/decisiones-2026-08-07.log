@@ -158,3 +158,9 @@ MRVL | dd=36.2% | prob=0.863 | ENTRADA DESCARTADA: ya hay posición abierta en C
 CIEN | dd=61.8% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 LRCX | dd=30.3% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (3): ['WDC', 'APP', 'MRNA']
+
+===== escaneo postcierre 2026-08-07 18:00:50 ET =====
+POST-CIERRE 2026-08-07
+entradas ejecutadas: ['WDC', 'APP', 'MRNA']
+cambios de objetivo: 32
+cierres: []
