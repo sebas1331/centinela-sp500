@@ -143,3 +143,9 @@ ZBRA | dd=38.8% | prob=0.553 < umbral -> SIN SEÑAL
 ZBH | dd=42.3% | prob=0.476 < umbral -> SIN SEÑAL
 ZTS | dd=69.2% | prob=0.591 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-08-10 18:00:49 ET =====
+POST-CIERRE 2026-08-10
+entradas ejecutadas: []
+cambios de objetivo: 17
+cierres: [('GLW', 'A', 'tiempo', 0.2958), ('INTC', 'A', 'tiempo', 0.1258), ('LITE', 'A', 'objetivo', 0.418), ('SNDK', 'B', 'tiempo', 0.0559), ('GLW', 'B', 'tiempo', 0.2958), ('LITE', 'B', 'objetivo', 0.3829), ('INTC', 'B', 'tiempo', 0.1258), ('LITE', 'B', 'objetivo', 0.418)]
