@@ -150,3 +150,9 @@ ZTS | dd=68.3% | prob=0.569 < umbral -> SIN SEÑAL
 SNDK | dd=47.4% | prob=0.951 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 WDC | dd=45.2% | prob=0.951 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (3): ['MNST', 'TTD', 'GLW']
+
+===== escaneo postcierre 2026-08-11 18:00:49 ET =====
+POST-CIERRE 2026-08-11
+entradas ejecutadas: ['MNST', 'TTD', 'GLW']
+cambios de objetivo: 28
+cierres: [('MRVL', 'A', 'tiempo', 0.22), ('STX', 'A', 'tiempo', 0.0428), ('AMAT', 'A', 'tiempo', 0.1342), ('MRVL', 'B', 'tiempo', 0.22), ('WDC', 'B', 'tiempo', -0.0877), ('STX', 'B', 'tiempo', 0.0428), ('TER', 'B', 'tiempo', 0.0317), ('AMAT', 'B', 'tiempo', 0.1342)]
