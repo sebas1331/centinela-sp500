@@ -154,3 +154,9 @@ TTD | dd=90.4% | prob=0.881 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 APP | dd=57.3% | prob=0.863 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 CIEN | dd=63.3% | prob=0.863 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (3): ['WDC', 'MRVL', 'INTC']
+
+===== escaneo postcierre 2026-08-12 18:01:02 ET =====
+POST-CIERRE 2026-08-12
+entradas ejecutadas: ['MRVL', 'INTC']
+cambios de objetivo: 28
+cierres: [('SNDK', 'A', 'tiempo', 0.1837), ('MU', 'A', 'tiempo', 0.149), ('TER', 'A', 'tiempo', 0.1576), ('SMCI', 'A', 'objetivo', 0.204), ('SNDK', 'B', 'tiempo', 0.1837), ('MU', 'B', 'tiempo', 0.149), ('TER', 'B', 'tiempo', 0.1576), ('SMCI', 'B', 'objetivo', 0.204)]
