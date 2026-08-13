@@ -151,3 +151,9 @@ GLW | dd=38.4% | prob=0.863 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 CIEN | dd=59.1% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRVL | dd=34.2% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['SNDK']
+
+===== escaneo postcierre 2026-08-13 18:00:58 ET =====
+POST-CIERRE 2026-08-13
+entradas ejecutadas: ['SNDK']
+cambios de objetivo: 20
+cierres: [('VRT', 'A', 'tiempo', 0.1628), ('CIEN', 'A', 'objetivo', 0.1744), ('KLAC', 'A', 'tiempo', 0.1116), ('FLEX', 'A', 'tiempo', 0.0542), ('MRNA', 'A', 'objetivo', 0.1924), ('LRCX', 'B', 'tiempo', 0.0699), ('VRT', 'B', 'tiempo', 0.1628), ('CIEN', 'B', 'objetivo', 0.1744), ('KLAC', 'B', 'tiempo', 0.1116), ('FLEX', 'B', 'tiempo', 0.0542), ('MRNA', 'B', 'objetivo', 0.1924)]
