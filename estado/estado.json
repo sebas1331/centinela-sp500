@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-08-12T18:01:02.463369-04:00",
+  "actualizado": "2026-08-13T08:45:53.736716-04:00",
   "contador_grupo": 43,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 164.0523,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-13",
+      "notas": "prob=0.951 score_fund=89.9 sent=0.191 (n=10)",
+      "proba": 0.9505,
+      "resistencia": 1696.37,
+      "score_fundamental": 89.9,
+      "sector": "Information Technology",
+      "target_analista": 2053.5,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-08-13T08:45:05.001455-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1173,11 +1190,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31639861792"
     },
     "preapertura": {
-      "cuando": "2026-08-12T08:45:57.764822-04:00",
-      "run": "31591442532",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31591442532"
+      "cuando": "2026-08-13T08:45:53.736696-04:00",
+      "run": "31695083440",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31695083440"
     }
   },
   "ultima_postcierre": "2026-08-12",
-  "ultima_preapertura": "2026-08-12"
+  "ultima_preapertura": "2026-08-13"
 }
