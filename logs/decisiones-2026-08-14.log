@@ -151,3 +151,9 @@ GLW | dd=41.7% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 APP | dd=58.1% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRVL | dd=32.6% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['CIEN']
+
+===== escaneo postcierre 2026-08-14 18:00:51 ET =====
+POST-CIERRE 2026-08-14
+entradas ejecutadas: ['CIEN']
+cambios de objetivo: 12
+cierres: [('COIN', 'A', 'tiempo', 0.0309), ('ON', 'A', 'tiempo', 0.0352), ('COIN', 'B', 'tiempo', 0.0309), ('ON', 'B', 'tiempo', 0.0352)]
