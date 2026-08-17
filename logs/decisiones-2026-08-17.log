@@ -154,3 +154,9 @@ APP | dd=57.7% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 MRVL | dd=32.7% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TTD | dd=90.0% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-08-17 18:01:15 ET =====
+POST-CIERRE 2026-08-17
+entradas ejecutadas: []
+cambios de objetivo: 10
+cierres: [('LRCX', 'A', 'tiempo', 0.1134), ('LRCX', 'B', 'tiempo', 0.1134)]

@@ -1,57 +1,9 @@
 {
-  "actualizado": "2026-08-17T08:46:02.537730-04:00",
+  "actualizado": "2026-08-17T18:01:15.483385-04:00",
   "contador_grupo": 45,
   "entradas_pendientes": [],
   "posiciones": {
     "A": [
-      {
-        "atr_entrada": 26.9966,
-        "dia_limite": "2026-08-17",
-        "entrada": 308.83,
-        "fecha_entrada": "2026-08-04",
-        "grupo": 33,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-04",
-            "motivo": "objetivo inicial",
-            "objetivo": 369.95
-          },
-          {
-            "fecha": "2026-08-06",
-            "motivo": "recálculo: ATR=25.87, resistencia=357.25",
-            "objetivo": 360.5731
-          },
-          {
-            "fecha": "2026-08-07",
-            "motivo": "recálculo: ATR=24.82, resistencia=357.25",
-            "objetivo": 358.4729
-          },
-          {
-            "fecha": "2026-08-10",
-            "motivo": "recálculo: ATR=24.12, resistencia=357.25",
-            "objetivo": 357.25
-          },
-          {
-            "fecha": "2026-08-12",
-            "motivo": "recálculo: ATR=22.78, resistencia=336.68",
-            "objetivo": 354.3996
-          },
-          {
-            "fecha": "2026-08-14",
-            "motivo": "recálculo: ATR=22.15, resistencia=345.12",
-            "objetivo": 353.121
-          }
-        ],
-        "id": 65,
-        "objetivo": 353.121,
-        "objetivo_inicial": 369.95,
-        "portafolio": "A",
-        "proba": 0.8813,
-        "score_fundamental": 80.0,
-        "sector": "Information Technology",
-        "stop": 271.7704,
-        "ticker": "LRCX"
-      },
       {
         "atr_entrada": 55.7511,
         "dia_limite": "2026-08-20",
@@ -159,10 +111,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=8.35, resistencia=99.29",
             "objetivo": 63.0779
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=7.87, resistencia=99.29",
+            "objetivo": 62.1002
           }
         ],
         "id": 74,
-        "objetivo": 63.0779,
+        "objetivo": 62.1002,
         "objetivo_inicial": 55.7884,
         "portafolio": "A",
         "proba": 0.888,
@@ -230,10 +187,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=12.55, resistencia=170.43",
             "objetivo": 184.8531
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=12.44, resistencia=176.94",
+            "objetivo": 184.6249
           }
         ],
         "id": 78,
-        "objetivo": 184.8531,
+        "objetivo": 184.6249,
         "objetivo_inicial": 193.71,
         "portafolio": "A",
         "proba": 0.8813,
@@ -301,10 +263,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=7.20, resistencia=107.57",
             "objetivo": 115.7308
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=6.98, resistencia=107.57",
+            "objetivo": 115.2979
           }
         ],
         "id": 83,
-        "objetivo": 115.7308,
+        "objetivo": 115.2979,
         "objetivo_inicial": 116.4182,
         "portafolio": "A",
         "proba": 0.8593,
@@ -329,10 +296,15 @@
             "fecha": "2026-08-13",
             "motivo": "recálculo: ATR=170.14, resistencia=1696.37",
             "objetivo": 1696.37
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=169.28, resistencia=1827.99",
+            "objetivo": 1827.99
           }
         ],
         "id": 85,
-        "objetivo": 1696.37,
+        "objetivo": 1827.99,
         "objetivo_inicial": 2053.5,
         "portafolio": "A",
         "proba": 0.9505,
@@ -371,54 +343,6 @@
       }
     ],
     "B": [
-      {
-        "atr_entrada": 26.9966,
-        "dia_limite": "2026-08-17",
-        "entrada": 308.83,
-        "fecha_entrada": "2026-08-04",
-        "grupo": 33,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-04",
-            "motivo": "objetivo inicial",
-            "objetivo": 369.95
-          },
-          {
-            "fecha": "2026-08-06",
-            "motivo": "recálculo: ATR=25.87, resistencia=357.25",
-            "objetivo": 360.5731
-          },
-          {
-            "fecha": "2026-08-07",
-            "motivo": "recálculo: ATR=24.82, resistencia=357.25",
-            "objetivo": 358.4729
-          },
-          {
-            "fecha": "2026-08-10",
-            "motivo": "recálculo: ATR=24.12, resistencia=357.25",
-            "objetivo": 357.25
-          },
-          {
-            "fecha": "2026-08-12",
-            "motivo": "recálculo: ATR=22.78, resistencia=336.68",
-            "objetivo": 354.3996
-          },
-          {
-            "fecha": "2026-08-14",
-            "motivo": "recálculo: ATR=22.15, resistencia=345.12",
-            "objetivo": 353.121
-          }
-        ],
-        "id": 66,
-        "objetivo": 353.121,
-        "objetivo_inicial": 369.95,
-        "portafolio": "B",
-        "proba": 0.8813,
-        "score_fundamental": 80.0,
-        "sector": "Information Technology",
-        "stop": null,
-        "ticker": "LRCX"
-      },
       {
         "atr_entrada": 29.5887,
         "dia_limite": "2026-08-20",
@@ -493,10 +417,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=8.35, resistencia=99.29",
             "objetivo": 63.0779
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=7.87, resistencia=99.29",
+            "objetivo": 62.1002
           }
         ],
         "id": 75,
-        "objetivo": 63.0779,
+        "objetivo": 62.1002,
         "objetivo_inicial": 55.7884,
         "portafolio": "B",
         "proba": 0.888,
@@ -564,10 +493,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=12.55, resistencia=170.43",
             "objetivo": 184.8531
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=12.44, resistencia=176.94",
+            "objetivo": 184.6249
           }
         ],
         "id": 79,
-        "objetivo": 184.8531,
+        "objetivo": 184.6249,
         "objetivo_inicial": 193.71,
         "portafolio": "B",
         "proba": 0.8813,
@@ -663,10 +597,15 @@
             "fecha": "2026-08-14",
             "motivo": "recálculo: ATR=7.20, resistencia=107.57",
             "objetivo": 115.7308
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=6.98, resistencia=107.57",
+            "objetivo": 115.2979
           }
         ],
         "id": 84,
-        "objetivo": 115.7308,
+        "objetivo": 115.2979,
         "objetivo_inicial": 116.4182,
         "portafolio": "B",
         "proba": 0.8593,
@@ -691,10 +630,15 @@
             "fecha": "2026-08-13",
             "motivo": "recálculo: ATR=170.14, resistencia=1696.37",
             "objetivo": 1696.37
+          },
+          {
+            "fecha": "2026-08-17",
+            "motivo": "recálculo: ATR=169.28, resistencia=1827.99",
+            "objetivo": 1827.99
           }
         ],
         "id": 86,
-        "objetivo": 1696.37,
+        "objetivo": 1827.99,
         "objetivo_inicial": 2053.5,
         "portafolio": "B",
         "proba": 0.9505,
@@ -735,9 +679,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-08-14T18:00:51.412515-04:00",
-      "run": "31838680722",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/31838680722"
+      "cuando": "2026-08-17T18:01:15.483366-04:00",
+      "run": "32066397039",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32066397039"
     },
     "preapertura": {
       "cuando": "2026-08-17T08:46:02.537712-04:00",
@@ -745,6 +689,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32022524077"
     }
   },
-  "ultima_postcierre": "2026-08-14",
+  "ultima_postcierre": "2026-08-17",
   "ultima_preapertura": "2026-08-17"
 }
