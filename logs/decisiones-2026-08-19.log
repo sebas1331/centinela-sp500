@@ -162,3 +162,9 @@ MRVL | dd=34.5% | prob=0.857 | ENTRADA DESCARTADA: ya hay posición abierta en C
 INTC | dd=32.1% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TTD | dd=90.5% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-08-19 18:00:50 ET =====
+POST-CIERRE 2026-08-19
+entradas ejecutadas: ['COHR']
+cambios de objetivo: 12
+cierres: []
