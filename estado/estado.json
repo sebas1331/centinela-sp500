@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-08-18T18:00:50.014513-04:00",
+  "actualizado": "2026-08-19T08:45:52.872987-04:00",
   "contador_grupo": 45,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 35.3279,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-19",
+      "notas": "prob=0.935 score_fund=53.3 sent=0.227 (n=10)",
+      "proba": 0.9352,
+      "resistencia": 391.37,
+      "score_fundamental": 53.3,
+      "sector": "Information Technology",
+      "target_analista": 410.76,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-08-19T08:45:04.214757-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -734,11 +751,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32182630910"
     },
     "preapertura": {
-      "cuando": "2026-08-18T08:46:05.173101-04:00",
-      "run": "32129122481",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32129122481"
+      "cuando": "2026-08-19T08:45:52.872965-04:00",
+      "run": "32244956713",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32244956713"
     }
   },
   "ultima_postcierre": "2026-08-18",
-  "ultima_preapertura": "2026-08-18"
+  "ultima_preapertura": "2026-08-19"
 }
