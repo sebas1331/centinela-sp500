@@ -157,3 +157,9 @@ GLW | dd=43.9% | prob=0.881 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 INTC | dd=34.8% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TTD | dd=90.4% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (4): ['MRNA', 'SMCI', 'FLEX', 'VRT']
+
+===== escaneo postcierre 2026-08-20 18:01:02 ET =====
+POST-CIERRE 2026-08-20
+entradas ejecutadas: ['MRNA', 'SMCI', 'FLEX', 'VRT']
+cambios de objetivo: 18
+cierres: [('WDC', 'A', 'tiempo', 0.0254), ('APP', 'A', 'tiempo', -0.0852), ('MRNA', 'A', 'stop', -0.12), ('APP', 'B', 'tiempo', -0.0852)]
