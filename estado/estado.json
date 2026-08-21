@@ -1,7 +1,38 @@
 {
-  "actualizado": "2026-08-20T18:01:02.538078-04:00",
+  "actualizado": "2026-08-21T08:46:05.925189-04:00",
   "contador_grupo": 50,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 44.569,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-21",
+      "notas": "prob=0.888 score_fund=88.2 sent=0.147 (n=10)",
+      "proba": 0.888,
+      "resistencia": 580.0,
+      "score_fundamental": 88.2,
+      "sector": "Information Technology",
+      "target_analista": 664.9167,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-08-21T08:45:05.001524-04:00"
+    },
+    {
+      "atr": 13.9494,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-21",
+      "notas": "prob=0.859 score_fund=16.3 sent=-0.001 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8593,
+      "resistencia": 176.66,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 89.33333,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-08-21T08:45:05.001524-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -967,11 +998,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32414893545"
     },
     "preapertura": {
-      "cuando": "2026-08-20T08:46:20.156285-04:00",
-      "run": "32361396496",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32361396496"
+      "cuando": "2026-08-21T08:46:05.925167-04:00",
+      "run": "32474944613",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32474944613"
     }
   },
   "ultima_postcierre": "2026-08-20",
-  "ultima_preapertura": "2026-08-20"
+  "ultima_preapertura": "2026-08-21"
 }
