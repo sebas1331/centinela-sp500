@@ -166,3 +166,9 @@ SMCI | dd=70.3% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=33.9% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TTD | dd=90.6% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['WDC', 'MRNA']
+
+===== escaneo postcierre 2026-08-21 18:01:05 ET =====
+POST-CIERRE 2026-08-21
+entradas ejecutadas: ['WDC', 'MRNA']
+cambios de objetivo: 14
+cierres: [('CIEN', 'A', 'stop', -0.12)]
