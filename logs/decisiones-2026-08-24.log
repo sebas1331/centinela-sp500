@@ -159,3 +159,9 @@ INTC | dd=36.7% | prob=0.849 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=33.8% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRNA | dd=70.8% | prob=0.795 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['CIEN', 'RDDT']
+
+===== escaneo postcierre 2026-08-24 18:00:58 ET =====
+POST-CIERRE 2026-08-24
+entradas ejecutadas: ['CIEN', 'RDDT']
+cambios de objetivo: 13
+cierres: [('MNST', 'A', 'tiempo', 0.055), ('TTD', 'A', 'tiempo', 0.0034), ('GLW', 'A', 'tiempo', -0.0889), ('INTC', 'A', 'stop', -0.1248), ('COHR', 'A', 'stop', -0.12), ('WDC', 'A', 'stop', -0.12), ('MNST', 'B', 'tiempo', 0.055), ('TTD', 'B', 'tiempo', 0.0034), ('GLW', 'B', 'tiempo', -0.0889)]
