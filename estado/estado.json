@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-08-21T18:01:05.683566-04:00",
+  "actualizado": "2026-08-24T08:45:51.265465-04:00",
   "contador_grupo": 52,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 30.2354,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-24",
+      "notas": "prob=0.863 score_fund=60.0 sent=0.331 (n=10)",
+      "proba": 0.8632,
+      "resistencia": 462.69,
+      "score_fundamental": 60.0,
+      "sector": "Information Technology",
+      "target_analista": 557.28564,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-08-24T08:45:05.001620-04:00"
+    },
+    {
+      "atr": 11.0154,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-24",
+      "notas": "prob=0.805 score_fund=86.9 sent=0.332 (n=10)",
+      "proba": 0.8047,
+      "resistencia": 185.91,
+      "score_fundamental": 86.9,
+      "sector": "Communication Services",
+      "target_analista": 214.84375,
+      "ticker": "RDDT",
+      "timestamp_escaneo": "2026-08-24T08:45:05.001620-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1035,11 +1067,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32524023946"
     },
     "preapertura": {
-      "cuando": "2026-08-21T08:46:05.925167-04:00",
-      "run": "32474944613",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32474944613"
+      "cuando": "2026-08-24T08:45:51.265443-04:00",
+      "run": "32719711460",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32719711460"
     }
   },
   "ultima_postcierre": "2026-08-21",
-  "ultima_preapertura": "2026-08-21"
+  "ultima_preapertura": "2026-08-24"
 }
