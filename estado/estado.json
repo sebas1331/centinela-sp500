@@ -1,7 +1,86 @@
 {
-  "actualizado": "2026-08-24T18:00:58.205584-04:00",
+  "actualizado": "2026-08-25T08:46:07.110991-04:00",
   "contador_grupo": 54,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 31.9525,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-25",
+      "notas": "prob=0.951 score_fund=53.3 sent=0.288 (n=10)",
+      "proba": 0.9505,
+      "resistencia": 391.37,
+      "score_fundamental": 53.3,
+      "sector": "Information Technology",
+      "target_analista": 416.09348,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-08-25T08:45:05.001482-04:00"
+    },
+    {
+      "atr": 5.7945,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-25",
+      "notas": "prob=0.888 score_fund=80.5 sent=0.589 (n=10)",
+      "proba": 0.888,
+      "resistencia": 99.29,
+      "score_fundamental": 80.5,
+      "sector": "Consumer Staples",
+      "target_analista": 50.28261,
+      "ticker": "MNST",
+      "timestamp_escaneo": "2026-08-25T08:45:05.001482-04:00"
+    },
+    {
+      "atr": 42.9024,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-08-25",
+      "notas": "prob=0.888 score_fund=88.5 sent=0.007 (n=10)",
+      "proba": 0.888,
+      "resistencia": 580.0,
+      "score_fundamental": 88.5,
+      "sector": "Information Technology",
+      "target_analista": 664.9167,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-08-25T08:45:05.001482-04:00"
+    },
+    {
+      "atr": 70.0162,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-25",
+      "notas": "prob=0.881 score_fund=80.0 sent=0.088 (n=10)",
+      "proba": 0.8813,
+      "resistencia": 1013.99,
+      "score_fundamental": 80.0,
+      "sector": "Information Technology",
+      "target_analista": 1125.0,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-08-25T08:45:05.001482-04:00"
+    },
+    {
+      "atr": 11.373,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-25",
+      "notas": "prob=0.859 score_fund=59.0 sent=0.451 (n=10)",
+      "proba": 0.8593,
+      "resistencia": 176.94,
+      "score_fundamental": 59.0,
+      "sector": "Information Technology",
+      "target_analista": 191.4,
+      "ticker": "GLW",
+      "timestamp_escaneo": "2026-08-25T08:45:05.001482-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -667,11 +746,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32774924237"
     },
     "preapertura": {
-      "cuando": "2026-08-24T08:45:51.265443-04:00",
-      "run": "32719711460",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32719711460"
+      "cuando": "2026-08-25T08:46:07.110970-04:00",
+      "run": "32839930515",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32839930515"
     }
   },
   "ultima_postcierre": "2026-08-24",
-  "ultima_preapertura": "2026-08-24"
+  "ultima_preapertura": "2026-08-25"
 }
