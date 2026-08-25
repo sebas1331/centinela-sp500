@@ -157,3 +157,9 @@ SNDK | dd=36.6% | prob=0.935 | ENTRADA DESCARTADA: ya hay posición abierta en C
 WDC | dd=45.6% | prob=0.888 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 CIEN | dd=64.8% | prob=0.881 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['COHR', 'MNST', 'WDC', 'STX', 'GLW']
+
+===== escaneo postcierre 2026-08-25 18:01:23 ET =====
+POST-CIERRE 2026-08-25
+entradas ejecutadas: ['COHR', 'MNST', 'WDC', 'STX', 'GLW']
+cambios de objetivo: 11
+cierres: [('MRVL', 'A', 'tiempo', 0.0664), ('WDC', 'B', 'tiempo', -0.0115), ('MRVL', 'B', 'tiempo', 0.0664), ('INTC', 'B', 'tiempo', -0.1367)]
