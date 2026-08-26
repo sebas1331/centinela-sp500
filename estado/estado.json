@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-08-25T18:01:23.416131-04:00",
+  "actualizado": "2026-08-26T08:45:54.531114-04:00",
   "contador_grupo": 59,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 41.3851,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-08-26",
+      "notas": "prob=0.881 score_fund=88.3 sent=0.131 (n=10)",
+      "proba": 0.8813,
+      "resistencia": 580.0,
+      "score_fundamental": 88.3,
+      "sector": "Information Technology",
+      "target_analista": 664.9167,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-08-26T08:45:02.029759-04:00"
+    },
+    {
+      "atr": 6.1411,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-26",
+      "notas": "prob=0.795 score_fund=35.7 sent=0.19 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.7951,
+      "resistencia": 107.57,
+      "score_fundamental": 35.7,
+      "sector": "Information Technology",
+      "target_analista": 114.87805,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-08-26T08:45:02.029759-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -709,11 +741,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32896226610"
     },
     "preapertura": {
-      "cuando": "2026-08-25T08:46:07.110970-04:00",
-      "run": "32839930515",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32839930515"
+      "cuando": "2026-08-26T08:45:54.531092-04:00",
+      "run": "32961122238",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32961122238"
     }
   },
   "ultima_postcierre": "2026-08-25",
-  "ultima_preapertura": "2026-08-25"
+  "ultima_preapertura": "2026-08-26"
 }
