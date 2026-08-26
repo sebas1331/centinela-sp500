@@ -158,3 +158,9 @@ CIEN | dd=63.3% | prob=0.859 | ENTRADA DESCARTADA: ya hay posición abierta en C
 SMCI | dd=68.7% | prob=0.849 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 GLW | dd=45.9% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['WDC', 'INTC']
+
+===== escaneo postcierre 2026-08-26 19:14:40 ET =====
+POST-CIERRE 2026-08-26
+entradas ejecutadas: ['INTC']
+cambios de objetivo: 9
+cierres: [('SNDK', 'A', 'tiempo', 0.1194), ('SNDK', 'B', 'tiempo', 0.1194)]
