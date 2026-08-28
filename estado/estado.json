@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-08-27T21:08:51.185575-04:00",
+  "actualizado": "2026-08-28T08:59:11.159020-04:00",
   "contador_grupo": 61,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 142.5199,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-28",
+      "notas": "prob=0.888 score_fund=88.8 sent=0.202 (n=10)",
+      "proba": 0.888,
+      "resistencia": 1827.99,
+      "score_fundamental": 88.8,
+      "sector": "Information Technology",
+      "target_analista": 2125.087,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-08-28T08:58:06.859785-04:00"
+    },
+    {
+      "atr": 28.3502,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-08-28",
+      "notas": "prob=0.805 score_fund=60.0 sent=0.305 (n=10)",
+      "proba": 0.8047,
+      "resistencia": 462.69,
+      "score_fundamental": 60.0,
+      "sector": "Information Technology",
+      "target_analista": 557.28564,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-08-28T08:58:06.859785-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -714,11 +746,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33131874415"
     },
     "preapertura": {
-      "cuando": "2026-08-26T08:45:54.531092-04:00",
-      "run": "32961122238",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/32961122238"
+      "cuando": "2026-08-28T08:59:11.158997-04:00",
+      "run": "33173259796",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33173259796"
     }
   },
   "ultima_postcierre": "2026-08-27",
-  "ultima_preapertura": "2026-08-26"
+  "ultima_preapertura": "2026-08-28"
 }
