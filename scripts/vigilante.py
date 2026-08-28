@@ -18,16 +18,28 @@ Comprueba, para las últimas `--sesiones` sesiones ya exigibles:
   2. existe su logs/decisiones-<sesion>.log,
   3. hay commits del bot recientes.
 
+Y, desde la emergencia del 2026-08-27, también el problema simétrico: una RACHA
+de runs rojos consecutivos del mismo workflow. Aquel día siete pre-aperturas
+murieron seguidas por un retraso de ~10 h del cron de GitHub; cada run gritó por
+su cuenta, pero el vigilante de esa noche salió en verde porque las sesiones que
+él exigía (las del día anterior) sí estaban hechas. Un hueco se ve mirando hacia
+atrás; una avería en curso, mirando los runs.
+
 Se le da a cada sesión un margen (VIGILANTE_MARGEN_HORAS) antes de exigirla,
 para no dar falsos positivos por los retrasos normales del cron de Actions.
 """
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import socket
 import subprocess
 import sys
-from datetime import datetime
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -63,6 +75,23 @@ MAX_SESIONES = 30
 #: log del run. Solo se usan para informar y para saber si hay ALGUNO.
 MAX_COMMITS_LISTADOS = 200
 
+#: Runs a pedirle a la API por workflow. Con 16 peldaños de pre-apertura y 9 de
+#: post-cierre, 50 cubren de sobra las últimas 24 h.
+MAX_RUNS_CONSULTADOS = 50
+
+#: Reintentos y backoff de la llamada a la API de Actions. Un 5xx transitorio de
+#: GitHub no puede tumbar al vigilante, pero tampoco puede pasar desapercibido:
+#: si tras los reintentos sigue sin responder, se reporta como problema (rojo).
+API_REINTENTOS = 3
+API_BACKOFF_S = 2
+TIMEOUT_API_S = 20
+
+#: Workflows de escaneo que se vigilan, y cómo nombrarlos en el mensaje.
+WORKFLOWS_VIGILADOS = {
+    "preapertura.yml": "pre-aperturas",
+    "postcierre.yml": "post-cierres",
+}
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from centinela import config, calendario, estado as est_mod, bitacora  # noqa: E402
@@ -96,6 +125,121 @@ def _commits_del_bot(horas: int) -> list[str]:
         timeout=TIMEOUT_GIT_S,
     ).stdout.strip()
     return [ln for ln in salida.splitlines() if ln]
+
+
+# ---------------------------------------------------------------------------
+# RACHAS DE ROJOS (raíz: la emergencia del 2026-08-27)
+#
+# Aquella tarde los siete disparos de la pre-apertura murieron en rojo con
+# `fallo:ventana-perdida` porque el scheduler de cron de GitHub se retrasó ~10 h.
+# El diseño funcionó: cada run gritó. Pero nadie SUMABA. Siete rojos seguidos y
+# el vigilante de esa noche salió en verde, porque las sesiones que él exigía
+# (las del día anterior) sí estaban hechas. Su pregunta —"¿falta trabajo ya
+# vencido?"— es correcta pero mira hacia atrás; una racha de rojos es la misma
+# avería mirada en tiempo real, y merece un grito propio.
+# ---------------------------------------------------------------------------
+def _api_actions(ruta: str, token: str, repo: str) -> dict:
+    """GET a la API de Actions con timeout y backoff exponencial.
+
+    Lanza la excepción si tras `API_REINTENTOS` sigue fallando: quien llama
+    decide qué hacer, y lo que hace es reportarlo como problema. Un fallo de la
+    API deja al vigilante CIEGO para esta comprobación, y un vigilante ciego que
+    dice "todo bien" es exactamente el silencio verde que este repo persigue.
+    """
+    url = f"https://api.github.com/repos/{repo}/{ruta}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    ultimo = None
+    for intento in range(API_REINTENTOS):
+        if intento:
+            espera = API_BACKOFF_S * (2 ** (intento - 1))
+            _log(f"  reintento {intento}/{API_REINTENTOS - 1} en {espera}s ({ultimo})")
+            time.sleep(espera)
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT_API_S) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            ultimo = e
+    raise RuntimeError(f"la API de Actions no respondió tras {API_REINTENTOS} "
+                       f"intentos: {ultimo}")
+
+
+def racha_de_rojos(runs: list[dict], ahora: datetime | None = None) -> dict | None:
+    """La racha de fallos consecutivos más reciente, o None si no la hay.
+
+    `runs` viene de la API ordenado del más reciente al más antiguo. Se recorre
+    desde el presente hacia atrás y se cuenta mientras haya fallos:
+      - "failure" / "timed_out" alargan la racha,
+      - "success" la CORTA (el sistema volvió a funcionar),
+      - "cancelled", "skipped" y los runs aún en curso se saltan sin cortarla:
+        no son un fallo, pero tampoco son prueba de que algo funcione, y con el
+        grupo de concurrencia de este repo los cancelados son rutina.
+    Solo se miran los runs de las últimas `VIGILANTE_RACHA_HORAS`.
+    """
+    ahora = ahora or datetime.now(timezone.utc)
+    corte = ahora - timedelta(hours=config.VIGILANTE_RACHA_HORAS)
+
+    rojos: list[dict] = []
+    for run in runs:
+        creado = datetime.fromisoformat(
+            str(run.get("created_at", "")).replace("Z", "+00:00"))
+        if creado < corte:
+            break
+        conclusion = run.get("conclusion")
+        if conclusion in ("failure", "timed_out"):
+            rojos.append({"id": run.get("id"), "creado": creado})
+        elif conclusion == "success":
+            break
+        # cancelled / skipped / None (en curso): ni suman ni cortan.
+
+    if len(rojos) < config.VIGILANTE_RACHA_MINIMA:
+        return None
+    return {
+        "cuantos": len(rojos),
+        # `rojos` va del más reciente al más antiguo: el inicio de la racha es
+        # el último de la lista.
+        "desde": rojos[-1]["creado"],
+        "ids": [r["id"] for r in rojos],
+    }
+
+
+def revisar_rachas(ahora: datetime | None = None) -> list[str]:
+    """Problemas por rachas de runs rojos. Vacía = ningún workflow en racha."""
+    problemas: list[str] = []
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        # Fuera de Actions (ejecución local, tests) no hay a quién preguntar.
+        # Esto NO es silenciar un error: es que la comprobación no aplica.
+        _log("Sin GITHUB_TOKEN/GITHUB_REPOSITORY: no se revisan rachas de rojos "
+             "(esta comprobación solo corre dentro de Actions).")
+        return problemas
+
+    for fichero, nombre in WORKFLOWS_VIGILADOS.items():
+        try:
+            datos = _api_actions(
+                f"actions/workflows/{fichero}/runs"
+                f"?per_page={MAX_RUNS_CONSULTADOS}", token, repo)
+        except RuntimeError as e:
+            problemas.append(
+                f"No se pudo revisar la racha de rojos de {fichero}: {e}. El "
+                f"vigilante queda ciego a este workflow, así que sale en rojo en "
+                f"vez de dar un verde que no puede respaldar.")
+            continue
+
+        racha = racha_de_rojos(datos.get("workflow_runs", []), ahora)
+        if racha is None:
+            _log(f"  {fichero}: sin racha de rojos.")
+            continue
+        ids = ", ".join(str(i) for i in racha["ids"])
+        problemas.append(
+            f"EMERGENCIA: {racha['cuantos']} {nombre} rojas seguidas desde "
+            f"{racha['desde'].astimezone(config.TZ_ET):%H:%M} ET "
+            f"({racha['desde']:%H:%M} UTC). Ver runs {ids}.")
+    return problemas
 
 
 def sesiones_a_exigir(n: int, ahora: datetime | None = None) -> list[str]:
@@ -187,13 +331,24 @@ def main() -> int:
     _log(f"[vigilante {datetime.now(config.TZ_ET):%Y-%m-%d %H:%M:%S ET}]")
     problemas = revisar(args.sesiones)
 
+    # Las rachas van DESPUÉS y en su propia lista: son un eje distinto (avería en
+    # curso, no hueco ya consumado) y tienen que verse aunque las sesiones
+    # exigibles estén todas en orden, que es justo lo que pasó el 2026-08-27.
+    _log("")
+    _log("Rachas de runs rojos en las últimas "
+         f"{config.VIGILANTE_RACHA_HORAS} h:")
+    problemas.extend(revisar_rachas())
+
     if problemas:
         for p in problemas:
             print(f"::error::{p}", flush=True)
         _log("")
-        _log(f"❌ {len(problemas)} problema(s). El sistema se saltó trabajo que ya "
-             f"debería estar hecho. Revisa los runs de 'Escaneo pre-apertura' y "
-             f"'Escaneo post-cierre' de las fechas señaladas.")
+        emergencias = sum(1 for p in problemas if p.startswith("EMERGENCIA:"))
+        _log(f"❌ {len(problemas)} problema(s)"
+             + (f", {emergencias} de ellos EMERGENCIA (racha de runs rojos en "
+                f"curso, no un fallo suelto)" if emergencias else "")
+             + ". Revisa los runs de 'Escaneo pre-apertura' y 'Escaneo "
+               "post-cierre' de las fechas y los IDs señalados.")
         return 1
 
     _log("✅ Sin silencios: todas las sesiones exigibles están procesadas y "

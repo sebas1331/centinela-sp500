@@ -43,9 +43,12 @@ on:
         type: string
         default: "1"
 
-# Solo lee. No escribe nada en el repositorio.
+# Solo lee. No escribe nada en el repositorio. `actions: read` se añadió para la
+# detección de rachas de rojos (emergencia del 2026-08-27): el vigilante consulta
+# la API de Actions para ver los runs recientes de los dos escaneos.
 permissions:
   contents: read
+  actions: read
 
 jobs:
   vigilar:
@@ -69,5 +72,9 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Revisar que no falte ninguna sesión
+      # GITHUB_TOKEN es necesario para la consulta de rachas de rojos contra la
+      # API de Actions; sin él esa comprobación se anuncia como no aplicable.
+      - name: Revisar que no falte ninguna sesión ni haya rachas de rojos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/vigilante.py --sesiones "${{ inputs.sesiones || '1' }}"

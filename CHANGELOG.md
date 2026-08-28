@@ -5,6 +5,85 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-08-27 — INCIDENCIA: el cron de GitHub se retrasó ~10 h y se perdió una sesión
+
+**Solo infraestructura y detección. No se tocó el modelo, el umbral (0.79), las
+features, los objetivos, el stop ni el backtest.**
+
+### Qué pasó
+
+Los siete disparos programados del workflow *Escaneo pre-apertura* del jueves
+2026-08-27 (día de mercado normal, sesión 09:30–16:00 ET) fueron creados por
+GitHub entre **9h40m y 10h57m tarde**, todos pasada la apertura. Los siete
+murieron en rojo con `fallo:ventana-perdida` y **la ventana de decisión de esa
+sesión se perdió**. Los cuatro disparos del *Escaneo post-cierre* del mismo día
+tampoco habían llegado a existir a las 01:07 UTC del 28, a tres horas de que la
+fecha ET rodara y la sesión se quedara sin cerrar.
+
+No hubo bug en el código. En los siete runs la API de Actions devuelve
+`created_at == started_at`: el retraso está **antes** de que el run exista, en el
+scheduler de cron de GitHub. No es la cola de runners ni el job.
+
+| run | creado (UTC) | cron | retraso |
+|---|---|---|---|
+| [33106300280](https://github.com/sebas1331/centinela-sp500/actions/runs/33106300280) | 19:00 | 08:03 | +10h57m |
+| [33107633605](https://github.com/sebas1331/centinela-sp500/actions/runs/33107633605) | 19:16 | 08:53 | +10h23m |
+| [33111130470](https://github.com/sebas1331/centinela-sp500/actions/runs/33111130470) | 19:59 | 09:43 | +10h16m |
+| [33114423249](https://github.com/sebas1331/centinela-sp500/actions/runs/33114423249) | 20:39 | 10:33 | +10h06m |
+| [33116319865](https://github.com/sebas1331/centinela-sp500/actions/runs/33116319865) | 21:03 | 11:23 | +9h40m |
+| [33121657602](https://github.com/sebas1331/centinela-sp500/actions/runs/33121657602) | 22:14 | 12:13 | +10h01m |
+| [33124245743](https://github.com/sebas1331/centinela-sp500/actions/runs/33124245743) | 22:53 | 13:03 | +9h50m |
+
+El diseño del 2026-07-27 hizo su trabajo: el día se perdió **en rojo**, no en
+verde. Lo que faltó fue alcance (la escalera cubría ~5 h de retraso, no 11) y una
+señal que sumara los siete rojos en vez de tratarlos como fallos sueltos.
+
+### Qué se ha hecho
+
+- **Escalera de la pre-apertura: de 7 a 16 peldaños**, arrancando a las 00:33 UTC
+  del mismo día. Cubre retrasos de 0 a ~12 h en EDT y EST.
+- **Escalera del post-cierre: de 4 a 9 peldaños**, arrancando a las 15:07 UTC.
+  Cubre retrasos de 0 a ~12 h antes de que la fecha ET ruede.
+- `VIGILANTE_MARGEN_HORAS`: **8 → 14**. Con retrasos de 11 h, 8 h de margen
+  producían falsos rojos por un post-cierre que llegó tardísimo pero llegó. A las
+  14:37 UTC el Vigilante sigue exigiendo la sesión del día anterior.
+- **El Vigilante detecta rachas de rojos** (`VIGILANTE_RACHA_MINIMA = 3` en
+  `VIGILANTE_RACHA_HORAS = 24`). Consulta la API de Actions con timeout explícito
+  y tres reintentos con backoff exponencial, y emite
+  `EMERGENCIA: N pre-aperturas rojas seguidas desde HH:MM. Ver runs <IDs>.`
+  Si la API no responde tras los reintentos, **sale en rojo**: un vigilante ciego
+  que dice "todo bien" es el mismo silencio verde que este repo persigue.
+  Requiere el permiso `actions: read`, añadido al workflow.
+- Tests nuevos: la escalera se verifica ahora contra 0–12 h a paso de 5 min,
+  contra los retrasos reales de este día, y con la comprobación de que la
+  escalera vieja **sí** fallaba en ese escenario (para que el test no pase por
+  vacuidad). Más nueve tests de la detección de rachas. **116 tests en verde.**
+
+### La sesión del 2026-08-27
+
+- **Pre-apertura: perdida, y así queda.** No se recuperó a propósito. Forzarla
+  significaría decidir las entradas del 27 conociendo ya los precios del 27, y el
+  post-cierre las simularía comprando al open de una sesión cerrada: look-ahead
+  bias. Contaminar el experimento cuesta más que perder un día. Documentada en
+  `logs/decisiones-2026-08-27.log`.
+- **Post-cierre: recuperado.** Run
+  [33131874415](https://github.com/sebas1331/centinela-sp500/actions/runs/33131874415),
+  lanzado a mano a las 21:08 ET, **dentro de su ventana legítima** y antes de que
+  la fecha ET rodara — el control de ventana del script lo validó por su cuenta,
+  sin `--forzar`. El post-cierre no admite look-ahead: cierra posiciones y
+  recalcula objetivos con datos ya públicos. Cerró CIEN en la cartera B por
+  límite de tiempo (−9,46%) y recalculó 4 objetivos. Cero entradas ejecutadas,
+  coherente con que la pre-apertura no decidiera ninguna.
+
+### Una trampa que casi silencia el hueco
+
+La nota que documenta la sesión perdida citaba literalmente la cabecera
+`===== escaneo <tipo> ... =====` para explicar que **no** la llevaba. El
+Vigilante no lee prosa: busca esa cadena en el fichero, la encontró dentro de la
+explicación y dio la pre-apertura por corrida. Documentar el hueco casi lo tapó.
+Corregido, y fijado con `test_documentar_un_hueco_no_lo_tapa`, que vale para
+cualquier sesión futura.
+
 ## 2026-08-06 — BUG: posiciones duplicadas del mismo ticker en una cartera (v0.4.0)
 
 **Corrección del simulador y de su reporting. No se tocó el modelo, el umbral

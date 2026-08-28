@@ -4,3 +4,37 @@ POST-CIERRE 2026-08-27
 entradas ejecutadas: []
 cambios de objetivo: 4
 cierres: [('CIEN', 'B', 'tiempo', -0.0946)]
+
+##### SESIÓN PRE-APERTURA PERDIDA — 2026-08-27 #####
+La ventana de decisión pre-apertura de esta sesión (09:30-13:10 UTC) NO se
+procesó. Los siete disparos programados del workflow "Escaneo pre-apertura"
+fueron creados por GitHub entre 9h40m y 10h57m TARDE, todos pasada la apertura,
+y los siete murieron en rojo con fallo:ventana-perdida. No hubo bug en el
+código: el retraso está en el scheduler de cron de GitHub Actions, antes de que
+el run llegue a existir (en los siete runs created_at == started_at).
+
+  33106300280  19:00 UTC (cron 08:03, +10h57m)
+  33107633605  19:16 UTC (cron 08:53, +10h23m)
+  33111130470  19:59 UTC (cron 09:43, +10h16m)
+  33114423249  20:39 UTC (cron 10:33, +10h06m)
+  33116319865  21:03 UTC (cron 11:23, +9h40m)
+  33121657602  22:14 UTC (cron 12:13, +10h01m)
+  33124245743  22:53 UTC (cron 13:03, +9h50m)
+
+NO se recuperó a propósito. Forzar la pre-apertura ahora significaría decidir
+las entradas del 27 conociendo ya los precios del 27, y el post-cierre las
+simularía comprando al open de una sesión cerrada hace horas: look-ahead bias
+puro. Contaminar el experimento cuesta más que perder un día, así que el día se
+pierde y queda escrito.
+
+Esta entrada NO lleva la cabecera de escaneo que busca scripts/vigilante.py
+para dar por corrida la pre-apertura de una sesión, y es deliberado. Tampoco la
+cita literal: escribirla aquui, aunque fuera para explicar que no esta, bastaria
+para que el Vigilante la encontrara en el fichero y diera el hueco por tapado.
+Documentar un hueco no puede taparlo. El Vigilante del 2026-08-28 tiene que
+seguir denunciando esta sesion, y lo hara.
+
+El post-cierre de esta misma sesión SÍ se recuperó (run 33131874415, lanzado a
+mano a las 21:08 ET, dentro de su ventana legítima y antes de que la fecha ET
+rodara). El post-cierre no tiene look-ahead posible: cierra posiciones y
+recalcula objetivos con datos que ya son públicos. Su bloque está arriba.

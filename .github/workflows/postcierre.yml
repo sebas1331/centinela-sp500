@@ -8,9 +8,17 @@ name: Escaneo post-cierre
 #
 # El único riesgo real es que el retraso sea tan bestia que cruce la MEDIANOCHE
 # ET: entonces la fecha rueda al día siguiente y la sesión de ayer se quedaría
-# sin procesar. Por eso el primer disparo sale temprano (20:07 UTC) y el run que
-# llegue antes de la ventana duerme hasta que abra en vez de morir. Con esta
-# escalera se aguantan retrasos de 0 a ~7 h.
+# sin procesar. Por eso los disparos salen temprano y el run que llegue antes de
+# la ventana duerme hasta que abra en vez de morir.
+#
+# El 2026-08-27 el scheduler de cron de GitHub se retrasó ~10 h (ver la cabecera
+# de preapertura.yml): los cuatro disparos de aquel día, que empezaban a las
+# 20:07 UTC, ni siquiera se habían creado a las 01:07 UTC del día siguiente, a
+# tres horas de que la fecha ET rodara y la sesión se perdiera. La escalera pasa
+# de 4 a 9 peldaños y arranca a las 15:07 UTC (12:07 ET, con el mercado todavía
+# abierto: ese peldaño cede el turno en verde en segundos y solo sirve para el
+# día en que GitHub vuelva a irse 10 h). Con eso se aguantan retrasos de 0 a
+# ~12 h, verificado por test_escalera_de_crons_postcierre_aguanta_retrasos.
 #
 #   verano  (EDT, cierre 20:00 UTC) -> ventana desde 20:30 UTC, día ET hasta 04:00 UTC
 #   invierno (EST, cierre 21:00 UTC) -> ventana desde 21:30 UTC, día ET hasta 05:00 UTC
@@ -19,6 +27,11 @@ name: Escaneo post-cierre
 # ---------------------------------------------------------------------------
 on:
   schedule:
+    - cron: "7 15 * * 1-5"
+    - cron: "7 16 * * 1-5"
+    - cron: "7 17 * * 1-5"
+    - cron: "7 18 * * 1-5"
+    - cron: "7 19 * * 1-5"
     - cron: "7 20 * * 1-5"
     - cron: "7 21 * * 1-5"
     - cron: "7 22 * * 1-5"

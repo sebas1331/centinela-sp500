@@ -17,8 +17,29 @@ name: Escaneo pre-apertura
 #
 # Así que ahora se dispara MUY por delante y el run que llega pronto DUERME
 # hasta que su ventana abre (hasta 120 min, ver ESPERA_VENTANA_MAX_MIN) en vez
-# de morir. Con esta escalera el sistema aguanta retrasos del cron de 0 a ~5 h
-# en ambos regímenes horarios; el peor retraso observado hasta hoy es 2h55m.
+# de morir.
+#
+# ---------------------------------------------------------------------------
+# EL FALLO DEL 2026-08-27: LA ESCALERA DE ~5 h SE QUEDÓ CORTA
+#
+# Aquel día los SIETE disparos se retrasaron entre 9h40m y 10h57m (el cron de
+# las 08:03 UTC creó su run a las 19:00 UTC). Los siete aterrizaron pasada la
+# apertura y los siete murieron en rojo con `fallo:ventana-perdida`: el diseño
+# funcionó —el silencio ya no existe, el rojo se vio— pero la sesión se perdió
+# igual, porque ningún peldaño de la escalera podía llegar a tiempo.
+#
+# La API de Actions lo deja claro: en los siete runs `createdAt == startedAt`.
+# El retraso NO está en la cola de runners ni en el job; está ANTES, en el
+# scheduler de cron de GitHub, que ese día tardó ~10 h en disparar. Contra eso
+# no hay código que valga: solo se puede salir todavía más por delante.
+#
+# La escalera pasa de 7 a 16 peldaños y arranca a las 00:33 UTC del mismo día.
+# Con eso el sistema aguanta retrasos de 0 a ~12 h en ambos regímenes horarios
+# (verificado peldaño a peldaño y a paso de 5 min por el test de abajo), más del
+# doble del peor retraso jamás observado. Los peldaños de madrugada casi siempre
+# terminarán en verde con "omitido:antes-de-ventana" en menos de un minuto: son
+# baratos y solo existen para el día en que GitHub vuelva a irse 10 h.
+# ---------------------------------------------------------------------------
 #
 # Ventana válida (20 a 240 min antes de la apertura de las 09:30 ET):
 #   verano  (EDT, apertura 13:30 UTC) -> 09:30-13:10 UTC
@@ -27,12 +48,23 @@ name: Escaneo pre-apertura
 # Los minutos son "raros" a propósito: la cola de Actions se congestiona en los
 # minutos redondos y en las horas en punto.
 #
-# El test test_escalera_de_crons_aguanta_retrasos comprueba esta escalera contra
-# todo el rango de retrasos en ambos regímenes. Si tocas los crons, ese test te
-# dirá si acabas de reabrir el agujero.
+# El test test_escalera_de_crons_preapertura_aguanta_retrasos comprueba esta
+# escalera contra todo el rango de retrasos (0-12 h) en ambos regímenes, y
+# test_regresion_2026_08_27_retraso_de_diez_horas la comprueba contra los
+# retrasos reales de aquel día. Si tocas los crons, esos tests te dirán si acabas
+# de reabrir el agujero.
 # ---------------------------------------------------------------------------
 on:
   schedule:
+    - cron: "33 0 * * 1-5"
+    - cron: "23 1 * * 1-5"
+    - cron: "13 2 * * 1-5"
+    - cron: "3 3 * * 1-5"
+    - cron: "53 3 * * 1-5"
+    - cron: "43 4 * * 1-5"
+    - cron: "33 5 * * 1-5"
+    - cron: "23 6 * * 1-5"
+    - cron: "13 7 * * 1-5"
     - cron: "3 8 * * 1-5"
     - cron: "53 8 * * 1-5"
     - cron: "43 9 * * 1-5"

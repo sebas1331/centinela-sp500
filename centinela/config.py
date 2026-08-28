@@ -88,8 +88,24 @@ ESPERA_VENTANA_MAX_MIN = 120
 
 # Margen del vigilante antes de dar por perdida una sesión: cuántas horas después
 # de que TOCABA hacer el post-cierre se empieza a exigir que esté commiteado.
-# Tiene que superar el peor retraso observado del cron de Actions (~3 h).
-VIGILANTE_MARGEN_HORAS = 8
+# Tiene que superar el peor retraso observado del cron de Actions, que el
+# 2026-08-27 saltó de ~3 h a ~11 h. Con 14 h el vigilante de las 14:37 UTC sigue
+# exigiendo la sesión del día anterior (pasa a serlo a las 10:30 UTC) sin dar
+# falsos rojos cuando el post-cierre simplemente llegó tardísimo pero llegó.
+VIGILANTE_MARGEN_HORAS = 14
+
+# --------------------------------------------------------------------------- #
+# Vigilante — detección de rachas de runs rojos
+#
+# El vigilante nació para detectar SILENCIOS (una sesión que nadie procesó). El
+# 2026-08-27 apareció el problema simétrico: siete "Escaneo pre-apertura" rojos
+# seguidos en una tarde. Cada run gritó por su cuenta, pero nadie sumaba: no
+# había ninguna señal que dijera "esto no es un fallo suelto, es una racha".
+# Ahora el vigilante también mira los runs recientes y, si encuentra una racha de
+# rojos consecutivos del mismo workflow, la denuncia como EMERGENCIA.
+# --------------------------------------------------------------------------- #
+VIGILANTE_RACHA_MINIMA = 3        # a partir de cuántos rojos seguidos: emergencia
+VIGILANTE_RACHA_HORAS = 24        # ventana hacia atrás en la que se buscan
 
 # --------------------------------------------------------------------------- #
 # Estrategia — filtro base y horizonte
