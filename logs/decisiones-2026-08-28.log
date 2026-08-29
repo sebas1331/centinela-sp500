@@ -153,3 +153,9 @@ WDC | dd=42.2% | prob=0.881 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 CIEN | dd=62.2% | prob=0.805 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 SMCI | dd=68.7% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['SNDK', 'CIEN']
+
+===== escaneo postcierre 2026-08-28 20:00:52 ET =====
+POST-CIERRE 2026-08-28
+entradas ejecutadas: ['SNDK']
+cambios de objetivo: 8
+cierres: []
