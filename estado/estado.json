@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-08-28T20:00:52.861511-04:00",
+  "actualizado": "2026-08-31T08:45:56.273605-04:00",
   "contador_grupo": 63,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 17.8656,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-08-31",
+      "notas": "prob=0.881 score_fund=69.6 sent=0.171 (n=10)",
+      "proba": 0.8813,
+      "resistencia": 254.6,
+      "score_fundamental": 69.6,
+      "sector": "Information Technology",
+      "target_analista": 278.8919,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-08-31T08:45:05.001471-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -823,11 +840,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33222152643"
     },
     "preapertura": {
-      "cuando": "2026-08-28T08:59:11.158997-04:00",
-      "run": "33173259796",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33173259796"
+      "cuando": "2026-08-31T08:45:56.273583-04:00",
+      "run": "33385469509",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33385469509"
     }
   },
   "ultima_postcierre": "2026-08-28",
-  "ultima_preapertura": "2026-08-28"
+  "ultima_preapertura": "2026-08-31"
 }
