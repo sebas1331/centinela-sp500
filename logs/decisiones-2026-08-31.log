@@ -163,3 +163,9 @@ WDC | dd=42.6% | prob=0.881 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 CIEN | dd=64.2% | prob=0.849 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 SMCI | dd=69.8% | prob=0.805 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['MRVL']
+
+===== escaneo postcierre 2026-08-31 18:00:54 ET =====
+POST-CIERRE 2026-08-31
+entradas ejecutadas: ['MRVL']
+cambios de objetivo: 5
+cierres: []
