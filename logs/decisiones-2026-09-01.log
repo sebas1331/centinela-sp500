@@ -162,3 +162,9 @@ MRVL | dd=35.8% | prob=0.878 | ENTRADA DESCARTADA: ya hay posición abierta en C
 SNDK | dd=33.5% | prob=0.878 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 WDC | dd=43.7% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-09-01 18:00:58 ET =====
+POST-CIERRE 2026-09-01
+entradas ejecutadas: []
+cambios de objetivo: 3
+cierres: [('COHR', 'B', 'tiempo', -0.12)]
