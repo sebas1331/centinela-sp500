@@ -1,0 +1,164 @@
+
+===== escaneo preapertura 2026-09-01 08:45:54 ET =====
+RESUMEN: universo=503 drawdown>=30%=154 con_senal=6
+AOS | dd=33.1% | prob=0.438 < umbral -> SIN SEÑAL
+ACN | dd=50.9% | prob=0.587 < umbral -> SIN SEÑAL
+ADBE | dd=58.1% | prob=0.555 < umbral -> SIN SEÑAL
+AES | dd=67.5% | prob=0.000 < umbral -> SIN SEÑAL
+AKAM | dd=68.6% | prob=0.638 < umbral -> SIN SEÑAL
+ALB | dd=57.5% | prob=0.608 < umbral -> SIN SEÑAL
+ARE | dd=71.8% | prob=0.566 < umbral -> SIN SEÑAL
+ALGN | dd=78.3% | prob=0.532 < umbral -> SIN SEÑAL
+AIG | dd=93.7% | prob=0.257 < umbral -> SIN SEÑAL
+AMT | dd=32.4% | prob=0.419 < umbral -> SIN SEÑAL
+APA | dd=59.4% | prob=0.558 < umbral -> SIN SEÑAL
+AMAT | dd=38.0% | prob=0.683 < umbral -> SIN SEÑAL
+APP | dd=58.1% | prob=0.683 < umbral -> SIN SEÑAL
+APTV | dd=75.2% | prob=0.608 < umbral -> SIN SEÑAL
+AZO | dd=31.8% | prob=0.419 < umbral -> SIN SEÑAL
+AXON | dd=36.0% | prob=0.657 < umbral -> SIN SEÑAL
+BALL | dd=34.2% | prob=0.313 < umbral -> SIN SEÑAL
+BAX | dd=69.3% | prob=0.477 < umbral -> SIN SEÑAL
+TECH | dd=45.6% | prob=0.000 < umbral -> SIN SEÑAL
+BIIB | dd=54.9% | prob=0.419 < umbral -> SIN SEÑAL
+XYZ | dd=71.6% | prob=0.505 < umbral -> SIN SEÑAL
+BA | dd=52.3% | prob=0.412 < umbral -> SIN SEÑAL
+BSX | dd=55.9% | prob=0.555 < umbral -> SIN SEÑAL
+BR | dd=31.5% | prob=0.438 < umbral -> SIN SEÑAL
+BRO | dd=42.0% | prob=0.419 < umbral -> SIN SEÑAL
+BF.B | dd=64.1% | prob=0.477 < umbral -> SIN SEÑAL
+BLDR | dd=69.1% | prob=0.612 < umbral -> SIN SEÑAL
+BXP | dd=36.5% | prob=0.419 < umbral -> SIN SEÑAL
+CPT | dd=30.9% | prob=0.267 < umbral -> SIN SEÑAL
+CCL | dd=63.9% | prob=0.555 < umbral -> SIN SEÑAL
+CDW | dd=40.4% | prob=0.587 < umbral -> SIN SEÑAL
+CNC | dd=34.7% | prob=0.555 < umbral -> SIN SEÑAL
+CRL | dd=37.4% | prob=0.438 < umbral -> SIN SEÑAL
+CHTR | dd=81.5% | prob=0.587 < umbral -> SIN SEÑAL
+CMG | dd=45.1% | prob=0.532 < umbral -> SIN SEÑAL
+CIEN | dd=63.8% | prob=0.774 < umbral -> SIN SEÑAL
+C | dd=65.2% | prob=0.313 < umbral -> SIN SEÑAL
+CLX | dd=50.9% | prob=0.477 < umbral -> SIN SEÑAL
+COHR | dd=36.9% | prob=0.886 | ENTRAR | score_fund=53.3 | sent=0.509 | obj_analista=416.09348
+COIN | dd=57.7% | prob=0.723 < umbral -> SIN SEÑAL
+CMCSA | dd=45.9% | prob=0.412 < umbral -> SIN SEÑAL
+STZ | dd=49.6% | prob=0.419 < umbral -> SIN SEÑAL
+CEG | dd=33.2% | prob=0.505 < umbral -> SIN SEÑAL
+COO | dd=39.5% | prob=0.313 < umbral -> SIN SEÑAL
+CPRT | dd=48.8% | prob=0.555 < umbral -> SIN SEÑAL
+GLW | dd=45.3% | prob=0.723 < umbral -> SIN SEÑAL
+CSGP | dd=68.3% | prob=0.612 < umbral -> SIN SEÑAL
+CCI | dd=54.5% | prob=0.477 < umbral -> SIN SEÑAL
+DECK | dd=61.1% | prob=0.555 < umbral -> SIN SEÑAL
+DVN | dd=38.9% | prob=0.477 < umbral -> SIN SEÑAL
+DXCM | dd=44.8% | prob=0.474 < umbral -> SIN SEÑAL
+DG | dd=47.9% | prob=0.477 < umbral -> SIN SEÑAL
+DPZ | dd=35.6% | prob=0.555 < umbral -> SIN SEÑAL
+DOW | dd=46.1% | prob=0.555 < umbral -> SIN SEÑAL
+ECHO | dd=41.3% | prob=0.587 < umbral -> SIN SEÑAL
+EIX | dd=33.9% | prob=0.723 < umbral -> SIN SEÑAL
+EW | dd=31.1% | prob=0.315 < umbral -> SIN SEÑAL
+EFX | dd=37.9% | prob=0.555 < umbral -> SIN SEÑAL
+ERIE | dd=51.7% | prob=0.555 < umbral -> SIN SEÑAL
+EL | dd=70.6% | prob=0.555 < umbral -> SIN SEÑAL
+FDS | dd=35.8% | prob=0.555 < umbral -> SIN SEÑAL
+FICO | dd=52.2% | prob=0.587 < umbral -> SIN SEÑAL
+FIS | dd=70.3% | prob=0.546 < umbral -> SIN SEÑAL
+FSLR | dd=37.1% | prob=0.651 < umbral -> SIN SEÑAL
+FISV | dd=77.7% | prob=0.555 < umbral -> SIN SEÑAL
+FLEX | dd=34.5% | prob=0.718 < umbral -> SIN SEÑAL
+IT | dd=66.1% | prob=0.608 < umbral -> SIN SEÑAL
+GNRC | dd=64.6% | prob=0.683 < umbral -> SIN SEÑAL
+GIS | dd=47.6% | prob=0.412 < umbral -> SIN SEÑAL
+GPN | dd=56.7% | prob=0.419 < umbral -> SIN SEÑAL
+GDDY | dd=54.7% | prob=0.608 < umbral -> SIN SEÑAL
+HAL | dd=37.8% | prob=0.532 < umbral -> SIN SEÑAL
+HSY | dd=30.3% | prob=0.419 < umbral -> SIN SEÑAL
+HRL | dd=53.7% | prob=0.438 < umbral -> SIN SEÑAL
+HUM | dd=30.1% | prob=0.546 < umbral -> SIN SEÑAL
+HII | dd=36.4% | prob=0.477 < umbral -> SIN SEÑAL
+PODD | dd=58.1% | prob=0.587 < umbral -> SIN SEÑAL
+INTC | dd=37.1% | prob=0.723 < umbral -> SIN SEÑAL
+IFF | dd=37.1% | prob=0.412 < umbral -> SIN SEÑAL
+IP | dd=33.0% | prob=0.532 < umbral -> SIN SEÑAL
+INTU | dd=55.3% | prob=0.608 < umbral -> SIN SEÑAL
+ISRG | dd=38.8% | prob=0.477 < umbral -> SIN SEÑAL
+KKR | dd=35.0% | prob=0.505 < umbral -> SIN SEÑAL
+KLAC | dd=42.9% | prob=0.651 < umbral -> SIN SEÑAL
+KHC | dd=59.0% | prob=0.419 < umbral -> SIN SEÑAL
+LRCX | dd=31.2% | prob=0.683 < umbral -> SIN SEÑAL
+LVS | dd=53.2% | prob=0.532 < umbral -> SIN SEÑAL
+LDOS | dd=31.3% | prob=0.438 < umbral -> SIN SEÑAL
+LEN | dd=53.6% | prob=0.532 < umbral -> SIN SEÑAL
+LII | dd=43.9% | prob=0.555 < umbral -> SIN SEÑAL
+LULU | dd=76.7% | prob=0.566 < umbral -> SIN SEÑAL
+MRVL | dd=35.8% | prob=0.878 | ENTRAR | score_fund=69.6 | sent=-0.047 | obj_analista=279.62363
+MKC | dd=43.9% | prob=0.419 < umbral -> SIN SEÑAL
+MGM | dd=56.4% | prob=0.412 < umbral -> SIN SEÑAL
+MCHP | dd=30.3% | prob=0.608 < umbral -> SIN SEÑAL
+MAA | dd=33.2% | prob=0.267 < umbral -> SIN SEÑAL
+MRNA | dd=71.8% | prob=0.886 | ENTRAR (EXCEPCIONAL: entra pese a deterioro) | score_fund=16.3 | sent=0.472 | obj_analista=110.35294
+TAP | dd=54.2% | prob=0.477 < umbral -> SIN SEÑAL
+MNST | dd=54.2% | prob=0.886 | ENTRAR | score_fund=81.6 | sent=0.564 | obj_analista=50.26087
+MOS | dd=79.5% | prob=0.587 < umbral -> SIN SEÑAL
+NFLX | dd=39.6% | prob=0.474 < umbral -> SIN SEÑAL
+NKE | dd=76.3% | prob=0.505 < umbral -> SIN SEÑAL
+NCLH | dd=74.9% | prob=0.587 < umbral -> SIN SEÑAL
+NRG | dd=41.9% | prob=0.638 < umbral -> SIN SEÑAL
+NVR | dd=36.6% | prob=0.412 < umbral -> SIN SEÑAL
+NXPI | dd=33.7% | prob=0.555 < umbral -> SIN SEÑAL
+ON | dd=45.1% | prob=0.651 < umbral -> SIN SEÑAL
+ORCL | dd=56.4% | prob=0.638 < umbral -> SIN SEÑAL
+OTIS | dd=31.8% | prob=0.313 < umbral -> SIN SEÑAL
+PSKY | dd=87.9% | prob=0.555 < umbral -> SIN SEÑAL
+PYPL | dd=82.9% | prob=0.555 < umbral -> SIN SEÑAL
+PNR | dd=46.3% | prob=0.555 < umbral -> SIN SEÑAL
+PFE | dd=40.4% | prob=0.315 < umbral -> SIN SEÑAL
+PCG | dd=81.0% | prob=0.723 < umbral -> SIN SEÑAL
+PPG | dd=32.0% | prob=0.412 < umbral -> SIN SEÑAL
+QCOM | dd=34.2% | prob=0.566 < umbral -> SIN SEÑAL
+RDDT | dd=47.8% | prob=0.723 < umbral -> SIN SEÑAL
+REGN | dd=33.5% | prob=0.408 < umbral -> SIN SEÑAL
+RVTY | dd=35.9% | prob=0.419 < umbral -> SIN SEÑAL
+HOOD | dd=31.9% | prob=0.651 < umbral -> SIN SEÑAL
+ROL | dd=45.1% | prob=0.477 < umbral -> SIN SEÑAL
+SNDK | dd=33.5% | prob=0.878 | ENTRAR | score_fund=88.2 | sent=0.222 | obj_analista=2125.087
+SBAC | dd=47.7% | prob=0.419 < umbral -> SIN SEÑAL
+NOW | dd=38.2% | prob=0.608 < umbral -> SIN SEÑAL
+SWKS | dd=61.9% | prob=0.608 < umbral -> SIN SEÑAL
+LUV | dd=35.9% | prob=0.505 < umbral -> SIN SEÑAL
+SWK | dd=48.6% | prob=0.419 < umbral -> SIN SEÑAL
+SMCI | dd=69.7% | prob=0.723 < umbral -> SIN SEÑAL
+SNPS | dd=32.6% | prob=0.555 < umbral -> SIN SEÑAL
+TMUS | dd=33.3% | prob=0.419 < umbral -> SIN SEÑAL
+TROW | dd=38.3% | prob=0.313 < umbral -> SIN SEÑAL
+TGT | dd=30.6% | prob=0.532 < umbral -> SIN SEÑAL
+TPL | dd=35.9% | prob=0.612 < umbral -> SIN SEÑAL
+TTD | dd=90.3% | prob=0.723 < umbral -> SIN SEÑAL
+TSCO | dd=44.3% | prob=0.419 < umbral -> SIN SEÑAL
+TRMB | dd=37.9% | prob=0.532 < umbral -> SIN SEÑAL
+TYL | dd=43.7% | prob=0.555 < umbral -> SIN SEÑAL
+TSN | dd=36.8% | prob=0.419 < umbral -> SIN SEÑAL
+UPS | dd=44.7% | prob=0.318 < umbral -> SIN SEÑAL
+UNH | dd=35.6% | prob=0.412 < umbral -> SIN SEÑAL
+UHS | dd=30.6% | prob=0.459 < umbral -> SIN SEÑAL
+VRSK | dd=39.4% | prob=0.532 < umbral -> SIN SEÑAL
+VRT | dd=31.9% | prob=0.683 < umbral -> SIN SEÑAL
+VTRS | dd=73.2% | prob=0.474 < umbral -> SIN SEÑAL
+VST | dd=37.2% | prob=0.555 < umbral -> SIN SEÑAL
+DIS | dd=45.4% | prob=0.315 < umbral -> SIN SEÑAL
+WBD | dd=63.5% | prob=0.257 < umbral -> SIN SEÑAL
+WDC | dd=43.7% | prob=0.858 | ENTRAR | score_fund=88.2 | sent=0.318 | obj_analista=664.9167
+WY | dd=36.9% | prob=0.419 < umbral -> SIN SEÑAL
+WDAY | dd=36.6% | prob=0.651 < umbral -> SIN SEÑAL
+WYNN | dd=56.0% | prob=0.532 < umbral -> SIN SEÑAL
+ZBRA | dd=42.5% | prob=0.438 < umbral -> SIN SEÑAL
+ZBH | dd=40.3% | prob=0.412 < umbral -> SIN SEÑAL
+ZTS | dd=67.3% | prob=0.555 < umbral -> SIN SEÑAL
+COHR | dd=36.9% | prob=0.886 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+MRNA | dd=71.8% | prob=0.886 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+MNST | dd=54.2% | prob=0.886 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+MRVL | dd=35.8% | prob=0.878 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+SNDK | dd=33.5% | prob=0.878 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+WDC | dd=43.7% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+DECIDIDAS PARA ENTRAR HOY (0): []
