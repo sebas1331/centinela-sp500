@@ -169,3 +169,9 @@ MRNA | dd=69.0% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en C
 WDC | dd=43.7% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 CIEN | dd=65.9% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-09-02 18:01:08 ET =====
+POST-CIERRE 2026-09-02
+entradas ejecutadas: []
+cambios de objetivo: 6
+cierres: [('SMCI', 'A', 'tiempo', 0.0033), ('FLEX', 'A', 'tiempo', -0.0594), ('VRT', 'A', 'tiempo', -0.0073), ('MRNA', 'B', 'tiempo', 0.0046), ('SMCI', 'B', 'tiempo', 0.0033), ('FLEX', 'B', 'tiempo', -0.0594), ('VRT', 'B', 'tiempo', -0.0073)]
