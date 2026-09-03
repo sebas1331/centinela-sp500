@@ -1,124 +1,9 @@
 {
-  "actualizado": "2026-09-03T08:46:10.130580-04:00",
-  "contador_grupo": 65,
-  "entradas_pendientes": [
-    {
-      "atr": 9.3164,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-09-03",
-      "notas": "prob=0.954 score_fund=75.7 sent=0.403 (n=10)",
-      "proba": 0.9536,
-      "resistencia": 176.33,
-      "score_fundamental": 75.7,
-      "sector": "Information Technology",
-      "target_analista": 96.05882,
-      "ticker": "APH",
-      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
-    },
-    {
-      "atr": 14.1677,
-      "carteras": [
-        "B"
-      ],
-      "fecha_decision": "2026-09-03",
-      "notas": "prob=0.808 score_fund=16.3 sent=0.101 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
-      "proba": 0.8082,
-      "resistencia": 176.66,
-      "score_fundamental": 16.3,
-      "sector": "Health Care",
-      "target_analista": 112.55556,
-      "ticker": "MRNA",
-      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
-    },
-    {
-      "atr": 3.9597,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-09-03",
-      "notas": "prob=0.798 score_fund=62.7 sent=-0.275 (n=10)",
-      "proba": 0.7975,
-      "resistencia": 75.9,
-      "score_fundamental": 62.7,
-      "sector": "Utilities",
-      "target_analista": 69.21429,
-      "ticker": "EIX",
-      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
-    },
-    {
-      "atr": 0.9656,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-09-03",
-      "notas": "prob=0.798 score_fund=54.2 sent=-0.045 (n=10)",
-      "proba": 0.7975,
-      "resistencia": 18.41,
-      "score_fundamental": 54.2,
-      "sector": "Utilities",
-      "target_analista": 20.78125,
-      "ticker": "PCG",
-      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
-    }
-  ],
+  "actualizado": "2026-09-03T18:00:48.854196-04:00",
+  "contador_grupo": 69,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
-      {
-        "atr_entrada": 13.9494,
-        "dia_limite": "2026-09-03",
-        "entrada": 132.5,
-        "fecha_entrada": "2026-08-21",
-        "grupo": 52,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-21",
-            "motivo": "objetivo inicial",
-            "objetivo": 176.66
-          }
-        ],
-        "id": 100,
-        "objetivo": 176.66,
-        "objetivo_inicial": 176.66,
-        "portafolio": "A",
-        "proba": 0.8593,
-        "score_fundamental": 16.3,
-        "sector": "Health Care",
-        "stop": 116.6,
-        "ticker": "MRNA"
-      },
-      {
-        "atr_entrada": 30.2354,
-        "dia_limite": "2026-09-04",
-        "entrada": 386.26,
-        "fecha_entrada": "2026-08-24",
-        "grupo": 53,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-24",
-            "motivo": "objetivo inicial",
-            "objetivo": 557.2856
-          },
-          {
-            "fecha": "2026-08-24",
-            "motivo": "recálculo: ATR=30.46, resistencia=462.69",
-            "objetivo": 462.69
-          }
-        ],
-        "id": 101,
-        "objetivo": 462.69,
-        "objetivo_inicial": 557.2856,
-        "portafolio": "A",
-        "proba": 0.8632,
-        "score_fundamental": 60.0,
-        "sector": "Information Technology",
-        "stop": 339.9088,
-        "ticker": "CIEN"
-      },
       {
         "atr_entrada": 11.0154,
         "dia_limite": "2026-09-04",
@@ -226,10 +111,15 @@
             "fecha": "2026-09-02",
             "motivo": "recálculo: ATR=3.91, resistencia=95.20",
             "objetivo": 56.6315
+          },
+          {
+            "fecha": "2026-09-03",
+            "motivo": "recálculo: ATR=3.67, resistencia=93.90",
+            "objetivo": 56.1664
           }
         ],
         "id": 105,
-        "objetivo": 56.6315,
+        "objetivo": 56.1664,
         "objetivo_inicial": 60.409,
         "portafolio": "A",
         "proba": 0.888,
@@ -415,6 +305,80 @@
         "sector": "Information Technology",
         "stop": 190.1944,
         "ticker": "MRVL"
+      },
+      {
+        "atr_entrada": 9.3164,
+        "dia_limite": "2026-09-17",
+        "entrada": 80.82,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 66,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 99.4528
+          },
+          {
+            "fecha": "2026-09-03",
+            "motivo": "recálculo: ATR=8.85, resistencia=172.82",
+            "objetivo": 98.5261
+          }
+        ],
+        "id": 121,
+        "objetivo": 98.5261,
+        "objetivo_inicial": 99.4528,
+        "portafolio": "A",
+        "proba": 0.9536,
+        "score_fundamental": 75.7,
+        "sector": "Information Technology",
+        "stop": 71.1216,
+        "ticker": "APH"
+      },
+      {
+        "atr_entrada": 3.9597,
+        "dia_limite": "2026-09-17",
+        "entrada": 55.42,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 68,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 75.9
+          }
+        ],
+        "id": 124,
+        "objetivo": 75.9,
+        "objetivo_inicial": 75.9,
+        "portafolio": "A",
+        "proba": 0.7975,
+        "score_fundamental": 62.7,
+        "sector": "Utilities",
+        "stop": 48.7696,
+        "ticker": "EIX"
+      },
+      {
+        "atr_entrada": 0.9656,
+        "dia_limite": "2026-09-17",
+        "entrada": 13.35,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 69,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 18.41
+          }
+        ],
+        "id": 126,
+        "objetivo": 18.41,
+        "objetivo_inicial": 18.41,
+        "portafolio": "A",
+        "proba": 0.7975,
+        "score_fundamental": 54.2,
+        "sector": "Utilities",
+        "stop": 11.748,
+        "ticker": "PCG"
       }
     ],
     "B": [
@@ -497,10 +461,15 @@
             "fecha": "2026-09-02",
             "motivo": "recálculo: ATR=3.91, resistencia=95.20",
             "objetivo": 56.6315
+          },
+          {
+            "fecha": "2026-09-03",
+            "motivo": "recálculo: ATR=3.67, resistencia=93.90",
+            "objetivo": 56.1664
           }
         ],
         "id": 106,
-        "objetivo": 56.6315,
+        "objetivo": 56.1664,
         "objetivo_inicial": 60.409,
         "portafolio": "B",
         "proba": 0.888,
@@ -742,14 +711,111 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "COHR"
+      },
+      {
+        "atr_entrada": 9.3164,
+        "dia_limite": "2026-09-17",
+        "entrada": 80.82,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 66,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 99.4528
+          },
+          {
+            "fecha": "2026-09-03",
+            "motivo": "recálculo: ATR=8.85, resistencia=172.82",
+            "objetivo": 98.5261
+          }
+        ],
+        "id": 122,
+        "objetivo": 98.5261,
+        "objetivo_inicial": 99.4528,
+        "portafolio": "B",
+        "proba": 0.9536,
+        "score_fundamental": 75.7,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "APH"
+      },
+      {
+        "atr_entrada": 14.1677,
+        "dia_limite": "2026-09-17",
+        "entrada": 146.04,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 67,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 176.66
+          }
+        ],
+        "id": 123,
+        "objetivo": 176.66,
+        "objetivo_inicial": 176.66,
+        "portafolio": "B",
+        "proba": 0.8082,
+        "score_fundamental": 16.3,
+        "sector": "Health Care",
+        "stop": null,
+        "ticker": "MRNA"
+      },
+      {
+        "atr_entrada": 3.9597,
+        "dia_limite": "2026-09-17",
+        "entrada": 55.42,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 68,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 75.9
+          }
+        ],
+        "id": 125,
+        "objetivo": 75.9,
+        "objetivo_inicial": 75.9,
+        "portafolio": "B",
+        "proba": 0.7975,
+        "score_fundamental": 62.7,
+        "sector": "Utilities",
+        "stop": null,
+        "ticker": "EIX"
+      },
+      {
+        "atr_entrada": 0.9656,
+        "dia_limite": "2026-09-17",
+        "entrada": 13.35,
+        "fecha_entrada": "2026-09-03",
+        "grupo": 69,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-03",
+            "motivo": "objetivo inicial",
+            "objetivo": 18.41
+          }
+        ],
+        "id": 127,
+        "objetivo": 18.41,
+        "objetivo_inicial": 18.41,
+        "portafolio": "B",
+        "proba": 0.7975,
+        "score_fundamental": 54.2,
+        "sector": "Utilities",
+        "stop": null,
+        "ticker": "PCG"
       }
     ]
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-09-02T18:01:08.499776-04:00",
-      "run": "33682457772",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33682457772"
+      "cuando": "2026-09-03T18:00:48.854175-04:00",
+      "run": "33805233573",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33805233573"
     },
     "preapertura": {
       "cuando": "2026-09-03T08:46:10.130561-04:00",
@@ -757,6 +823,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33749757624"
     }
   },
-  "ultima_postcierre": "2026-09-02",
+  "ultima_postcierre": "2026-09-03",
   "ultima_preapertura": "2026-09-03"
 }

@@ -168,3 +168,9 @@ WDC | dd=43.9% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 MRNA | dd=69.7% | prob=0.808 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 CIEN | dd=66.5% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (4): ['APH', 'MRNA', 'EIX', 'PCG']
+
+===== escaneo postcierre 2026-09-03 18:00:48 ET =====
+POST-CIERRE 2026-09-03
+entradas ejecutadas: ['APH', 'EIX', 'PCG']
+cambios de objetivo: 4
+cierres: [('MRNA', 'A', 'tiempo', 0.1235), ('CIEN', 'A', 'stop', -0.12)]
