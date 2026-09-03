@@ -1,7 +1,71 @@
 {
-  "actualizado": "2026-09-02T18:01:08.499798-04:00",
+  "actualizado": "2026-09-03T08:46:10.130580-04:00",
   "contador_grupo": 65,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 9.3164,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-03",
+      "notas": "prob=0.954 score_fund=75.7 sent=0.403 (n=10)",
+      "proba": 0.9536,
+      "resistencia": 176.33,
+      "score_fundamental": 75.7,
+      "sector": "Information Technology",
+      "target_analista": 96.05882,
+      "ticker": "APH",
+      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
+    },
+    {
+      "atr": 14.1677,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-09-03",
+      "notas": "prob=0.808 score_fund=16.3 sent=0.101 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8082,
+      "resistencia": 176.66,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 112.55556,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
+    },
+    {
+      "atr": 3.9597,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-03",
+      "notas": "prob=0.798 score_fund=62.7 sent=-0.275 (n=10)",
+      "proba": 0.7975,
+      "resistencia": 75.9,
+      "score_fundamental": 62.7,
+      "sector": "Utilities",
+      "target_analista": 69.21429,
+      "ticker": "EIX",
+      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
+    },
+    {
+      "atr": 0.9656,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-03",
+      "notas": "prob=0.798 score_fund=54.2 sent=-0.045 (n=10)",
+      "proba": 0.7975,
+      "resistencia": 18.41,
+      "score_fundamental": 54.2,
+      "sector": "Utilities",
+      "target_analista": 20.78125,
+      "ticker": "PCG",
+      "timestamp_escaneo": "2026-09-03T08:45:05.001277-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -688,11 +752,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33682457772"
     },
     "preapertura": {
-      "cuando": "2026-09-02T08:45:55.105319-04:00",
-      "run": "33624939532",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33624939532"
+      "cuando": "2026-09-03T08:46:10.130561-04:00",
+      "run": "33749757624",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33749757624"
     }
   },
   "ultima_postcierre": "2026-09-02",
-  "ultima_preapertura": "2026-09-02"
+  "ultima_preapertura": "2026-09-03"
 }
