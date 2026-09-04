@@ -1,7 +1,23 @@
 {
-  "actualizado": "2026-09-03T18:00:48.854196-04:00",
+  "actualizado": "2026-09-04T08:45:59.222946-04:00",
   "contador_grupo": 69,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 27.2902,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-09-04",
+      "notas": "prob=0.878 score_fund=60.0 sent=0.353 (n=10)",
+      "proba": 0.8776,
+      "resistencia": 462.69,
+      "score_fundamental": 60.0,
+      "sector": "Information Technology",
+      "target_analista": 551.86456,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-09-04T08:45:05.001433-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -818,11 +834,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33805233573"
     },
     "preapertura": {
-      "cuando": "2026-09-03T08:46:10.130561-04:00",
-      "run": "33749757624",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33749757624"
+      "cuando": "2026-09-04T08:45:59.222923-04:00",
+      "run": "33868238088",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33868238088"
     }
   },
   "ultima_postcierre": "2026-09-03",
-  "ultima_preapertura": "2026-09-03"
+  "ultima_preapertura": "2026-09-04"
 }
