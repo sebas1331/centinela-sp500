@@ -1,58 +1,9 @@
 {
-  "actualizado": "2026-09-04T08:45:59.222946-04:00",
-  "contador_grupo": 69,
-  "entradas_pendientes": [
-    {
-      "atr": 27.2902,
-      "carteras": [
-        "A"
-      ],
-      "fecha_decision": "2026-09-04",
-      "notas": "prob=0.878 score_fund=60.0 sent=0.353 (n=10)",
-      "proba": 0.8776,
-      "resistencia": 462.69,
-      "score_fundamental": 60.0,
-      "sector": "Information Technology",
-      "target_analista": 551.86456,
-      "ticker": "CIEN",
-      "timestamp_escaneo": "2026-09-04T08:45:05.001433-04:00"
-    }
-  ],
+  "actualizado": "2026-09-04T18:00:47.393166-04:00",
+  "contador_grupo": 70,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
-      {
-        "atr_entrada": 11.0154,
-        "dia_limite": "2026-09-04",
-        "entrada": 150.01,
-        "fecha_entrada": "2026-08-24",
-        "grupo": 54,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-24",
-            "motivo": "objetivo inicial",
-            "objetivo": 214.8438
-          },
-          {
-            "fecha": "2026-08-24",
-            "motivo": "recálculo: ATR=10.59, resistencia=185.91",
-            "objetivo": 185.91
-          },
-          {
-            "fecha": "2026-08-26",
-            "motivo": "recálculo: ATR=10.56, resistencia=184.28",
-            "objetivo": 184.284
-          }
-        ],
-        "id": 102,
-        "objetivo": 184.284,
-        "objetivo_inicial": 214.8438,
-        "portafolio": "A",
-        "proba": 0.8047,
-        "score_fundamental": 86.9,
-        "sector": "Communication Services",
-        "stop": 132.0088,
-        "ticker": "RDDT"
-      },
       {
         "atr_entrada": 31.9525,
         "dia_limite": "2026-09-08",
@@ -69,10 +20,15 @@
             "fecha": "2026-08-25",
             "motivo": "recálculo: ATR=30.83, resistencia=391.37",
             "objetivo": 391.37
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=23.10, resistencia=386.50",
+            "objetivo": 386.5
           }
         ],
         "id": 104,
-        "objetivo": 391.37,
+        "objetivo": 386.5,
         "objetivo_inicial": 416.0935,
         "portafolio": "A",
         "proba": 0.9505,
@@ -132,10 +88,15 @@
             "fecha": "2026-09-03",
             "motivo": "recálculo: ATR=3.67, resistencia=93.90",
             "objetivo": 56.1664
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=3.45, resistencia=49.24",
+            "objetivo": 55.7145
           }
         ],
         "id": 105,
-        "objetivo": 56.1664,
+        "objetivo": 55.7145,
         "objetivo_inicial": 60.409,
         "portafolio": "A",
         "proba": 0.888,
@@ -338,10 +299,15 @@
             "fecha": "2026-09-03",
             "motivo": "recálculo: ATR=8.85, resistencia=172.82",
             "objetivo": 98.5261
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=16.95, resistencia=172.82",
+            "objetivo": 172.82
           }
         ],
         "id": 121,
-        "objetivo": 98.5261,
+        "objetivo": 172.82,
         "objetivo_inicial": 99.4528,
         "portafolio": "A",
         "proba": 0.9536,
@@ -395,42 +361,32 @@
         "sector": "Utilities",
         "stop": 11.748,
         "ticker": "PCG"
+      },
+      {
+        "atr_entrada": 27.2902,
+        "dia_limite": "2026-09-18",
+        "entrada": 321.67,
+        "fecha_entrada": "2026-09-04",
+        "grupo": 70,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-04",
+            "motivo": "objetivo inicial",
+            "objetivo": 462.69
+          }
+        ],
+        "id": 128,
+        "objetivo": 462.69,
+        "objetivo_inicial": 462.69,
+        "portafolio": "A",
+        "proba": 0.8776,
+        "score_fundamental": 60.0,
+        "sector": "Information Technology",
+        "stop": 283.0696,
+        "ticker": "CIEN"
       }
     ],
     "B": [
-      {
-        "atr_entrada": 11.0154,
-        "dia_limite": "2026-09-04",
-        "entrada": 150.01,
-        "fecha_entrada": "2026-08-24",
-        "grupo": 54,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-08-24",
-            "motivo": "objetivo inicial",
-            "objetivo": 214.8438
-          },
-          {
-            "fecha": "2026-08-24",
-            "motivo": "recálculo: ATR=10.59, resistencia=185.91",
-            "objetivo": 185.91
-          },
-          {
-            "fecha": "2026-08-26",
-            "motivo": "recálculo: ATR=10.56, resistencia=184.28",
-            "objetivo": 184.284
-          }
-        ],
-        "id": 103,
-        "objetivo": 184.284,
-        "objetivo_inicial": 214.8438,
-        "portafolio": "B",
-        "proba": 0.8047,
-        "score_fundamental": 86.9,
-        "sector": "Communication Services",
-        "stop": null,
-        "ticker": "RDDT"
-      },
       {
         "atr_entrada": 5.7945,
         "dia_limite": "2026-09-08",
@@ -482,10 +438,15 @@
             "fecha": "2026-09-03",
             "motivo": "recálculo: ATR=3.67, resistencia=93.90",
             "objetivo": 56.1664
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=3.45, resistencia=49.24",
+            "objetivo": 55.7145
           }
         ],
         "id": 106,
-        "objetivo": 56.1664,
+        "objetivo": 55.7145,
         "objetivo_inicial": 60.409,
         "portafolio": "B",
         "proba": 0.888,
@@ -716,10 +677,15 @@
             "fecha": "2026-09-02",
             "motivo": "recálculo: ATR=24.12, resistencia=391.37",
             "objetivo": 391.37
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=23.10, resistencia=386.50",
+            "objetivo": 386.5
           }
         ],
         "id": 120,
-        "objetivo": 391.37,
+        "objetivo": 386.5,
         "objetivo_inicial": 415.362,
         "portafolio": "B",
         "proba": 0.8857,
@@ -744,10 +710,15 @@
             "fecha": "2026-09-03",
             "motivo": "recálculo: ATR=8.85, resistencia=172.82",
             "objetivo": 98.5261
+          },
+          {
+            "fecha": "2026-09-04",
+            "motivo": "recálculo: ATR=16.95, resistencia=172.82",
+            "objetivo": 172.82
           }
         ],
         "id": 122,
-        "objetivo": 98.5261,
+        "objetivo": 172.82,
         "objetivo_inicial": 99.4528,
         "portafolio": "B",
         "proba": 0.9536,
@@ -829,9 +800,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-09-03T18:00:48.854175-04:00",
-      "run": "33805233573",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33805233573"
+      "cuando": "2026-09-04T18:00:47.393143-04:00",
+      "run": "33917567930",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33917567930"
     },
     "preapertura": {
       "cuando": "2026-09-04T08:45:59.222923-04:00",
@@ -839,6 +810,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/33868238088"
     }
   },
-  "ultima_postcierre": "2026-09-03",
+  "ultima_postcierre": "2026-09-04",
   "ultima_preapertura": "2026-09-04"
 }

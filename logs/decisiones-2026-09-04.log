@@ -170,3 +170,9 @@ SNDK | dd=34.0% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en C
 WDC | dd=44.8% | prob=0.833 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 STX | dd=30.2% | prob=0.797 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['CIEN']
+
+===== escaneo postcierre 2026-09-04 18:00:47 ET =====
+POST-CIERRE 2026-09-04
+entradas ejecutadas: ['CIEN']
+cambios de objetivo: 6
+cierres: [('RDDT', 'A', 'tiempo', 0.0297), ('RDDT', 'B', 'tiempo', 0.0297)]
