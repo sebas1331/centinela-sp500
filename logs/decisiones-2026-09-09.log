@@ -166,3 +166,9 @@ COHR | dd=31.4% | prob=0.858 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 MRVL | dd=31.7% | prob=0.797 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRNA | dd=71.8% | prob=0.797 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (3): ['COHR', 'MRNA', 'MNST']
+
+===== escaneo postcierre 2026-09-09 18:00:49 ET =====
+POST-CIERRE 2026-09-09
+entradas ejecutadas: ['COHR', 'MRNA', 'MNST']
+cambios de objetivo: 5
+cierres: [('INTC', 'A', 'tiempo', 0.2236), ('WDC', 'B', 'tiempo', 0.0712), ('INTC', 'B', 'tiempo', 0.2236)]
