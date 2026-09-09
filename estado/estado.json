@@ -1,7 +1,54 @@
 {
-  "actualizado": "2026-09-08T18:01:14.281481-04:00",
+  "actualizado": "2026-09-09T08:45:58.001876-04:00",
   "contador_grupo": 70,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 23.9204,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-09-09",
+      "notas": "prob=0.858 score_fund=53.3 sent=0.569 (n=10)",
+      "proba": 0.8576,
+      "resistencia": 362.32,
+      "score_fundamental": 53.3,
+      "sector": "Information Technology",
+      "target_analista": 415.36197,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-09-09T08:45:05.001310-04:00"
+    },
+    {
+      "atr": 13.2686,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-09-09",
+      "notas": "prob=0.798 score_fund=16.3 sent=0.0 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.7975,
+      "resistencia": 176.66,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 116.5,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-09-09T08:45:05.001310-04:00"
+    },
+    {
+      "atr": 3.2595,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-09",
+      "notas": "prob=0.798 score_fund=82.9 sent=0.48 (n=10)",
+      "proba": 0.7975,
+      "resistencia": 49.24,
+      "score_fundamental": 82.9,
+      "sector": "Consumer Staples",
+      "target_analista": 50.23913,
+      "ticker": "MNST",
+      "timestamp_escaneo": "2026-09-09T08:45:05.001310-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -501,11 +548,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34278590707"
     },
     "preapertura": {
-      "cuando": "2026-09-08T08:45:43.109110-04:00",
-      "run": "34221042500",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34221042500"
+      "cuando": "2026-09-09T08:45:58.001855-04:00",
+      "run": "34346383799",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34346383799"
     }
   },
   "ultima_postcierre": "2026-09-08",
-  "ultima_preapertura": "2026-09-08"
+  "ultima_preapertura": "2026-09-09"
 }
