@@ -176,3 +176,9 @@ COHR | dd=31.0% | prob=0.856 | ENTRADA DESCARTADA: ya hay posición abierta en C
 CIEN | dd=68.0% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRNA | dd=72.7% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-09-10 18:01:01 ET =====
+POST-CIERRE 2026-09-10
+entradas ejecutadas: []
+cambios de objetivo: 2
+cierres: []
