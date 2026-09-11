@@ -5,6 +5,65 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-10 (2) — Dashboard: se elimina el toggle de auditoría
+
+**Solo presentación del dashboard. No se tocó el modelo, el umbral (0.79), las
+features, los objetivos, el stop, el backtest ni el simulador, y no se ha
+borrado ni una fila de `bitacora.csv`.**
+
+### Qué pasaba
+
+El cambio anterior de hoy mismo invirtió el toggle "Solo operaciones limpias"
+por uno de auditoría ("Mostrar operaciones duplicadas por bug"), apagado por
+defecto, para poder seguir viendo las 13 duplicadas del bug del 2026-08-06 sin
+que fueran el dato por defecto. En la práctica nadie lo usa: es una casilla que
+solo sirve para volver a mezclar estadísticas con un bug ya corregido, y su
+presencia (checkbox, nota permanente explicándolo, badge "Duplicada") es ruido
+visual sin lector.
+
+### Qué cambia
+
+- `scripts/plantilla_dashboard.html`: se elimina el toggle "Mostrar operaciones
+  duplicadas por bug (auditoría)", su casilla, su detalle, la marca "Vista de
+  auditoría", el JS que alternaba entre las dos vistas (`aplicarVista`,
+  `pintarTodo`, la clave de `localStorage` `centinela-auditoria`) y el badge
+  "Duplicada" de la tabla (ya no hace falta: las duplicadas nunca se pintan).
+  También desaparece la nota permanente que explicaba el toggle. En su lugar
+  hay una nota corta y no técnica: **"Estadísticas del sistema en operación.
+  Ver histórico completo en el repositorio."**, con "repositorio" enlazando al
+  repo de GitHub.
+- La tabla sigue filtrando por `es_duplicada` (ahora de forma incondicional,
+  sin toggle que la desactive): las 13 duplicadas nunca aparecen en pantalla.
+- `scripts/generar_dashboard.py`: **sin cambios**. Se decide conservar los
+  bloques `resumen_con_duplicados`, `comparativa_ab_con_duplicados`,
+  `pnl_por_cartera_con_duplicados` y `curva_equity_con_duplicados` en
+  `datos.json` en vez de quitarlos. Razón: pesan ~2 KB, muy por debajo del
+  presupuesto de 500 KB, y quitarlos no simplifica nada que importe — el HTML
+  ya no los lee, así que no hay complejidad de la que librarse quitándolos del
+  JSON. Mantenerlos deja la puerta abierta a una consulta programática o un
+  script de auditoría futuro sin tener que releer y reprocesar `bitacora.csv`
+  a mano. Cada operación conserva su flag `es_duplicada`, que es la fuente de
+  verdad real para cualquier auditoría.
+- `tests/test_dashboard.py`: se eliminan los tests del toggle
+  (`test_html_tiene_la_nota_permanente_y_el_toggle_de_auditoria`) y se
+  añaden dos en su lugar: uno que confirma que no queda ningún rastro del
+  toggle en el HTML, y otro que confirma la nota nueva. Los tests de schema de
+  `datos.json` y de los cálculos limpios/con-duplicados no cambian: siguen
+  siendo el contrato de los datos, independientemente de qué pinte el HTML.
+
+### Qué NO cambia
+
+`bitacora.csv` sigue teniendo sus filas tal cual, duplicadas incluidas: siguen
+siendo la fuente para cualquier auditoría real. El simulador no se toca. La
+flag `es_duplicada` de cada operación tampoco se toca: solo deja de tener un
+control de UI que la muestre u oculte a demanda, porque ya se oculta siempre.
+
+### Verificación
+
+123 tests en verde. Renderizado real (jsdom, sin navegador Chrome conectado en
+esta sesión): el toggle ya no existe en el DOM, las tarjetas muestran los
+mismos números limpios de siempre, y cero errores de consola.
+
 ## 2026-09-10 — Dashboard: se invierte el toggle de duplicadas
 
 **Solo presentación del dashboard. No se tocó el modelo, el umbral (0.79), las

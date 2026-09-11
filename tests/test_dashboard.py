@@ -521,13 +521,15 @@ def test_sin_duplicadas_las_dos_vistas_coinciden(datos):
         assert fusion == datos["carteras"][c]
 
 
-def test_tabla_muestra_las_operaciones_limpias_por_defecto_y_todas_en_auditoria(datos_dup):
+def test_tabla_filtra_siempre_por_es_duplicada(datos_dup):
     """Lo que filtra la tabla del HTML (`es_duplicada`) tiene que cuadrar con el
     tamaño de `operaciones` completo y con el de la vista limpia por defecto.
 
-    FILAS_DUP tiene 6 operaciones y 1 duplicada: con el toggle de auditoría
-    apagado (comportamiento nuevo por defecto) la tabla filtra por
-    `not es_duplicada` y muestra 5; encendido, muestra las 6.
+    FILAS_DUP tiene 6 operaciones y 1 duplicada: la tabla filtra siempre por
+    `not es_duplicada` (no hay toggle que las recupere) y muestra 5. Las 6
+    completas solo se pueden reconstruir a partir de `operaciones` y del
+    bloque `resumen_con_duplicados`, que se conservan en datos.json para
+    auditoría real, no para pintarse en el HTML.
     """
     todas = datos_dup["operaciones"]
     assert len(todas) == 6
@@ -756,29 +758,29 @@ def test_html_no_tiene_banner_de_aviso(html_generado):
     assert "Las estadísticas incluyen operaciones duplicadas" not in html_generado
 
 
-def test_html_tiene_la_nota_permanente_y_el_toggle_de_auditoria(html_generado):
-    """La nota permanente y el toggle de auditoría son la forma de que la
-    cicatriz del bug siga siendo accesible sin volver a ser el dato por
-    defecto."""
-    unido = " ".join(html_generado.split()).replace('" + "', "")
-    assert '"Estadísticas sin "' in html_generado
-    assert "entradas duplicadas" in html_generado
-    assert "por un bug corregido el" in unido
-    assert ('Ver toggle' in unido and 'auditoría' in unido
-            and 'para el detalle histórico. Detalle en' in unido)
-    assert 'CHANGELOG.md' in html_generado
-    # Toggle nuevo, apagado por defecto, con clave de localStorage distinta a
-    # cualquier interruptor anterior.
-    assert "Mostrar operaciones duplicadas por bug (auditoría)" in html_generado
-    assert 'id="auditoria"' in html_generado
-    assert '"centinela-auditoria"' in html_generado
+def test_html_no_tiene_el_toggle_de_auditoria(html_generado):
+    """El toggle "auditoría" y todo lo que dependía de él desaparecen: los
+    usuarios no lo usaban y era ruido visual. Las duplicadas siguen fuera de
+    la vista siempre, sin ninguna forma de recuperarlas desde el HTML."""
+    for rastro in ('id="auditoria"', 'centinela-auditoria', "marca-auditoria",
+                   "auditoria-detalle", "Mostrar operaciones duplicadas por bug",
+                   "var auditoria", "class=\"vista\"", "badge b-d", "Duplicada",
+                   "nota-duplicadas", "Ver toggle"):
+        assert rastro not in html_generado, f"quedó un rastro del toggle: {rastro}"
+    # Los bloques `_con_duplicados` se conservan en datos.json para trazabilidad
+    # (ver CHANGELOG), pero el HTML ya no los lee: no hay a qué vista pintarlos.
     for bloque in ("resumen_con_duplicados", "comparativa_ab_con_duplicados",
                    "pnl_por_cartera_con_duplicados", "curva_equity_con_duplicados"):
-        assert bloque in html_generado, f"el HTML no lee {bloque}"
-    # Arranca con la auditoría apagada salvo que localStorage diga lo contrario.
-    assert "var auditoria = false" in html_generado
-    # Y las duplicadas se señalan una a una en la tabla cuando se activa.
-    assert '"badge b-d","Duplicada"' in html_generado
+        assert bloque not in html_generado, f"el HTML todavía lee {bloque}"
+
+
+def test_html_tiene_la_nota_corta_sobre_el_historico(html_generado):
+    """La nota nueva es breve y no técnica, y enlaza al repositorio para quien
+    quiera el histórico completo (incluidas las duplicadas, vía bitacora.csv)."""
+    assert ("Estadísticas del sistema en operación. Ver histórico completo en el"
+            in html_generado)
+    assert 'id="repo-nota"' in html_generado
+    assert 'href="https://github.com/sebas1331/centinela-sp500"' in html_generado
 
 
 def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado):
