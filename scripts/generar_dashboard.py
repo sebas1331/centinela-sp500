@@ -392,7 +392,7 @@ def construir_datos() -> dict:
             "no_realizado": not es_cerrada,
             # Segunda (o siguiente) entrada del mismo ticker en la misma cartera
             # con la anterior aún viva: la huella del bug del 2026-08-06.
-            "duplicada": bool(r["duplicada"]),
+            "es_duplicada": bool(r["duplicada"]),
             "motivo": (MOTIVOS.get(r["motivo_salida"], r["motivo_salida"])
                        if es_cerrada else "Abierta"),
         })
@@ -402,22 +402,24 @@ def construir_datos() -> dict:
     # independientes como estas, donde cada entrada arriesga el mismo tamaño;
     # NO es un retorno compuesto de una curva de capital, que exigiría un modelo
     # de asignación de capital que este experimento no tiene.
-    todo = _vista(cerradas, abiertas)
-    # Vista paralela sin las entradas duplicadas por el bug. Se publica aparte y
-    # NO sustituye a la de arriba: la bitácora es el registro de lo que pasó de
-    # verdad, cicatrices incluidas, y borrarla de la vista por defecto sería
-    # maquillar el histórico en vez de explicarlo.
+    #
+    # La vista LIMPIA (sin las entradas del bug) es ahora la que alimenta el
+    # dashboard por defecto: refleja la estrategia real. La vista CON
+    # duplicados se sigue calculando y publicando igual que siempre, pero solo
+    # como material de auditoría bajo el toggle correspondiente; la bitácora
+    # que las origina no se toca ni se recorta.
     limpio = _vista(cerradas_ok, abiertas_ok)
+    todo = _vista(cerradas, abiertas)
 
     return {
-        "resumen": todo["resumen"],
-        "carteras": {c: {**todo["comparativa"][c], **todo["pnl_por_cartera"][c]}
+        "resumen": limpio["resumen"],
+        "carteras": {c: {**limpio["comparativa"][c], **limpio["pnl_por_cartera"][c]}
                      for c in ("A", "B")},
-        "curva_equity": todo["curva"],
-        "resumen_limpio": limpio["resumen"],
-        "comparativa_ab_limpia": limpio["comparativa"],
-        "pnl_por_cartera_limpio": limpio["pnl_por_cartera"],
-        "curva_equity_limpia": limpio["curva"],
+        "curva_equity": limpio["curva"],
+        "resumen_con_duplicados": todo["resumen"],
+        "comparativa_ab_con_duplicados": todo["comparativa"],
+        "pnl_por_cartera_con_duplicados": todo["pnl_por_cartera"],
+        "curva_equity_con_duplicados": todo["curva"],
         "operaciones": operaciones,
         "mfe": mfe,
         "meta": {

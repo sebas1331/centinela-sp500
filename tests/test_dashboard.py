@@ -126,8 +126,8 @@ def datos(tmp_path, monkeypatch) -> dict:
 # --------------------------------------------------------------------------- #
 def test_schema_datos_json(datos):
     assert set(datos) == {"resumen", "carteras", "curva_equity",
-                          "resumen_limpio", "comparativa_ab_limpia",
-                          "pnl_por_cartera_limpio", "curva_equity_limpia",
+                          "resumen_con_duplicados", "comparativa_ab_con_duplicados",
+                          "pnl_por_cartera_con_duplicados", "curva_equity_con_duplicados",
                           "operaciones", "mfe", "meta"}
 
     r = datos["resumen"]
@@ -161,8 +161,8 @@ def test_schema_datos_json(datos):
     for o in datos["operaciones"]:
         assert set(o) == {"id", "ticker", "cartera", "estado", "fecha_entrada",
                           "precio_entrada", "fecha_salida", "precio_salida",
-                          "pnl_pct", "no_realizado", "duplicada", "motivo"}
-        assert isinstance(o["duplicada"], bool)
+                          "pnl_pct", "no_realizado", "es_duplicada", "motivo"}
+        assert isinstance(o["es_duplicada"], bool)
         assert isinstance(o["id"], int)
         assert o["estado"] in ("abierta", "cerrada")
         assert o["cartera"] in ("A", "B")
@@ -181,22 +181,24 @@ def test_schema_datos_json(datos):
     assert isinstance(datos["meta"]["duplicadas"], int)
 
 
-def test_schema_de_los_bloques_limpios(datos):
-    """Los bloques _limpio tienen EXACTAMENTE la forma de sus equivalentes.
+def test_schema_de_los_bloques_con_duplicados(datos):
+    """Los bloques _con_duplicados tienen EXACTAMENTE la forma de sus equivalentes.
 
     El HTML pinta los dos juegos con el mismo código: en cuanto uno se desvíe del
-    otro, la vista filtrada empieza a enseñar huecos en vez de números.
+    otro, la vista de auditoría empieza a enseñar huecos en vez de números.
     """
-    assert set(datos["resumen_limpio"]) == set(datos["resumen"])
-    assert set(datos["comparativa_ab_limpia"]) == {"A", "B"}
-    assert set(datos["pnl_por_cartera_limpio"]) == {"A", "B"}
+    assert set(datos["resumen_con_duplicados"]) == set(datos["resumen"])
+    assert set(datos["comparativa_ab_con_duplicados"]) == {"A", "B"}
+    assert set(datos["pnl_por_cartera_con_duplicados"]) == {"A", "B"}
     for c in ("A", "B"):
-        # `carteras` es la fusión de los dos bloques limpios: juntas, las claves
-        # de comparativa y pnl tienen que dar exactamente las de carteras.
-        fusion = set(datos["comparativa_ab_limpia"][c]) | set(datos["pnl_por_cartera_limpio"][c])
+        # `carteras` (por defecto, limpia) es la fusión de comparativa+pnl
+        # limpios; aquí se comprueba que los bloques con duplicados tienen la
+        # misma forma que los que ya se validan en `carteras`.
+        fusion = (set(datos["comparativa_ab_con_duplicados"][c])
+                  | set(datos["pnl_por_cartera_con_duplicados"][c]))
         assert fusion == set(datos["carteras"][c])
-    assert isinstance(datos["curva_equity_limpia"], list)
-    for p in datos["curva_equity_limpia"]:
+    assert isinstance(datos["curva_equity_con_duplicados"], list)
+    for p in datos["curva_equity_con_duplicados"]:
         assert set(p) == {"fecha", "pl_acumulado_a", "pl_acumulado_b",
                           "n_cerradas_a", "n_cerradas_b"}
 
@@ -452,69 +454,87 @@ def datos_dup(tmp_path, monkeypatch) -> dict:
 def test_marca_solo_la_segunda_entrada_solapada(datos_dup):
     """La primera entrada es legítima; se marca la que se montó encima."""
     por_id = {o["id"]: o for o in datos_dup["operaciones"]}
-    assert por_id[4]["duplicada"] is True     # COHR/B entró con la del día 1 viva
-    assert por_id[2]["duplicada"] is False    # esa primera, no
+    assert por_id[4]["es_duplicada"] is True  # COHR/B entró con la del día 1 viva
+    assert por_id[2]["es_duplicada"] is False    # esa primera, no
     # COHR/A del día 3 NO es duplicada: la de A cerró por stop el día 2.
-    assert por_id[3]["duplicada"] is False
-    assert por_id[1]["duplicada"] is False
+    assert por_id[3]["es_duplicada"] is False
+    assert por_id[1]["es_duplicada"] is False
     assert datos_dup["meta"]["duplicadas"] == 1
 
 
 def test_la_regla_es_por_cartera_no_por_ticker(datos_dup):
     """Que COHR estuviera abierta en B no convierte en duplicada la de A."""
-    dups = [(o["ticker"], o["cartera"]) for o in datos_dup["operaciones"] if o["duplicada"]]
+    dups = [(o["ticker"], o["cartera"]) for o in datos_dup["operaciones"] if o["es_duplicada"]]
     assert dups == [("COHR", "B")]
 
 
-def test_la_vista_limpia_excluye_las_duplicadas(datos_dup):
-    """Los agregados limpios se calculan sin la entrada que creó el bug.
+def test_por_defecto_las_tarjetas_reflejan_los_calculos_limpios(datos_dup):
+    """`resumen`/`carteras`/`curva_equity` son los LIMPIOS por defecto.
 
-    B cerradas: −10% y +40% -> con el duplicado suma +30. Sin él, solo −10.
-    A no cambia: no tiene ninguna duplicada.
+    B cerradas: −10% y +40% -> con el duplicado suma +30. Sin él, solo −10. Los
+    bloques `_con_duplicados` conservan la cuenta completa para auditoría, pero
+    ya no alimentan las tarjetas por defecto.
     """
-    assert datos_dup["resumen"]["cerradas"] == 6
-    assert datos_dup["resumen_limpio"]["cerradas"] == 5
+    assert datos_dup["resumen"]["cerradas"] == 5
+    assert datos_dup["resumen_con_duplicados"]["cerradas"] == 6
 
-    b_todo = datos_dup["carteras"]["B"]
-    b_limpio = {**datos_dup["comparativa_ab_limpia"]["B"],
-                **datos_dup["pnl_por_cartera_limpio"]["B"]}
+    b_limpio = datos_dup["carteras"]["B"]
+    b_todo = {**datos_dup["comparativa_ab_con_duplicados"]["B"],
+              **datos_dup["pnl_por_cartera_con_duplicados"]["B"]}
     assert b_todo["pnl_realizado"] == pytest.approx(40.0)      # −10 +40 +10
     assert b_limpio["pnl_realizado"] == pytest.approx(0.0)     # −10 +10
     assert b_todo["cerradas"] == 3 and b_limpio["cerradas"] == 2
 
-    a_todo = datos_dup["carteras"]["A"]
-    a_limpio = {**datos_dup["comparativa_ab_limpia"]["A"],
-                **datos_dup["pnl_por_cartera_limpio"]["A"]}
+    a_limpio = datos_dup["carteras"]["A"]
+    a_todo = {**datos_dup["comparativa_ab_con_duplicados"]["A"],
+              **datos_dup["pnl_por_cartera_con_duplicados"]["A"]}
     assert a_limpio["pnl_realizado"] == pytest.approx(a_todo["pnl_realizado"])
     assert a_limpio["cerradas"] == a_todo["cerradas"]
 
 
-def test_la_curva_limpia_no_cuenta_la_duplicada(datos_dup):
-    """El último punto de B en la curva limpia cuadra con su realizado limpio."""
-    limpia = datos_dup["curva_equity_limpia"]
-    b_limpio = datos_dup["pnl_por_cartera_limpio"]["B"]
+def test_la_curva_por_defecto_no_cuenta_la_duplicada(datos_dup):
+    """El último punto de B en la curva por defecto cuadra con su realizado limpio."""
+    limpia = datos_dup["curva_equity"]
+    b_limpio = datos_dup["carteras"]["B"]
     assert limpia[-1]["pl_acumulado_b"] == pytest.approx(b_limpio["pnl_realizado"])
-    # Y una cerrada menos en el contador de B que en la curva completa.
+    # Y una cerrada menos en el contador de B que en la curva con duplicados.
     assert (limpia[-1]["n_cerradas_b"]
-            == datos_dup["curva_equity"][-1]["n_cerradas_b"] - 1)
+            == datos_dup["curva_equity_con_duplicados"][-1]["n_cerradas_b"] - 1)
     # La serie A es idéntica en las dos curvas: A no tiene duplicadas.
     assert ([p["pl_acumulado_a"] for p in limpia]
-            == [p["pl_acumulado_a"] for p in datos_dup["curva_equity"]])
+            == [p["pl_acumulado_a"] for p in datos_dup["curva_equity_con_duplicados"]])
 
 
 def test_sin_duplicadas_las_dos_vistas_coinciden(datos):
-    """La bitácora sintética base no tiene solapes: limpio == completo.
+    """La bitácora sintética base no tiene solapes: por defecto == con duplicados.
 
     Si algún día el sistema deja de generar duplicados, las dos vistas tienen que
     converger solas, sin tocar el dashboard.
     """
     assert datos["meta"]["duplicadas"] == 0
-    assert all(not o["duplicada"] for o in datos["operaciones"])
-    assert datos["resumen_limpio"] == datos["resumen"]
-    assert datos["curva_equity_limpia"] == datos["curva_equity"]
+    assert all(not o["es_duplicada"] for o in datos["operaciones"])
+    assert datos["resumen_con_duplicados"] == datos["resumen"]
+    assert datos["curva_equity_con_duplicados"] == datos["curva_equity"]
     for c in ("A", "B"):
-        fusion = {**datos["comparativa_ab_limpia"][c], **datos["pnl_por_cartera_limpio"][c]}
+        fusion = {**datos["comparativa_ab_con_duplicados"][c],
+                  **datos["pnl_por_cartera_con_duplicados"][c]}
         assert fusion == datos["carteras"][c]
+
+
+def test_tabla_muestra_las_operaciones_limpias_por_defecto_y_todas_en_auditoria(datos_dup):
+    """Lo que filtra la tabla del HTML (`es_duplicada`) tiene que cuadrar con el
+    tamaño de `operaciones` completo y con el de la vista limpia por defecto.
+
+    FILAS_DUP tiene 6 operaciones y 1 duplicada: con el toggle de auditoría
+    apagado (comportamiento nuevo por defecto) la tabla filtra por
+    `not es_duplicada` y muestra 5; encendido, muestra las 6.
+    """
+    todas = datos_dup["operaciones"]
+    assert len(todas) == 6
+    limpias = [o for o in todas if not o["es_duplicada"]]
+    assert len(limpias) == 5
+    assert len(limpias) == datos_dup["resumen"]["cerradas"]
+    assert len(todas) == datos_dup["resumen_con_duplicados"]["cerradas"]
 
 
 def test_marcar_duplicadas_cuenta_el_cierre_del_mismo_dia_como_solape():
@@ -728,29 +748,36 @@ def test_html_dibuja_la_curva_sin_librerias_externas(html_generado):
     assert ".cero-linea" in html_generado and ".rejilla" in html_generado
 
 
-def test_html_tiene_el_aviso_de_duplicadas_y_el_filtro(html_generado):
-    """El aviso y el interruptor son la forma de que los datos mixtos se lean
-    como mixtos. Si desaparecen, el dashboard vuelve a dar por buenas unas
-    estadísticas que llevan dentro las entradas de un bug."""
-    # El mensaje se arma concatenando literales para no pasar de 90 columnas, así
-    # que primero se sueldan los literales adyacentes (`" + "`). La fecha va en
-    # medio como expresión, de ahí que se compruebe en dos mitades.
+def test_html_no_tiene_banner_de_aviso(html_generado):
+    """Con datos limpios por defecto ya no hay estadísticas mixtas que avisar:
+    el banner ámbar antiguo es ruido y tiene que haber desaparecido."""
+    assert 'id="aviso"' not in html_generado
+    assert 'id="cerrar-aviso"' not in html_generado
+    assert "Las estadísticas incluyen operaciones duplicadas" not in html_generado
+
+
+def test_html_tiene_la_nota_permanente_y_el_toggle_de_auditoria(html_generado):
+    """La nota permanente y el toggle de auditoría son la forma de que la
+    cicatriz del bug siga siendo accesible sin volver a ser el dato por
+    defecto."""
     unido = " ".join(html_generado.split()).replace('" + "', "")
-    assert ("Las estadísticas incluyen operaciones duplicadas del mismo ticker "
-            "por un bug corregido el ") in unido
-    assert (". Ver CHANGELOG. La comparativa A vs B es interpretable solo desde "
-            "esa fecha.") in unido
-    # Descartable y recordado, para que no vuelva en cada visita.
-    assert 'id="cerrar-aviso"' in html_generado
-    assert 'localStorage.setItem(clave, "1")' in html_generado
-    # Interruptor de vista limpia y los cuatro bloques que consume.
-    assert "Solo operaciones limpias" in html_generado
-    for bloque in ("resumen_limpio", "comparativa_ab_limpia",
-                   "pnl_por_cartera_limpio", "curva_equity_limpia"):
+    assert '"Estadísticas sin "' in html_generado
+    assert "entradas duplicadas" in html_generado
+    assert "por un bug corregido el" in unido
+    assert ('Ver toggle' in unido and 'auditoría' in unido
+            and 'para el detalle histórico. Detalle en' in unido)
+    assert 'CHANGELOG.md' in html_generado
+    # Toggle nuevo, apagado por defecto, con clave de localStorage distinta a
+    # cualquier interruptor anterior.
+    assert "Mostrar operaciones duplicadas por bug (auditoría)" in html_generado
+    assert 'id="auditoria"' in html_generado
+    assert '"centinela-auditoria"' in html_generado
+    for bloque in ("resumen_con_duplicados", "comparativa_ab_con_duplicados",
+                   "pnl_por_cartera_con_duplicados", "curva_equity_con_duplicados"):
         assert bloque in html_generado, f"el HTML no lee {bloque}"
-    # Arranca en la vista completa: filtrar tiene que ser un acto explícito.
-    assert "var limpio = false" in html_generado
-    # Y las duplicadas se señalan una a una en la tabla.
+    # Arranca con la auditoría apagada salvo que localStorage diga lo contrario.
+    assert "var auditoria = false" in html_generado
+    # Y las duplicadas se señalan una a una en la tabla cuando se activa.
     assert '"badge b-d","Duplicada"' in html_generado
 
 
@@ -778,6 +805,47 @@ def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado)
     antes = {f.name: f.read_bytes() for f in destino.iterdir()}
     gd.generar(destino)
     assert {f.name: f.read_bytes() for f in destino.iterdir()} == antes
+
+
+def test_generar_no_toca_bitacora_csv(tmp_path, monkeypatch):
+    """El dashboard es SOLO LECTURA: `generar()` no puede tocar la bitácora.
+
+    Regla dura del cambio de toggle: los duplicados son cicatriz histórica y no
+    se borran ni se "reconstruyen" en ningún paso de la publicación del
+    dashboard, se mire con el toggle que se mire.
+    """
+    bit = tmp_path / "bitacora.csv"
+    contenido_original = _csv_sintetico()
+    bit.write_text(contenido_original, encoding="utf-8")
+    mfe = tmp_path / "mfe_actual.md"
+    mfe.write_text(MFE_SINTETICO, encoding="utf-8")
+    est = tmp_path / "estado.json"
+    est.write_text(json.dumps(ESTADO_SINTETICO), encoding="utf-8")
+    monkeypatch.setattr(gd, "RUTA_BITACORA", bit)
+    monkeypatch.setattr(gd, "RUTA_MFE", mfe)
+    monkeypatch.setattr(gd, "RUTA_ESTADO", est)
+
+    filas_antes = len(contenido_original.strip().splitlines()) - 1  # sin cabecera
+    gd.generar(tmp_path / "docs")
+    assert bit.read_text(encoding="utf-8") == contenido_original
+    filas_despues = len(bit.read_text(encoding="utf-8").strip().splitlines()) - 1
+    assert filas_despues == filas_antes == 8
+
+
+def test_bitacora_csv_real_no_ha_perdido_filas():
+    """La bitácora real del repo sigue teniendo todas sus filas.
+
+    No es una comprobación sobre datos sintéticos: lee el fichero real del
+    árbol de trabajo y confirma que `construir_datos()` lo consume sin
+    recortarlo. Si algún día se borrara una fila a mano, este test lo nota.
+    """
+    if not gd.RUTA_BITACORA.exists():
+        pytest.skip("bitacora.csv no existe en este árbol")
+    import pandas as pd
+    filas_en_disco = len(pd.read_csv(gd.RUTA_BITACORA))
+    d = gd.construir_datos()
+    assert len(d["operaciones"]) == filas_en_disco
+    assert filas_en_disco == d["resumen"]["cerradas"] + d["resumen"]["abiertas"] + d["meta"]["duplicadas"]
 
 
 # --------------------------------------------------------------------------- #

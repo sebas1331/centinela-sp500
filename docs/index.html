@@ -82,26 +82,7 @@ header h1{font-size:1.02rem; margin:0; font-weight:650; letter-spacing:-.01em; w
 }
 #tema:hover{border-color:var(--muy-tenue)}
 
-/* ------------------------------ Aviso de datos mixtos ---------------------- */
-/* Pegado bajo la cabecera pero NO fijo: se ve al llegar y se va al bajar. Un
-   aviso permanente sobre un dato histórico acabaría siendo ruido que se ignora. */
-#aviso{
-  background:var(--aviso-fondo); border-bottom:1px solid var(--aviso-borde);
-  color:var(--aviso); font-size:.75rem; line-height:1.45;
-  padding:.5rem max(.85rem,env(safe-area-inset-left));
-  display:flex; gap:.6rem; align-items:flex-start;
-}
-#aviso[hidden]{display:none}
-#aviso p{margin:0; max-width:90ch}
-#aviso a{color:inherit; text-decoration:underline}
-#cerrar-aviso{
-  margin-left:auto; flex:0 0 auto; background:none; border:0; color:inherit;
-  font:inherit; font-size:1rem; line-height:1; cursor:pointer; padding:.1rem .3rem;
-  border-radius:6px; opacity:.75;
-}
-#cerrar-aviso:hover{opacity:1; background:var(--aviso-borde)}
-
-/* --------------------------- Interruptor de vista limpia ------------------- */
+/* --------------------------- Interruptor de auditoría ----------------------- */
 .vista{
   display:flex; align-items:center; gap:.55rem; flex-wrap:wrap;
   background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
@@ -145,6 +126,7 @@ h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
 .nota{
   margin:.7rem 0 0; font-size:.72rem; line-height:1.5; color:var(--tenue); max-width:74ch;
 }
+.nota a{color:inherit; text-decoration:underline}
 
 /* ------------------------------ Curva de equity ----------------------------- */
 /* Tarjeta propia y NO `.caja`: en móvil `.caja` se despoja de fondo y borde a
@@ -304,22 +286,18 @@ footer a{color:var(--acento)}
   <button id="tema" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>
 </header>
 
-<div id="aviso" role="note" hidden>
-  <p id="aviso-txt"></p>
-  <button id="cerrar-aviso" type="button" aria-label="Cerrar aviso">&times;</button>
-</div>
-
 <main>
   <div class="vista">
-    <label for="limpias">
-      <input type="checkbox" id="limpias">
-      <span>Solo operaciones limpias</span>
+    <label for="auditoria">
+      <input type="checkbox" id="auditoria">
+      <span>Mostrar operaciones duplicadas por bug (auditoría)</span>
     </label>
-    <small id="limpias-detalle"></small>
-    <span class="marca" id="marca-limpia" hidden>Vista filtrada</span>
+    <small id="auditoria-detalle"></small>
+    <span class="marca" id="marca-auditoria" hidden>Vista de auditoría</span>
   </div>
 
   <div class="resumen" id="kpis"></div>
+  <p class="nota" id="nota-duplicadas" hidden></p>
 
   <h2>P&amp;L acumulado por cartera</h2>
   <div class="pnlgrid" id="pnl-carteras"></div>
@@ -484,43 +462,41 @@ function iniciar(D){
   }
   if(meta.repo) document.getElementById("repo").href = meta.repo;
 
-  /* --- Aviso de datos mixtos ------------------------------------------- */
+  /* --- Nota permanente sobre las duplicadas ---------------------------- */
   /* Solo aparece si de verdad hay operaciones duplicadas en el fichero. El día
-     que la bitácora deje de tenerlas, el aviso desaparece solo. */
+     que la bitácora deje de tenerlas, la nota desaparece sola. Es informativa,
+     no un aviso de "estadísticas mixtas": por defecto ya se pintan las limpias. */
   var nDup = meta.duplicadas || 0, fechaFix = meta.corregido_el || "";
   if(nDup > 0){
-    var aviso = document.getElementById("aviso");
-    document.getElementById("aviso-txt").textContent =
-      "Las estadísticas incluyen operaciones duplicadas del mismo ticker por un bug " +
-      "corregido el " + fecha(fechaFix) + ". Ver CHANGELOG. La comparativa A vs B es " +
-      "interpretable solo desde esa fecha.";
-    /* La marca de descartado va atada a la fecha de la corrección: si mañana hay
-       un aviso distinto, vuelve a salir en vez de quedar enterrado por el cierre
-       de este. */
-    var clave = "centinela-aviso-" + fechaFix;
-    var visto = null;
-    try{ visto = localStorage.getItem(clave); }catch(e){}
-    aviso.hidden = visto === "1";
-    document.getElementById("cerrar-aviso").addEventListener("click", function(){
-      aviso.hidden = true;
-      try{ localStorage.setItem(clave, "1"); }catch(e){}
-    });
-    document.getElementById("limpias-detalle").textContent =
-      "Oculta " + nDup + (nDup === 1 ? " entrada duplicada" : " entradas duplicadas") +
-      " y recalcula resumen, comparativa y curva.";
+    var nota = document.getElementById("nota-duplicadas");
+    nota.innerHTML = "";
+    nota.appendChild(document.createTextNode(
+      "Estadísticas sin " + (nDup === 1 ? "la 1 entrada duplicada" : "las " + nDup + " entradas duplicadas") +
+      " por un bug corregido el " + fecha(fechaFix) +
+      ". Ver toggle “auditoría” para el detalle histórico. Detalle en "));
+    var enlaceChangelog = el("a", "", "CHANGELOG");
+    enlaceChangelog.href = "https://github.com/sebas1331/centinela-sp500/blob/main/CHANGELOG.md";
+    nota.appendChild(enlaceChangelog);
+    nota.appendChild(document.createTextNode("."));
+    nota.hidden = false;
+    document.getElementById("auditoria-detalle").textContent =
+      "Enseña " + nDup + (nDup === 1 ? " entrada duplicada" : " entradas duplicadas") +
+      " y recalcula resumen, comparativa y curva con ellas dentro.";
   } else {
     document.querySelector(".vista").hidden = true;
   }
 
   /* --- Vista activa ----------------------------------------------------- */
   /* Los dos juegos de cifras vienen YA calculados de Python. Aquí no se recalcula
-     nada: solo se elige cuál se pinta. */
-  var limpio = false, R = {}, CARTS = {}, CURVA = [];
+     nada: solo se elige cuál se pinta. Por defecto, la LIMPIA (sin duplicadas):
+     es la que refleja la estrategia real. La de auditoría, con duplicadas, es
+     un opt-in explícito para revisar la cicatriz del bug del 2026-08-06. */
+  var auditoria = false, R = {}, CARTS = {}, CURVA = [];
   function aplicarVista(){
-    if(limpio){
-      R = D.resumen_limpio || {};
-      CURVA = D.curva_equity_limpia || [];
-      var comp = D.comparativa_ab_limpia || {}, pl = D.pnl_por_cartera_limpio || {};
+    if(auditoria){
+      R = D.resumen_con_duplicados || {};
+      CURVA = D.curva_equity_con_duplicados || [];
+      var comp = D.comparativa_ab_con_duplicados || {}, pl = D.pnl_por_cartera_con_duplicados || {};
       CARTS = {};
       ["A","B"].forEach(function(k){
         CARTS[k] = {};
@@ -875,9 +851,9 @@ function iniciar(D){
   });
 
   function coincide(o){
-    /* En vista limpia la tabla también se filtra: si no, los números de arriba
-       dirían 26 cerradas y la tabla seguiría enseñando 28. */
-    if(limpio && o.duplicada) return false;
+    /* Fuera de auditoría la tabla también se filtra: si no, los números de
+       arriba dirían 55 cerradas y la tabla seguiría enseñando 68. */
+    if(!auditoria && o.es_duplicada) return false;
     var por = {};
     Object.keys(activos).forEach(function(id){ (por[activos[id]] = por[activos[id]] || []).push(id); });
     /* Dentro de un grupo los chips suman (Cartera A o Cartera B); entre grupos
@@ -946,9 +922,9 @@ function iniciar(D){
       var celdaEstado = document.createDocumentFragment();
       celdaEstado.appendChild(el("span","badge " + (et === "Abierta" ? "b-a" :
             (et === "Ganadora" ? "b-g" : "b-p")), et));
-      /* En la vista completa las duplicadas se señalan una a una: si no, están
-         mezcladas con las legítimas y no hay forma de saber cuál es cuál. */
-      if(o.duplicada){
+      /* En la vista de auditoría las duplicadas se señalan una a una: si no,
+         están mezcladas con las legítimas y no hay forma de saber cuál es cuál. */
+      if(o.es_duplicada){
         var dup = el("span","badge b-d","Duplicada");
         dup.title = "Segunda entrada del mismo ticker en esta cartera teniendo "
                   + "otra abierta. La creó el bug corregido el " + fecha(fechaFix) + ".";
@@ -975,7 +951,8 @@ function iniciar(D){
 
   document.getElementById("buscar").addEventListener("input", pintar);
 
-  /* --- Interruptor de vista --------------------------------------------- */
+  /* --- Interruptor de auditoría ------------------------------------------ */
+  var CLAVE_AUDITORIA = "centinela-auditoria";
   function pintarTodo(){
     aplicarVista();
     pintarKpis();
@@ -984,15 +961,26 @@ function iniciar(D){
     dibujarCurva();
     pintar();
   }
-  document.getElementById("limpias").addEventListener("change", function(e){
-    limpio = e.target.checked;
-    /* Distintivo permanente mientras la vista está filtrada: estos números NO
-       son los del registro, y eso tiene que verse sin releer el interruptor. */
-    document.getElementById("marca-limpia").hidden = !limpio;
+  var chkAuditoria = document.getElementById("auditoria");
+  /* Clave nueva y distinta de cualquier interruptor anterior: un usuario que
+     tuviera el viejo activado no puede heredar un estado incoherente con la
+     semántica invertida (antes "activado" ocultaba duplicadas; ahora las
+     enseña). */
+  try{ auditoria = localStorage.getItem(CLAVE_AUDITORIA) === "1"; }catch(e){}
+  chkAuditoria.checked = auditoria;
+  document.getElementById("marca-auditoria").hidden = !auditoria;
+  chkAuditoria.addEventListener("change", function(e){
+    auditoria = e.target.checked;
+    try{ localStorage.setItem(CLAVE_AUDITORIA, auditoria ? "1" : "0"); }catch(err){}
+    /* Distintivo permanente mientras la vista de auditoría está activa: estos
+       números SÍ incluyen las duplicadas, y eso tiene que verse sin releer el
+       interruptor. */
+    document.getElementById("marca-auditoria").hidden = !auditoria;
     pintarTodo();
   });
-  /* Arranca SIEMPRE en la vista completa, sin recordar la elección anterior: por
-     defecto se enseña lo que de verdad pasó, y filtrar es un acto explícito. */
+  /* Por defecto (y salvo que localStorage diga lo contrario) arranca en la
+     vista limpia: son los datos de la estrategia real, y ver la cicatriz del
+     bug es ahora el acto explícito. */
   pintarTodo();
 
   /* --- MFE / MAE ------------------------------------------------------- */

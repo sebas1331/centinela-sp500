@@ -5,6 +5,66 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-10 — Dashboard: se invierte el toggle de duplicadas
+
+**Solo presentación del dashboard. No se tocó el modelo, el umbral (0.79), las
+features, los objetivos, el stop, el backtest ni el simulador, y no se ha
+borrado ni una fila de `bitacora.csv`.**
+
+### Qué pasaba
+
+El bug corregido el 2026-08-06 (filtro de tickers ocupados que solo miraba la
+Cartera A) dejó una cicatriz: 13 entradas duplicadas del mismo ticker en la
+misma cartera. El dashboard las incluía por defecto en las cuatro tarjetas de
+resumen, la comparativa A vs B, la curva de equity y la tabla, con un banner
+ámbar de aviso y un toggle "Solo operaciones limpias" para ocultarlas si el
+usuario elegía activarlo.
+
+Eso era al revés de lo que hace falta para leer el sistema día a día: las
+estadísticas que de verdad importan (¿está funcionando la estrategia?) son las
+limpias, y tenerlas detrás de un toggle apagado por defecto significa que la
+lectura habitual del dashboard es la mezclada con el bug.
+
+### Qué cambia
+
+- Los datos LIMPIOS (sin las 13 duplicadas) pasan a ser los que alimentan las
+  tarjetas de resumen, la comparativa A vs B, la curva de equity y la tabla por
+  defecto, en `scripts/generar_dashboard.py`.
+- Los datos CON duplicados se siguen calculando y publicando en `datos.json`,
+  ahora bajo las claves `resumen_con_duplicados`, `comparativa_ab_con_duplicados`,
+  `pnl_por_cartera_con_duplicados` y `curva_equity_con_duplicados`: cambia su
+  rol (dejan de ser el defecto), no su cálculo ni su disponibilidad.
+- El banner ámbar desaparece: con datos limpios por defecto ya no hay
+  estadísticas mixtas que avisar, y un aviso sin nada que decir es ruido.
+- El toggle se invierte y se renombra: "Mostrar operaciones duplicadas por bug
+  (auditoría)", apagado por defecto. Encenderlo vuelve a los datos con
+  duplicados y marca cada una en la tabla con el badge "Duplicada". Guarda su
+  estado en una clave de `localStorage` nueva (`centinela-auditoria`), distinta
+  de cualquier interruptor anterior, para que nadie herede un estado
+  incoherente con la semántica invertida.
+- Nota permanente y discreta bajo las tarjetas de resumen explicando que las
+  cifras excluyen las 13 duplicadas del bug del 6 de agosto de 2026, con enlace
+  a este CHANGELOG y referencia al toggle de auditoría.
+- Cada operación del JSON lleva ahora la flag `es_duplicada` (antes
+  `duplicada`), que es lo que la tabla usa para filtrar según el toggle.
+
+### Qué NO cambia
+
+`bitacora.csv` conserva sus filas tal cual, duplicadas incluidas: son historia
+auditable del bug, no se destruyen. El simulador no se toca — la corrección de
+fondo ya vive ahí desde el 6 de agosto — y este cambio es exclusivamente de
+presentación por defecto en el dashboard. Los cálculos de win rate, expectancy,
+profit factor y P&L (la función `_vista`) son literalmente los mismos de
+siempre; solo cambia cuál de las dos vistas que ya existían es la que se pinta
+sin tener que pedirlo.
+
+### Verificación
+
+122 tests en verde, incluidos los nuevos: esquema de `datos.json` con los
+nombres `_con_duplicados`, conteo de filas de la tabla con el toggle apagado y
+encendido, que las tarjetas por defecto usan los cálculos limpios, y que
+`bitacora.csv` no pierde ni una fila al generar el dashboard.
+
 ## 2026-08-27 — INCIDENCIA: el cron de GitHub se retrasó ~10 h y se perdió una sesión
 
 **Solo infraestructura y detección. No se tocó el modelo, el umbral (0.79), las
