@@ -177,3 +177,9 @@ ZTS | dd=69.1% | prob=0.532 < umbral -> SIN SEÑAL
 APH | dd=53.0% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 COHR | dd=30.6% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['SNDK', 'WDC']
+
+===== escaneo postcierre 2026-09-14 18:01:06 ET =====
+POST-CIERRE 2026-09-14
+entradas ejecutadas: ['SNDK', 'WDC']
+cambios de objetivo: 8
+cierres: [('MRVL', 'A', 'tiempo', 0.0124), ('COHR', 'A', 'stop', -0.12), ('MRVL', 'B', 'tiempo', 0.0124)]
