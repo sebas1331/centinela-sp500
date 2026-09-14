@@ -1,7 +1,40 @@
 {
-  "actualizado": "2026-09-11T18:00:58.139336-04:00",
+  "actualizado": "2026-09-14T08:45:50.308497-04:00",
   "contador_grupo": 73,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 119.0659,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-14",
+      "notas": "prob=0.858 score_fund=87.8 sent=0.265 (n=10)",
+      "proba": 0.8576,
+      "resistencia": 1827.99,
+      "score_fundamental": 87.8,
+      "sector": "Information Technology",
+      "target_analista": 2125.087,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-09-14T08:45:05.001260-04:00"
+    },
+    {
+      "atr": 31.4633,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-14",
+      "notas": "prob=0.803 score_fund=88.3 sent=0.361 (n=10)",
+      "proba": 0.8025,
+      "resistencia": 548.6,
+      "score_fundamental": 88.3,
+      "sector": "Information Technology",
+      "target_analista": 664.9167,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-09-14T08:45:05.001260-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -485,11 +518,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34646634516"
     },
     "preapertura": {
-      "cuando": "2026-09-11T08:45:50.988166-04:00",
-      "run": "34594659366",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34594659366"
+      "cuando": "2026-09-14T08:45:50.308476-04:00",
+      "run": "34835580271",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/34835580271"
     }
   },
   "ultima_postcierre": "2026-09-11",
-  "ultima_preapertura": "2026-09-11"
+  "ultima_preapertura": "2026-09-14"
 }
