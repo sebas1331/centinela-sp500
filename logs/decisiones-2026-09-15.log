@@ -183,3 +183,9 @@ WDC | dd=46.6% | prob=0.858 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 APH | dd=56.0% | prob=0.856 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 CIEN | dd=69.8% | prob=0.802 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (4): ['COHR', 'CIEN', 'MRVL', 'TER']
+
+===== escaneo postcierre 2026-09-15 18:01:07 ET =====
+POST-CIERRE 2026-09-15
+entradas ejecutadas: ['COHR', 'MRVL', 'TER']
+cambios de objetivo: 18
+cierres: []
