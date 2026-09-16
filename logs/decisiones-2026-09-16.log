@@ -189,3 +189,9 @@ MRVL | dd=32.8% | prob=0.856 | ENTRADA DESCARTADA: ya hay posición abierta en C
 TER | dd=31.8% | prob=0.808 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 CIEN | dd=68.4% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (3): ['STX', 'VRT', 'GLW']
+
+===== escaneo postcierre 2026-09-16 18:00:51 ET =====
+POST-CIERRE 2026-09-16
+entradas ejecutadas: ['STX', 'VRT', 'GLW']
+cambios de objetivo: 18
+cierres: [('COHR', 'B', 'tiempo', 0.0813)]
