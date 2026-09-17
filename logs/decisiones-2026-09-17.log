@@ -194,3 +194,9 @@ GLW | dd=47.0% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 MRVL | dd=30.3% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TER | dd=30.1% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-09-17 18:01:04 ET =====
+POST-CIERRE 2026-09-17
+entradas ejecutadas: []
+cambios de objetivo: 13
+cierres: [('APH', 'A', 'tiempo', -0.0303), ('EIX', 'A', 'tiempo', 0.0014), ('PCG', 'A', 'tiempo', 0.0022), ('APH', 'B', 'tiempo', -0.0303), ('MRNA', 'B', 'tiempo', 0.0824), ('EIX', 'B', 'tiempo', 0.0014), ('PCG', 'B', 'tiempo', 0.0022)]
