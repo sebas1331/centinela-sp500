@@ -1,7 +1,23 @@
 {
-  "actualizado": "2026-09-17T18:01:04.797474-04:00",
+  "actualizado": "2026-09-18T08:45:54.254437-04:00",
   "contador_grupo": 83,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 11.9457,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-09-18",
+      "notas": "prob=0.803 score_fund=16.3 sent=0.037 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8025,
+      "resistencia": 161.96,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 119.55556,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-09-18T08:45:05.001319-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -663,11 +679,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35269443124"
     },
     "preapertura": {
-      "cuando": "2026-09-17T08:45:54.115914-04:00",
-      "run": "35218073694",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35218073694"
+      "cuando": "2026-09-18T08:45:54.254418-04:00",
+      "run": "35339919229",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35339919229"
     }
   },
   "ultima_postcierre": "2026-09-17",
-  "ultima_preapertura": "2026-09-17"
+  "ultima_preapertura": "2026-09-18"
 }
