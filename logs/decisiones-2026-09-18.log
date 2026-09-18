@@ -189,3 +189,9 @@ MRNA | dd=68.2% | prob=0.802 | ENTRADA SOLO EN CARTERA B: ya hay posición abier
 WDC | dd=47.0% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 GLW | dd=45.6% | prob=0.797 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['MRNA']
+
+===== escaneo postcierre 2026-09-18 18:00:46 ET =====
+POST-CIERRE 2026-09-18
+entradas ejecutadas: []
+cambios de objetivo: 3
+cierres: [('CIEN', 'A', 'tiempo', 0.0843), ('COHR', 'A', 'objetivo', 0.1745)]
