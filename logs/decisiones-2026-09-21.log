@@ -190,3 +190,9 @@ CIEN | dd=67.0% | prob=0.858 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 MRNA | dd=69.0% | prob=0.797 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 WDC | dd=44.8% | prob=0.797 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['CIEN', 'APH']
+
+===== escaneo postcierre 2026-09-21 18:01:03 ET =====
+POST-CIERRE 2026-09-21
+entradas ejecutadas: ['CIEN', 'APH']
+cambios de objetivo: 10
+cierres: [('MRNA', 'A', 'objetivo', 0.2606)]
