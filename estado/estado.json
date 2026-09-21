@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-09-18T18:00:46.295762-04:00",
+  "actualizado": "2026-09-21T08:46:00.306412-04:00",
   "contador_grupo": 84,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 26.2888,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-09-21",
+      "notas": "prob=0.858 score_fund=63.6 sent=0.506 (n=10)",
+      "proba": 0.8576,
+      "resistencia": 418.72,
+      "score_fundamental": 63.6,
+      "sector": "Information Technology",
+      "target_analista": 507.6218,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-09-21T08:45:05.001282-04:00"
+    },
+    {
+      "atr": 5.5744,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-21",
+      "notas": "prob=0.798 score_fund=80.5 sent=0.678 (n=10)",
+      "proba": 0.7975,
+      "resistencia": 162.62,
+      "score_fundamental": 80.5,
+      "sector": "Information Technology",
+      "target_analista": 99.26471,
+      "ticker": "APH",
+      "timestamp_escaneo": "2026-09-21T08:45:05.001282-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -625,11 +657,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35393651926"
     },
     "preapertura": {
-      "cuando": "2026-09-18T08:45:54.254418-04:00",
-      "run": "35339919229",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35339919229"
+      "cuando": "2026-09-21T08:46:00.306391-04:00",
+      "run": "35591787190",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35591787190"
     }
   },
   "ultima_postcierre": "2026-09-18",
-  "ultima_preapertura": "2026-09-18"
+  "ultima_preapertura": "2026-09-21"
 }
