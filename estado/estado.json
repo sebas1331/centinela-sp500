@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-09-23T08:46:14.270534-04:00",
+  "actualizado": "2026-09-23T18:00:41.587212-04:00",
   "contador_grupo": 86,
   "entradas_pendientes": [],
   "posiciones": {
@@ -228,10 +228,15 @@
             "fecha": "2026-09-22",
             "motivo": "recálculo: ATR=5.32, resistencia=162.62",
             "objetivo": 89.9049
+          },
+          {
+            "fecha": "2026-09-23",
+            "motivo": "recálculo: ATR=5.09, resistencia=162.62",
+            "objetivo": 89.4306
           }
         ],
         "id": 152,
-        "objetivo": 89.9049,
+        "objetivo": 89.4306,
         "objetivo_inicial": 99.2647,
         "portafolio": "A",
         "proba": 0.7975,
@@ -476,10 +481,15 @@
             "fecha": "2026-09-22",
             "motivo": "recálculo: ATR=22.23, resistencia=332.86",
             "objetivo": 347.3682
+          },
+          {
+            "fecha": "2026-09-23",
+            "motivo": "recálculo: ATR=21.62, resistencia=332.86",
+            "objetivo": 346.1584
           }
         ],
         "id": 149,
-        "objetivo": 347.3682,
+        "objetivo": 346.1584,
         "objetivo_inicial": 415.362,
         "portafolio": "B",
         "proba": 0.8776,
@@ -514,10 +524,15 @@
             "fecha": "2026-09-22",
             "motivo": "recálculo: ATR=13.01, resistencia=187.20",
             "objetivo": 187.2
+          },
+          {
+            "fecha": "2026-09-23",
+            "motivo": "recálculo: ATR=12.87, resistencia=192.31",
+            "objetivo": 192.31
           }
         ],
         "id": 150,
-        "objetivo": 187.2,
+        "objetivo": 192.31,
         "objetivo_inicial": 182.2464,
         "portafolio": "B",
         "proba": 0.8025,
@@ -547,10 +562,15 @@
             "fecha": "2026-09-22",
             "motivo": "recálculo: ATR=5.32, resistencia=162.62",
             "objetivo": 89.9049
+          },
+          {
+            "fecha": "2026-09-23",
+            "motivo": "recálculo: ATR=5.09, resistencia=162.62",
+            "objetivo": 89.4306
           }
         ],
         "id": 153,
-        "objetivo": 89.9049,
+        "objetivo": 89.4306,
         "objetivo_inicial": 99.2647,
         "portafolio": "B",
         "proba": 0.7975,
@@ -563,9 +583,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-09-22T18:01:02.329168-04:00",
-      "run": "35778254472",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35778254472"
+      "cuando": "2026-09-23T18:00:41.587188-04:00",
+      "run": "35914530695",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35914530695"
     },
     "preapertura": {
       "cuando": "2026-09-23T08:46:14.270513-04:00",
@@ -573,6 +593,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35857033120"
     }
   },
-  "ultima_postcierre": "2026-09-22",
+  "ultima_postcierre": "2026-09-23",
   "ultima_preapertura": "2026-09-23"
 }
