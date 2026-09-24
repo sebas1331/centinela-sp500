@@ -1,23 +1,7 @@
 {
-  "actualizado": "2026-09-24T08:45:53.282645-04:00",
-  "contador_grupo": 86,
-  "entradas_pendientes": [
-    {
-      "atr": 21.6249,
-      "carteras": [
-        "A"
-      ],
-      "fecha_decision": "2026-09-24",
-      "notas": "prob=0.803 score_fund=53.3 sent=0.464 (n=10)",
-      "proba": 0.8025,
-      "resistencia": 332.86,
-      "score_fundamental": 53.3,
-      "sector": "Information Technology",
-      "target_analista": 415.36197,
-      "ticker": "COHR",
-      "timestamp_escaneo": "2026-09-24T08:45:05.001400-04:00"
-    }
-  ],
+  "actualizado": "2026-09-24T18:00:45.208665-04:00",
+  "contador_grupo": 87,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -249,10 +233,15 @@
             "fecha": "2026-09-23",
             "motivo": "recálculo: ATR=5.09, resistencia=162.62",
             "objetivo": 89.4306
+          },
+          {
+            "fecha": "2026-09-24",
+            "motivo": "recálculo: ATR=4.97, resistencia=84.48",
+            "objetivo": 89.2017
           }
         ],
         "id": 152,
-        "objetivo": 89.4306,
+        "objetivo": 89.2017,
         "objetivo_inicial": 99.2647,
         "portafolio": "A",
         "proba": 0.7975,
@@ -260,6 +249,34 @@
         "sector": "Information Technology",
         "stop": 69.7444,
         "ticker": "APH"
+      },
+      {
+        "atr_entrada": 21.6249,
+        "dia_limite": "2026-10-07",
+        "entrada": 294.9,
+        "fecha_entrada": "2026-09-24",
+        "grupo": 87,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-09-24",
+            "motivo": "objetivo inicial",
+            "objetivo": 415.362
+          },
+          {
+            "fecha": "2026-09-24",
+            "motivo": "recálculo: ATR=20.84, resistencia=332.86",
+            "objetivo": 336.5876
+          }
+        ],
+        "id": 154,
+        "objetivo": 336.5876,
+        "objetivo_inicial": 415.362,
+        "portafolio": "A",
+        "proba": 0.8025,
+        "score_fundamental": 53.3,
+        "sector": "Information Technology",
+        "stop": 259.512,
+        "ticker": "COHR"
       }
     ],
     "B": [
@@ -502,10 +519,15 @@
             "fecha": "2026-09-23",
             "motivo": "recálculo: ATR=21.62, resistencia=332.86",
             "objetivo": 346.1584
+          },
+          {
+            "fecha": "2026-09-24",
+            "motivo": "recálculo: ATR=20.84, resistencia=332.86",
+            "objetivo": 344.5976
           }
         ],
         "id": 149,
-        "objetivo": 346.1584,
+        "objetivo": 344.5976,
         "objetivo_inicial": 415.362,
         "portafolio": "B",
         "proba": 0.8776,
@@ -513,49 +535,6 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "COHR"
-      },
-      {
-        "atr_entrada": 11.9457,
-        "dia_limite": "2026-10-01",
-        "entrada": 158.355,
-        "fecha_entrada": "2026-09-18",
-        "grupo": 84,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-09-18",
-            "motivo": "objetivo inicial",
-            "objetivo": 182.2464
-          },
-          {
-            "fecha": "2026-09-18",
-            "motivo": "recálculo: ATR=11.77, resistencia=161.96",
-            "objetivo": 181.9013
-          },
-          {
-            "fecha": "2026-09-21",
-            "motivo": "recálculo: ATR=12.56, resistencia=176.86",
-            "objetivo": 183.4794
-          },
-          {
-            "fecha": "2026-09-22",
-            "motivo": "recálculo: ATR=13.01, resistencia=187.20",
-            "objetivo": 187.2
-          },
-          {
-            "fecha": "2026-09-23",
-            "motivo": "recálculo: ATR=12.87, resistencia=192.31",
-            "objetivo": 192.31
-          }
-        ],
-        "id": 150,
-        "objetivo": 192.31,
-        "objetivo_inicial": 182.2464,
-        "portafolio": "B",
-        "proba": 0.8025,
-        "score_fundamental": 16.3,
-        "sector": "Health Care",
-        "stop": null,
-        "ticker": "MRNA"
       },
       {
         "atr_entrada": 5.5744,
@@ -583,10 +562,15 @@
             "fecha": "2026-09-23",
             "motivo": "recálculo: ATR=5.09, resistencia=162.62",
             "objetivo": 89.4306
+          },
+          {
+            "fecha": "2026-09-24",
+            "motivo": "recálculo: ATR=4.97, resistencia=84.48",
+            "objetivo": 89.2017
           }
         ],
         "id": 153,
-        "objetivo": 89.4306,
+        "objetivo": 89.2017,
         "objetivo_inicial": 99.2647,
         "portafolio": "B",
         "proba": 0.7975,
@@ -599,9 +583,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-09-23T18:00:41.587188-04:00",
-      "run": "35914530695",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35914530695"
+      "cuando": "2026-09-24T18:00:45.208642-04:00",
+      "run": "36054567573",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36054567573"
     },
     "preapertura": {
       "cuando": "2026-09-24T08:45:53.282625-04:00",
@@ -609,6 +593,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/35996269250"
     }
   },
-  "ultima_postcierre": "2026-09-23",
+  "ultima_postcierre": "2026-09-24",
   "ultima_preapertura": "2026-09-24"
 }
