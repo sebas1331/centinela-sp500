@@ -263,11 +263,15 @@ centinela/            paquete Python
   reportes.py         reporte semanal y mensual
   runtime.py          preparación de datos compartida
   cuenta.py           contabilidad de la cuenta simulada (dinero, no % sueltos)
-  notificaciones.py   Telegram: mensajes, envío con backoff y anti-duplicados
+  riesgo.py           riesgo por operación y agregado, en $ y en %
+  ordenes.py          órdenes del día, idempotencia y bitácora del broker
+  broker_xtb.py       capa de aislamiento frente a XTB + candado demo
 scripts/              entrenar_inicial, escaneo_preapertura, escaneo_postcierre,
-                      reentrenar_mensual, generar_reporte, vigilante, notificar,
-                      auditar_fiabilidad, generar_dashboard, analizar_mfe,
-                      commit_y_push.sh, verificar_persistencia.sh
+                      reentrenar_mensual, generar_reporte, vigilante,
+                      generar_ordenes, ejecutor_xtb, auditar_fiabilidad,
+                      generar_dashboard, commit_y_push.sh,
+                      verificar_persistencia.sh
+mac/                  agentes launchd del ejecutor + despertares con pmset
 .github/workflows/    preapertura.yml, postcierre.yml, vigilante.yml,
                       reentrenamiento.yml
 tests/                pruebas (pytest)
@@ -412,40 +416,61 @@ python scripts/generar_reporte.py semanal
 pytest -q                                    # tests
 ```
 
-## 🔔 Notificaciones por Telegram
+## 🤖 Ejecución automática en XTB (cuenta demo)
 
-El sistema avisa al móvil con **lo que habría que teclear en el broker**, no con
-un resumen decorativo. Siete tipos de mensaje, todos con cartera, ticker y
-precios a dos decimales:
+Desde el 25 de septiembre de 2026 el sistema no solo decide: **ejecuta**. La
+Cartera A se opera en una cuenta **demo** de XTB; la B sigue solo simulada, y la
+comparación entre las dos sigue siendo el experimento.
 
-| Cuándo | Mensaje | Qué pide hacer |
+**Decidir y ejecutar están separados.** Los escaneos escriben
+`ordenes/pendientes.json` y no saben que existe un broker. El ejecutor lo lee,
+opera y anota en `bitacora_broker.csv` lo que pasó de verdad. Si XTB se cae, el
+sistema sigue decidiendo y simulando igual.
+
+### Por qué el ejecutor corre en un Mac y no en GitHub Actions
+
+**XTB no da credenciales separadas para la demo**: el mismo email y la misma
+contraseña abren también la cuenta real. Ponerlas en los secrets de un
+repositorio remoto era un riesgo que no compensaba, así que viven en el Llavero
+de macOS y no salen del ordenador. Además, el login de xStation5 pasa por un
+WAF y las IPs de datacenter de GitHub son justo lo que ese WAF frena.
+
+### Tres momentos al día
+
+| Momento | Qué hace | Cuándo (ET) |
 |---|---|---|
-| Pre-apertura | **Orden de compra** (una por ticker) | comprar a la apertura, con importe y nº de acciones según la cuenta simulada, objetivo (orden límite) y stop (solo A) |
-| Post-cierre | **Entrada confirmada** | nada: informa del precio real de apertura |
-| Post-cierre | **Actualización de objetivo** | modificar la orden límite de venta |
-| Post-cierre | **Venta ejecutada** | nada: informa del motivo y el P&L en % y en $ |
-| Post-cierre | **Salida por tiempo mañana** | vender al cierre (market-on-close) |
-| Post-cierre | **Resumen del día** | nada: abiertas, cierres y P&L de la cuenta |
-| Vigilante en rojo | **Alerta del sistema** | revisar el run que se enlaza |
+| `compras` | Manda las compras; XTB las deja en cola y las ejecuta **al abrir** | 60–5 min antes de la apertura |
+| `ventas` | Cierra las posiciones que cumplen su décima sesión | 30–5 min antes del cierre |
+| `reconcilia` | Compara XTB con el simulador y rompe en rojo si difieren | ≥30 min tras el cierre |
 
-**Configuración:** `CENTINELA_NOTIF=on` y los *secrets* del repo
-`TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID`. Sin ellos no se envía nada y todo lo
-demás sigue igual. Para recibir solo una cartera, se quita la otra de
-`config.CARTERAS_NOTIFICADAS`.
+El tercero existe porque se midió: cerrar al cierre del día 10 se desvía
+**0,03 pp** del simulador; hacerlo a la apertura del día siguiente, 0,40 pp con
+**3,14 pp de dispersión** — gap overnight que la estrategia no contempla.
 
-**Dos garantías que importan:**
+Instalación y ajustes de energía: [`mac/README.md`](mac/README.md).
 
-- **Nada llega dos veces.** Cada aviso lleva un id `fecha|tipo|cartera|ticker`
-  registrado en `estado/notificaciones.json`, así que la escalera de crons puede
-  reejecutar un peldaño sin duplicar mensajes.
-- **Un fallo de Telegram no toca la bitácora.** El envío vive en un job aparte
-  de cada workflow, con `needs`: cuando corre, la sesión ya está persistida y
-  verificada contra el remoto. Si Telegram está caído, ese job se pone rojo y no
-  revierte ni bloquea nada. Hay tests que lo comprueban por los dos lados.
+### El candado demo
+
+`centinela/broker_xtb.py` comprueba en **cada** conexión que el endpoint es el
+de demo y que el número de cuenta es el esperado. Si algo no cuadra, o no se
+puede determinar, no manda nada y falla en rojo. Importa porque la librería, por
+defecto, se conecta a la cuenta **real**.
+
+### Lo que el cliente no oficial NO puede hacer
+
+XTB cerró su API oficial en marzo de 2025 y lo único que queda es ingeniería
+inversa de xStation5. Tres limitaciones, todas medidas:
+
+| Limitación | Impacto medido |
+|---|---|
+| No se puede modificar el take profit | Con el TP fijo: A +12,25 % (vs +12,07 %), B +11,15 % (vs +11,73 %) |
+| No se puede cerrar una posición por id | Se vende el mismo volumen; la reconciliación lo verifica |
+| Sin acciones fraccionadas por la API | Con $10.000 y 20 slots, 23 de 141 entradas no caben. Desde $50.000, ninguna |
 
 ## 🔍 Auditoría de fiabilidad
 
 ```bash
 python scripts/auditar_fiabilidad.py          # regenera reportes/auditoria_fiabilidad.md
-python scripts/notificar.py prueba            # un mensaje [PRUEBA] de cada tipo
+python scripts/generar_ordenes.py preapertura # escribe ordenes/pendientes.json
+python scripts/ejecutor_xtb.py compras --forzar --sin-git   # prueba del ejecutor
 ```

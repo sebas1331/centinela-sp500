@@ -217,6 +217,36 @@ COMISION_SPREAD_POR_LADO = 0.0010   # 0,10% de comisión + spread, en cada lado
 SLIPPAGE_MERCADO = 0.0015           # 0,15%
 
 # --------------------------------------------------------------------------- #
+# Ejecución en el broker (XTB, cuenta DEMO)
+#
+# La decisión y la ejecución están separadas a propósito: los escaneos deciden
+# y no saben que existe un broker; el ejecutor lee `ordenes/pendientes.json` y
+# opera. Si XTB se cae, el sistema sigue decidiendo y simulando igual.
+# --------------------------------------------------------------------------- #
+EJECUCION_BROKER = True
+
+#: Cartera que se opera de verdad en XTB. La otra se sigue simulando, y la
+#: comparación entre las dos sigue siendo el experimento. Se eligió la A porque
+#: tiene stop: su riesgo por operación está acotado por diseño, y el de la B no
+#: está acotado por nada (ver centinela/riesgo.py).
+CARTERA_BROKER = "A"
+
+#: Ventanas del ejecutor, en minutos respecto de la apertura (09:30 ET) o del
+#: cierre (16:00 ET) del mercado. Los tres momentos del día:
+#:
+#:   compras       antes de la apertura; XTB deja la orden en cola y la ejecuta
+#:                 al abrir, que es justo lo que simula la estrategia;
+#:   ventas        antes del cierre, para las salidas por tiempo del día 10.
+#:                 Medido sobre las 89 salidas por tiempo del histórico: cerrar
+#:                 al cierre se desvía 0,03 pp del simulador y hacerlo a la
+#:                 apertura del día siguiente, 0,40 pp con 3,14 de dispersión
+#:                 (gap overnight que la estrategia no contempla);
+#:   reconcilia    después del cierre, cuando ya no puede moverse nada.
+EJECUTOR_COMPRAS_MIN_ANTES_APERTURA = (5, 60)      # entre 60 y 5 min antes
+EJECUTOR_VENTAS_MIN_ANTES_CIERRE = (5, 30)         # entre 30 y 5 min antes
+EJECUTOR_RECONCILIA_MIN_DESPUES_CIERRE = 30        # al menos 30 min después
+
+# --------------------------------------------------------------------------- #
 # Fuente del universo
 # --------------------------------------------------------------------------- #
 WIKIPEDIA_SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"

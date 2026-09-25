@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Centinela SP500 — ejecutor de reconcilia: al menos 30 min tras el cierre.
+
+  DOS horas por agente a propósito: launchd programa en hora local y no entiende
+  de husos, así que cuando Nueva York cambia de horario la hora ET se mueve
+  respecto de Guayaquil (que es UTC-5 todo el año). Se disparan las dos y el
+  ejecutor comprueba en hora ET si le toca; el que caiga fuera de ventana
+  termina en verde sin hacer nada.
+
+    15:45 local -> 16:45 ET en verano (EDT)
+    16:45 local -> 16:45 ET en invierno (EST)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.centinela.reconcilia</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/sebastiansaltoshotmail.com/centinela-sp500/.venv/bin/python3</string>
+    <string>/Users/sebastiansaltoshotmail.com/centinela-sp500/scripts/ejecutor_xtb.py</string>
+    <string>reconcilia</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/sebastiansaltoshotmail.com/centinela-sp500</string>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>/Users/sebastiansaltoshotmail.com/centinela-sp500/mac/logs/reconcilia.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/sebastiansaltoshotmail.com/centinela-sp500/mac/logs/reconcilia.log</string>
+
+  <!-- Que no arranque al cargar el agente: solo a sus horas. -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

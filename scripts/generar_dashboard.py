@@ -44,7 +44,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import calendario, config, cuenta, datos  # noqa: E402
+from centinela import (calendario, config, cuenta, datos,  # noqa: E402
+                       ordenes as ords, riesgo)
 
 DOCS_DIR = config.BASE_DIR / "docs"
 PLANTILLA = Path(__file__).resolve().parent / "plantilla_dashboard.html"
@@ -322,6 +323,45 @@ def ordenes_activas(bit: pd.DataFrame, estado: dict, cuentas: dict) -> list[dict
     return filas
 
 
+def bloque_riesgo(ctas: dict, bit: pd.DataFrame) -> dict:
+    """Riesgo y resultados por operación, para la sección del mismo nombre."""
+    return {
+        c: riesgo.perfil(ctas[c]["cta"], bit[bit["portafolio"] == c])
+        for c in ("A", "B")
+    }
+
+
+def bloque_broker(ctas: dict) -> dict | None:
+    """Comparación entre lo que hizo XTB y lo que dice el simulador.
+
+    None mientras no haya ni una ejecución registrada: una sección vacía que
+    dice "0,00%" se lee como "no hay diferencia", y lo cierto sería "todavía no
+    se ha operado". No es lo mismo y el panel no debe insinuarlo.
+    """
+    ruta = ords.ARCHIVO_BITACORA_BROKER
+    if not ruta.exists():
+        return None
+    ops = pd.read_csv(ruta)
+    hechas = ops[ops["estado"] == "ejecutada"]
+    if hechas.empty:
+        return None
+
+    cartera = config.CARTERA_BROKER
+    slippages = pd.to_numeric(hechas["slippage_pct"], errors="coerce").dropna()
+    return {
+        "cartera": cartera,
+        "operaciones": int(len(hechas)),
+        "compras": int((hechas["tipo"] == ords.COMPRA).sum()),
+        "ventas": int((hechas["tipo"] == ords.VENTA_TIEMPO).sum()),
+        "slippage_medio_pct": _redondear(slippages.mean()) if len(slippages) else None,
+        "slippage_peor_pct": _redondear(slippages.max()) if len(slippages) else None,
+        # El equity simulado de la cartera que se opera, para ponerlos al lado.
+        "equity_simulado": ctas[cartera]["metricas"]["equity_final"],
+        "capital_inicial": _redondear(ctas[cartera]["cta"]["capital_inicial"]),
+        "ultima": str(hechas["cuando_et"].max())[:10],
+    }
+
+
 def _pnl_no_realizado(bit: pd.DataFrame, precios: dict) -> list:
     """P&L en puntos porcentuales de cada posición abierta, a precio de mercado.
 
@@ -402,11 +442,29 @@ def construir_datos(precios: dict | None = None) -> dict:
     cerradas_ok = limpias[limpias["estado"] == "cerrada"].copy()
     abiertas_ok = limpias[limpias["estado"] != "cerrada"].copy()
 
+    # La cuenta se calcula SIEMPRE sobre la vista limpia: las 13 entradas del
+    # bug del 2026-08-06 llegaron a poner 30 posiciones vivas a la vez en la
+    # Cartera B, diez más de las que caben en la cuenta. Incluirlas no daría una
+    # cifra "con duplicados": daría una cifra imposible.
+    ctas = cuentas_simuladas(limpias, sesiones, precios)
+
+    # Lo que la cuenta asignó a cada operación, para poder decir en la tabla
+    # cuántas acciones y cuántos dólares hay detrás de cada porcentaje.
+    por_id = {t["id"]: t for c in ("A", "B") for t in ctas[c]["cta"]["trades"]}
+
     operaciones = []
     for _, r in bit.iterrows():
         es_cerrada = r["estado"] == "cerrada"
         pnl = (_redondear(r["pnl_pct_pp"]) if es_cerrada
                else _redondear(r["pnl_abierta_pp"]))
+        t = por_id.get(int(r["id"]), {})
+        # P&L en dólares: realizado si cerró; marca a mercado si sigue abierta.
+        if es_cerrada:
+            pnl_dinero = t.get("pnl_dinero")
+        elif t.get("coste") is not None and pnl is not None:
+            pnl_dinero = t["coste"] * pnl / 100.0
+        else:
+            pnl_dinero = None
         operaciones.append({
             "id": int(r["id"]),
             "ticker": r["ticker"],
@@ -417,6 +475,9 @@ def construir_datos(precios: dict | None = None) -> dict:
             "fecha_salida": None if pd.isna(r["fecha_salida"]) else r["fecha_salida"],
             "precio_salida": _redondear(r["precio_salida"]),
             "pnl_pct": pnl,
+            "acciones": _redondear(t.get("acciones")),
+            "inversion": _redondear(t.get("coste")),
+            "pnl_dinero": _redondear(pnl_dinero),
             # `no_realizado` es lo que hace que el HTML anteponga "~": ese P&L es
             # una marca a mercado contra el último cierre disponible, no dinero
             # realizado, y no entra en ninguna estadística de cerradas.
@@ -428,16 +489,12 @@ def construir_datos(precios: dict | None = None) -> dict:
                        if es_cerrada else "Abierta"),
         })
 
-    # La cuenta se calcula SIEMPRE sobre la vista limpia: las 13 entradas del
-    # bug del 2026-08-06 llegaron a poner 30 posiciones vivas a la vez en la
-    # Cartera B, diez más de las que caben en la cuenta. Incluirlas no daría una
-    # cifra "con duplicados": daría una cifra imposible.
-    ctas = cuentas_simuladas(limpias, sesiones, precios)
-
     limpio = _vista(cerradas_ok, abiertas_ok, sesiones, ctas)
 
     return {
         "cuenta": bloque_cuenta(ctas),
+        "riesgo": bloque_riesgo(ctas, limpias),
+        "broker": bloque_broker(ctas),
         "ordenes": ordenes_activas(limpias, estado, ctas),
         "resumen": limpio["resumen"],
         "carteras": limpio["comparativa"],

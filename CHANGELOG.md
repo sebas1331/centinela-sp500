@@ -5,6 +5,102 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-25 (2) — Fase beta (2/2): ejecutor para la demo de XTB
+
+**Nada de esto toca la lógica de decisión.** Los escaneos deciden exactamente
+igual y no saben que existe un broker.
+
+### Arquitectura: decidir y ejecutar son dos cosas
+
+Los escaneos escriben `ordenes/pendientes.json` con lo que hay que mandar
+(`scripts/generar_ordenes.py`, en un job aparte de Actions que no tiene
+credenciales y solo escribe un fichero). El ejecutor lo lee, opera en XTB y
+anota en `bitacora_broker.csv` lo que pasó DE VERDAD: hora, precio, cantidad y
+número de orden. Si el broker se cae, el sistema sigue decidiendo y simulando
+igual; simplemente nadie ejecuta.
+
+La diferencia entre las dos bitácoras es el slippage real, y es la única forma
+honesta de saber cuánto vale la estrategia fuera del papel. El panel lo publica
+en la sección **"XTB vs. simulador"**, que permanece oculta mientras no haya ni
+una ejecución: una sección a cero se leería como "no hay diferencia" cuando la
+verdad sería "todavía no se ha operado".
+
+### El ejecutor corre en el Mac, no en GitHub Actions
+
+Decisión tomada con el usuario, y la razón principal es de seguridad: **XTB no
+da credenciales separadas para la demo**. El mismo email y la misma contraseña
+abren también la cuenta real, así que ponerlas en los secrets de un repositorio
+remoto era un riesgo que no compensaba por correr en la nube. Viven en el
+**Llavero de macOS** y no salen del ordenador. Se suma que el login de
+xStation5 pasa por un WAF y las IPs de datacenter de GitHub son justo lo que
+ese WAF existe para frenar.
+
+`mac/` trae los tres agentes de launchd, el script de `pmset` para que el Mac
+se despierte solo y las instrucciones de energía. Cada agente dispara a DOS
+horas porque launchd programa en hora local y no entiende de husos: cuando
+Nueva York cambia de horario, la misma hora ET se mueve respecto de Guayaquil.
+El disparo que cae fuera de ventana se calla en verde — la misma escalera de
+crons que ya usan los escaneos.
+
+### Tres momentos al día, y por qué el tercero
+
+| Momento | Qué hace | Cuándo (ET) |
+|---|---|---|
+| `compras` | Manda las compras; XTB las deja EN COLA y las ejecuta al abrir | 60–5 min antes de la apertura |
+| `ventas` | Cierra las posiciones que cumplen su décima sesión | 30–5 min antes del cierre |
+| `reconcilia` | Compara XTB con el simulador | ≥30 min tras el cierre |
+
+El de las ventas se añadió tras medir las 89 salidas por tiempo del histórico:
+cerrar al cierre del día 10 se desvía **0,03 pp** del simulador, mientras que
+hacerlo a la apertura del día 11 se desvía 0,40 pp **con 3,14 pp de
+dispersión** (peor caso −7,74). Esa dispersión es gap overnight que la
+estrategia no contempla, y no compensaba ahorrarse un despertar.
+
+### Solo se opera la Cartera A
+
+Tiene stop, así que su riesgo por operación está acotado por diseño; el de la B
+no lo está por nada. La B sigue simulándose igual y la comparación entre las
+dos sigue siendo el experimento.
+
+### Candado demo
+
+`broker_xtb.BrokerXTB` verifica en CADA conexión que el endpoint es el de demo
+y que el número de cuenta es el esperado. Si algo no cuadra —o simplemente no
+se puede leer— no se manda nada y se lanza `CuentaNoDemo`. Importa: la librería
+por defecto se conecta a la cuenta REAL cuando `XTB_ACCOUNT_TYPE` no está
+puesto, así que el tipo se pasa explícito y además se comprueba después.
+
+### Idempotencia y reconciliación
+
+Cada orden lleva un id determinista `fecha|cartera|ticker|tipo` registrado en
+`estado/ordenes_enviadas.json`, y se marca DESPUÉS de que el broker responda:
+marcar antes perdería la orden si el envío fallara. Tras cada ejecución se
+comparan las posiciones de XTB con `estado.json` y cualquier diferencia hace
+fallar en rojo con el detalle. El Vigilante, además, denuncia las órdenes que
+el ejecutor no reportó — un Mac dormido no deja ningún run rojo que mirar, que
+es el mismo agujero del 2026-07-27 al otro lado del cable.
+
+### Dashboard
+
+Nueva sección **"Riesgo y resultados por operación"**, en dólares y en
+porcentaje: capital por posición, riesgo por operación (distancia al stop),
+riesgo agregado si saltaran todos los stops a la vez, ganancia y pérdida medias
+y extremas. La Cartera B no publica un riesgo por operación calculado, porque
+sin stop no está acotado por nada; publica la peor pérdida observada y lo dice.
+La tabla de operaciones estrena **Acciones, Inversión $ y P&L $**: un +19% no
+dice si fueron ocho dólares o doscientos.
+
+### Limitaciones del cliente, medidas
+
+- **No se puede modificar el take profit** de una posición abierta. Con el TP
+  fijo en el objetivo inicial: A +12,25% (vs +12,07%), B +11,15% (vs +11,73%).
+- **No se puede cerrar por id**: se vende el mismo volumen y la reconciliación
+  comprueba que la posición desapareció.
+- **Sin acciones fraccionadas por la API**: el cliente redondea con
+  `int(v + 0.5)` y rechaza lo que quede bajo 1. La capa solo acepta enteros ya
+  calculados, porque un redondeo al alza silencioso rompería el tamaño de
+  posición.
+
 ## 2026-09-25 — Fase beta (1/2): se corrige el sesgo de salida y se retira Telegram
 
 ### 1. El objetivo del día vuelve a ser el de la víspera

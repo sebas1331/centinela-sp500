@@ -1,0 +1,23 @@
+# Dependencias del EJECUTOR, que corre solo en el Mac.
+#
+# Deliberadamente fuera de requirements.txt: los workflows de GitHub no operan
+# en el broker y no tienen por qué instalar Playwright ni un Chromium de 150 MB
+# en cada uno de sus runs.
+#
+#   pip install -r requirements.txt -r requirements-broker.txt
+#   playwright install chromium        # el login de XTB pasa por un navegador
+#
+# SOBRE ESTA LIBRERÍA. XTB cerró su API oficial (xapi.xtb.com / ws.xtb.com) el
+# 14 de marzo de 2025. Esta es ingeniería inversa de xStation5, no está
+# afiliada a XTB y puede romperse cualquier día sin aviso; por eso todo lo que
+# la toca está detrás de centinela/broker_xtb.py y no en el resto del código.
+#
+# Se eligió tras revisar las alternativas: xapi-python (★46), xapi-node (★64),
+# xapi-php y xapi-cpp están TODAS archivadas porque hablaban con la API que
+# murió. Esta es la única mantenida en 2026 (último release 2026-04-21) y sus
+# 10.824 líneas se auditaron antes de usarla: los únicos dominios a los que se
+# conecta son de XTB.
+#
+# Versión FIJA a propósito: una actualización automática de una librería no
+# oficial que manda órdenes a un broker es exactamente lo que no queremos.
+xtb-api-python==0.10.0

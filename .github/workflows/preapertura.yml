@@ -159,3 +159,44 @@ jobs:
           ESTADO_JOB: ${{ needs.preapertura.result }}
         run: bash scripts/verificar_persistencia.sh
 
+  # Traduce las decisiones del escaneo a órdenes concretas para el broker y las
+  # deja en ordenes/pendientes.json, que es lo que el ejecutor del Mac lee al
+  # despertarse. JOB APARTE, como el dashboard: si esto falla, la sesión de
+  # trading ya está persistida y verificada dos jobs antes. Lo único que pasa
+  # es que ese día no se opera en XTB, y el Vigilante lo denuncia.
+  #
+  # No habla con XTB ni tiene credenciales: solo escribe un fichero.
+  ordenes:
+    needs: preapertura
+    if: needs.preapertura.result == 'success' && needs.preapertura.outputs.resultado == 'procesado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Generar las órdenes del día
+        run: python scripts/generar_ordenes.py preapertura
+
+      - name: Commit y push de las órdenes
+        run: |
+          scripts/commit_y_push.sh \
+            "órdenes para el broker: preapertura [skip ci]" \
+            "procesado" \
+            ordenes

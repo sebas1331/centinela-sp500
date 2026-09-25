@@ -69,9 +69,13 @@ ESTADO_SINTETICO = {
 def _csv_sintetico(filas=None) -> str:
     lineas = [CABECERA]
     for (oid, tk, cart, fe, pe, fs, ps, motivo, pnl, estado) in (FILAS if filas is None else filas):
+        # La Cartera A SIEMPRE lleva stop y la B nunca: es la diferencia que
+        # define el experimento, y sin ella los tests del riesgo por operación
+        # medirían una cartera que no existe. Se usa el tope del diseño (−12%).
+        stop = f"{pe * (1 - 0.12):.4f}" if cart == "A" else ""
         lineas.append(",".join([
             str(oid), "1", tk, cart, "Information Technology", fe,
-            "", "", "", f"{pe}", "0.9", "60.0", "", "", '""', "",
+            "", "", "", f"{pe}", "0.9", "60.0", "", "", '""', stop,
             fs or "", "", "" if ps is None else f"{ps}", motivo or "",
             "" if pnl is None else f"{pnl}", "", estado, "",
         ]))
@@ -141,8 +145,21 @@ def datos(tmp_path, monkeypatch) -> dict:
 # 1. Contrato de datos.json
 # --------------------------------------------------------------------------- #
 def test_schema_datos_json(datos):
-    assert set(datos) == {"cuenta", "ordenes", "resumen", "carteras",
-                          "curva_equity", "operaciones", "meta"}
+    assert set(datos) == {"cuenta", "riesgo", "broker", "ordenes", "resumen",
+                          "carteras", "curva_equity", "operaciones", "meta"}
+
+    # Riesgo por operación: en dólares y en porcentaje, para las dos carteras.
+    assert set(datos["riesgo"]) == {"A", "B"}
+    assert datos["riesgo"]["A"]["tiene_stop"] is True
+    assert datos["riesgo"]["B"]["tiene_stop"] is False
+    for r in datos["riesgo"].values():
+        assert isinstance(r["capital_por_posicion"], float)
+        assert r["capital_por_posicion_pct"] == pytest.approx(100.0 / r["slots"])
+
+    # Sin ejecuciones en el broker, `broker` es None y NO un bloque a cero: un
+    # "0,00%" se leería como "no hay diferencia" cuando la verdad es "todavía
+    # no se ha operado".
+    assert datos["broker"] is None
 
     # La cuenta simulada es ahora la cifra principal del panel.
     assert set(datos["cuenta"]) == {"A", "B"}
@@ -187,7 +204,8 @@ def test_schema_datos_json(datos):
     for o in datos["operaciones"]:
         assert set(o) == {"id", "ticker", "cartera", "estado", "fecha_entrada",
                           "precio_entrada", "fecha_salida", "precio_salida",
-                          "pnl_pct", "no_realizado", "es_duplicada", "motivo"}
+                          "pnl_pct", "pnl_dinero", "acciones", "inversion",
+                          "no_realizado", "es_duplicada", "motivo"}
         assert isinstance(o["es_duplicada"], bool)
         assert isinstance(o["id"], int)
         assert o["estado"] in ("abierta", "cerrada")
@@ -195,6 +213,9 @@ def test_schema_datos_json(datos):
         assert o["motivo"] in ("Objetivo", "Stop", "Tiempo", "Abierta")
         assert isinstance(o["no_realizado"], bool)
         assert isinstance(o["precio_entrada"], float)
+        # Las mismas cifras en dinero: un +19% no dice si fueron ocho dólares
+        # o doscientos.
+        assert {"acciones", "inversion", "pnl_dinero"} <= set(o)
 
     assert set(datos["meta"]) == {"actualizado", "ultima_preapertura",
                                   "ultima_postcierre", "repo",

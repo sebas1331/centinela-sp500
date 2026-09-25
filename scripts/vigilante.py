@@ -322,6 +322,51 @@ def revisar(n_sesiones: int, ahora: datetime | None = None) -> list[str]:
     return problemas
 
 
+def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str]:
+    """¿Reportó el ejecutor del Mac las sesiones que ya debería haber operado?
+
+    El ejecutor no corre en GitHub: vive en un Mac que puede estar dormido, sin
+    red o apagado, y un despertar perdido no deja ni un run rojo que mirar —
+    exactamente el mismo agujero que el del 2026-07-27, pero al otro lado del
+    cable. Lo único observable desde aquí es su huella en el repositorio:
+    `bitacora_broker.csv` con una línea de la sesión, o `ordenes_enviadas.json`
+    con sus ids.
+
+    Solo se exige cuando había ALGO que ejecutar. Un día sin compras ni ventas
+    por tiempo es un día en el que el ejecutor, correctamente, no escribe nada.
+    """
+    problemas: list[str] = []
+    if not getattr(config, "EJECUCION_BROKER", False):
+        _log("Ejecución en broker desactivada; no se exige nada al ejecutor.")
+        return problemas
+
+    sesiones = sesiones_a_exigir(n_sesiones, ahora)
+    if not sesiones:
+        return problemas
+
+    from centinela import ordenes as ords
+    pendientes = ords.cargar_pendientes()
+    enviadas = ords.cargar_enviadas().get("enviadas", {})
+
+    esperadas = [o for o in pendientes.get("ordenes", [])
+                 if o.sesion in sesiones]
+    if not esperadas:
+        _log("El ejecutor no tenía órdenes pendientes para las sesiones "
+             "exigibles: nada que reportar.")
+        return problemas
+
+    sin_enviar = [o for o in esperadas if o.id not in enviadas]
+    _log(f"Órdenes exigibles al ejecutor: {len(esperadas)} | "
+         f"sin constancia de envío: {len(sin_enviar)}")
+    for o in sin_enviar:
+        problemas.append(
+            f"El ejecutor del Mac no reportó la orden {o.id} ({o.tipo} de "
+            f"{o.acciones} {o.ticker}). O el Mac no despertó, o no tuvo red, o "
+            f"el ejecutor falló y no llegó a publicar. Revisa "
+            f"mac/logs/ en ese ordenador.")
+    return problemas
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Vigilante de silencios de Centinela")
     ap.add_argument("--sesiones", type=int, default=1,
@@ -338,6 +383,11 @@ def main() -> int:
     _log("Rachas de runs rojos en las últimas "
          f"{config.VIGILANTE_RACHA_HORAS} h:")
     problemas.extend(revisar_rachas())
+
+    # Y la pata que no vive en GitHub: el ejecutor del Mac.
+    _log("")
+    _log("Ejecutor del Mac:")
+    problemas.extend(revisar_ejecutor(args.sesiones))
 
     if problemas:
         for p in problemas:

@@ -292,6 +292,20 @@ footer a{color:var(--acento)}
     de fiabilidad</a>.
   </p>
 
+  <h2>Riesgo y resultados por operación</h2>
+  <div class="carteras" id="riesgo"></div>
+  <p class="nota">
+    Lo que se puede perder, no lo que se espera ganar. La Cartera A tiene el
+    riesgo por operación <b>acotado por el stop</b>; la B no tiene stop, así que
+    su riesgo no está acotado por nada y lo que se enseña es la peor pérdida
+    <i>observada</i>, que es un antecedente, no un límite. El riesgo agregado
+    supone que saltan todos los stops el mismo día: con el 85&nbsp;% del P&amp;L
+    en semiconductores, eso no es un escenario de laboratorio.
+  </p>
+
+  <h2 id="h-broker" hidden>XTB vs. simulador</h2>
+  <div class="carteras" id="broker" hidden></div>
+
   <h2>Actividad</h2>
   <div class="resumen" id="kpis"></div>
   <p class="nota">Estadísticas del sistema en operación. Ver histórico completo en el
@@ -395,7 +409,9 @@ function fecha(iso){
 }
 function precio(v){
   if(v === null || v === undefined) return "—";
-  return "$" + v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  /* El signo va DELANTE del símbolo: "-$48.49", no "$-48.49". */
+  return (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString("en-US",
+    {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 /* `conSigno` por defecto SÍ, porque casi todo lo que se pinta aquí es un
    resultado que puede ir a favor o en contra y el signo es la mitad del dato.
@@ -469,6 +485,7 @@ function iniciar(D){
      y ya no hay una vista alternativa que elegir en el HTML. */
   var R = D.resumen || {}, CARTS = D.carteras || {}, CURVA = D.curva_equity || [];
   var CUENTA = D.cuenta || {}, ORDENES = D.ordenes || [];
+  var RIESGO = D.riesgo || {}, BROKER = D.broker || null;
 
   /* --- Cuenta simulada: la cifra principal ----------------------------- */
   function pintarCuenta(){
@@ -505,6 +522,76 @@ function iniciar(D){
       caja.appendChild(pie);
       zona.appendChild(caja);
     });
+  }
+
+  /* --- Riesgo y resultados por operación -------------------------------- */
+  function pintarRiesgo(){
+    var zona = document.getElementById("riesgo");
+    zona.textContent = "";
+    ["A","B"].forEach(function(nombre){
+      var r = RIESGO[nombre] || {};
+      var caja = el("div","cartera");
+      var h3 = el("h3","", "Cartera " + nombre + " ");
+      h3.appendChild(el("span","", nombre === "A" ? "con stop" : "sin stop"));
+      caja.appendChild(h3);
+
+      var dl = el("dl");
+      function fila(etiqueta, dolares, porcentaje, clase){
+        dl.appendChild(el("dt","",etiqueta));
+        var v = precio(dolares);
+        if(porcentaje !== null && porcentaje !== undefined)
+          v += "  (" + pct(porcentaje, 2, false) + ")";
+        dl.appendChild(el("dd", clase || "", v));
+      }
+      fila("Capital por posición", r.capital_por_posicion, r.capital_por_posicion_pct);
+      if(r.tiene_stop){
+        fila("Riesgo por operación", r.riesgo_por_trade, r.riesgo_por_trade_pct, "neg");
+        fila("Si saltan todos los stops", r.riesgo_agregado, r.riesgo_agregado_pct, "neg");
+      } else {
+        /* Sin stop no hay riesgo acotado que enseñar. Poner un número aquí
+           sería inventarse un límite que no existe. */
+        dl.appendChild(el("dt","","Riesgo por operación"));
+        dl.appendChild(el("dd","aviso-txt","sin stop definido"));
+        fila("Peor pérdida observada", r.peor_perdida_historica,
+             r.peor_perdida_historica_pct, "neg");
+      }
+      fila("Ganancia media", r.ganancia_media, r.ganancia_media_pct, "pos");
+      fila("Pérdida media", r.perdida_media, r.perdida_media_pct, "neg");
+      fila("Mayor ganancia", r.mayor_ganancia, r.mayor_ganancia_pct, "pos");
+      fila("Mayor pérdida", r.mayor_perdida, r.mayor_perdida_pct, "neg");
+      caja.appendChild(dl);
+      zona.appendChild(caja);
+    });
+  }
+
+  /* --- XTB vs. simulador ------------------------------------------------ */
+  function pintarBroker(){
+    /* Sin ni una ejecución no se pinta NADA. Una sección a cero se leería como
+       "no hay diferencia", y lo cierto sería "todavía no se ha operado". */
+    if(!BROKER) return;
+    document.getElementById("h-broker").hidden = false;
+    var zona = document.getElementById("broker");
+    zona.hidden = false;
+    zona.textContent = "";
+
+    var caja = el("div","cartera");
+    var h3 = el("h3","", "Cartera " + BROKER.cartera + " en XTB ");
+    h3.appendChild(el("span","", "cuenta demo"));
+    caja.appendChild(h3);
+    var dl = el("dl");
+    [["Operaciones ejecutadas", String(BROKER.operaciones), ""],
+     ["Compras / ventas", BROKER.compras + " / " + BROKER.ventas, ""],
+     ["Slippage medio", pct(BROKER.slippage_medio_pct),
+      signo(-(BROKER.slippage_medio_pct || 0))],
+     ["Peor slippage", pct(BROKER.slippage_peor_pct), "neg"],
+     ["Equity simulado", precio(BROKER.equity_simulado), ""],
+     ["Última ejecución", fecha(BROKER.ultima), ""]
+    ].forEach(function(f){
+      dl.appendChild(el("dt","",f[0]));
+      dl.appendChild(el("dd",f[2],f[1]));
+    });
+    caja.appendChild(dl);
+    zona.appendChild(caja);
   }
 
   /* --- Órdenes activas ------------------------------------------------- */
@@ -795,6 +882,9 @@ function iniciar(D){
     {id:"fecha_salida",   txt:"Fecha salida",   num:false},
     {id:"precio_salida",  txt:"Precio salida",  num:true},
     {id:"pnl_pct", txt:"P&L %",          num:true},
+    {id:"pnl_dinero", txt:"P&L $",       num:true},
+    {id:"acciones",   txt:"Acciones",    num:true},
+    {id:"inversion",  txt:"Inversión",   num:true},
     {id:"motivo",  txt:"Motivo",         num:false}
   ];
   var orden = {col:"fecha_entrada", asc:false};
@@ -806,7 +896,8 @@ function iniciar(D){
     ticker:"Ticker", cartera:"Cartera", estado:"Estado",
     fecha_entrada:"Fecha entrada", precio_entrada:"Precio entrada",
     fecha_salida:"Fecha salida", precio_salida:"Precio salida",
-    pnl:"P&L %", motivo:"Motivo"
+    pnl:"P&L %", pnl_dinero:"P&L $", acciones:"Acciones",
+    inversion:"Inversión", motivo:"Motivo"
   };
 
   var GRUPOS = {
@@ -944,6 +1035,15 @@ function iniciar(D){
       var texto = o.pnl_pct === null || o.pnl_pct === undefined ? "—"
         : (o.no_realizado ? "~" : "") + pct(o.pnl_pct);
       celda("pnl", el("span","pnl num " + signo(o.pnl_pct), texto), "n");
+      /* Las mismas cifras en dinero: un +19% no dice si fueron ocho dólares o
+         doscientos, y con acciones enteras y precios de $13 a $1.500 la
+         diferencia entre una posición y otra es enorme. */
+      var td = o.pnl_dinero === null || o.pnl_dinero === undefined ? "—"
+        : (o.no_realizado ? "~" : "") + precio(o.pnl_dinero);
+      celda("pnl_dinero", el("span","num " + signo(o.pnl_dinero), td), "n");
+      celda("acciones", o.acciones === null || o.acciones === undefined ? "—"
+            : o.acciones.toFixed(4), "n");
+      celda("inversion", precio(o.inversion), "n");
       celda("motivo", o.motivo || "—");
       frag.appendChild(tr);
     });
@@ -959,6 +1059,8 @@ function iniciar(D){
   /* Un único juego de datos (los limpios): no hay vista alternativa que
      elegir, así que no hace falta más que pintar una vez. */
   pintarCuenta();
+  pintarRiesgo();
+  pintarBroker();
   pintarOrdenes();
   pintarKpis();
   pintarComparativa();
