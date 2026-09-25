@@ -246,3 +246,55 @@ def test_el_contexto_desconecta_siempre():
 def test_las_credenciales_no_se_imprimen():
     """Un repr con la contraseña dentro acaba en un log cualquier día."""
     assert "secreta" not in repr(CRED)
+
+
+# --------------------------------------------------------------------------- #
+# 6. Segundo factor (2FA)
+# --------------------------------------------------------------------------- #
+def test_el_secreto_totp_llega_al_cliente(monkeypatch):
+    """Sin pasarlo, el login muere en "2FA is required" — pasó de verdad.
+
+    La cuenta de pruebas tenía el segundo factor activado, así que este camino
+    no es hipotético: es el que hace falta para entrar.
+    """
+    creado = {}
+
+    class _Falso(_ClienteFalso):
+        def __init__(self, **kw):
+            creado.update(kw)
+            super().__init__()
+
+    monkeypatch.setitem(sys.modules, "xtb_api",
+                        type(sys)("xtb_api"))
+    sys.modules["xtb_api"].XTBClient = _Falso
+
+    cred = bx.Credenciales(email="x@y.z", cuenta=12345678,
+                           password="secreta", totp="BASE32SECRET")
+    b = bx.BrokerXTB(cred, demo=True)
+    b.conectar()
+
+    assert creado["totp_secret"] == "BASE32SECRET"
+    # Y el tipo de cuenta SIEMPRE explícito: el default de la librería es real.
+    assert creado["account_type"] == "demo"
+
+
+def test_sin_2fa_el_secreto_va_vacio_y_no_estorba(monkeypatch):
+    creado = {}
+
+    class _Falso(_ClienteFalso):
+        def __init__(self, **kw):
+            creado.update(kw)
+            super().__init__()
+
+    monkeypatch.setitem(sys.modules, "xtb_api", type(sys)("xtb_api"))
+    sys.modules["xtb_api"].XTBClient = _Falso
+
+    bx.BrokerXTB(bx.Credenciales(email="x@y.z", cuenta=12345678,
+                                 password="p"), demo=True).conectar()
+    assert creado["totp_secret"] == ""
+
+
+def test_el_secreto_totp_tampoco_se_imprime():
+    """Un repr con el secreto dentro vale tanto como la contraseña."""
+    c = bx.Credenciales(email="x@y.z", cuenta=1, password="p", totp="SECRETO32")
+    assert "SECRETO32" not in repr(c)

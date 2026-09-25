@@ -20,4 +20,6 @@
 #
 # Versión FIJA a propósito: una actualización automática de una librería no
 # oficial que manda órdenes a un broker es exactamente lo que no queremos.
-xtb-api-python==0.10.0
+# El extra [totp] trae pyotp, que genera los códigos del segundo factor a
+# partir del secreto en base32. Sin él, una cuenta con 2FA no puede entrar.
+xtb-api-python[totp]==0.10.0

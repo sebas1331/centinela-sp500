@@ -80,12 +80,16 @@ LLAVERO = {
     "email": "centinela-xtb-email",
     "cuenta": "centinela-xtb-cuenta",
     "password": "centinela-xtb-password",
+    # Secreto TOTP en base32. Opcional: solo hace falta si la cuenta tiene el
+    # segundo factor activado, que es lo normal y lo recomendable. Sin él, el
+    # login muere en "2FA is required but no totp_secret was provided".
+    "totp": "centinela-xtb-totp",
 }
 LLAVERO_CUENTA = "centinela"
 
 
-def _del_llavero(servicio: str) -> str:
-    """Lee un secreto del Llavero de macOS. Lanza si no está."""
+def _del_llavero(servicio: str, obligatorio: bool = True) -> str:
+    """Lee un secreto del Llavero de macOS. Lanza si falta y es obligatorio."""
     try:
         r = subprocess.run(
             ["security", "find-generic-password", "-s", servicio,
@@ -95,6 +99,8 @@ def _del_llavero(servicio: str) -> str:
     except (OSError, subprocess.SubprocessError) as exc:
         raise ErrorBroker(f"No se pudo consultar el Llavero: {exc!r}") from exc
     if r.returncode != 0:
+        if not obligatorio:
+            return ""
         raise ErrorBroker(
             f"Falta el secreto '{servicio}' en el Llavero. Guárdalo con:\n"
             f"  security add-generic-password -U -s \"{servicio}\" "
@@ -104,11 +110,14 @@ def _del_llavero(servicio: str) -> str:
 
 @dataclass
 class Credenciales:
-    """Credenciales de XTB. `password` nunca se imprime ni se serializa."""
+    """Credenciales de XTB. `password` y `totp` nunca se imprimen."""
 
     email: str
     cuenta: int
     password: str = field(repr=False)
+    #: Secreto TOTP en base32, si la cuenta tiene segundo factor. Cadena vacía
+    #: si no lo tiene: el cliente solo lo usa cuando XTB lo pide.
+    totp: str = field(default="", repr=False)
 
     @classmethod
     def del_llavero(cls) -> "Credenciales":
@@ -119,7 +128,8 @@ class Credenciales:
                 f"dígitos (lo ves en el selector de cuenta de xStation 5).")
         return cls(email=_del_llavero(LLAVERO["email"]),
                    cuenta=int(cuenta),
-                   password=_del_llavero(LLAVERO["password"]))
+                   password=_del_llavero(LLAVERO["password"]),
+                   totp=_del_llavero(LLAVERO["totp"], obligatorio=False))
 
     @classmethod
     def del_entorno(cls) -> "Credenciales":
@@ -130,7 +140,8 @@ class Credenciales:
             raise ErrorBroker(f"Faltan variables de entorno: {', '.join(faltan)}")
         return cls(email=os.environ["XTB_EMAIL"],
                    cuenta=int(os.environ["XTB_CUENTA"]),
-                   password=os.environ["XTB_PASSWORD"])
+                   password=os.environ["XTB_PASSWORD"],
+                   totp=os.environ.get("XTB_TOTP", ""))
 
 
 # --------------------------------------------------------------------------- #
@@ -234,6 +245,7 @@ class BrokerXTB:
             email=self._cred.email,
             password=self._cred.password,
             account_number=self._cred.cuenta,
+            totp_secret=self._cred.totp,
             # EXPLÍCITO y no por variable de entorno: el default de la librería
             # es "real" y no se puede depender de que el entorno esté bien.
             account_type="demo",

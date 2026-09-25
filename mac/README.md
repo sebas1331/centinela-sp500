@@ -42,6 +42,30 @@ fuera se calla en verde.
 Es exactamente la escalera de crons que ya usan los escaneos en Actions, y por
 la misma razón.
 
+## Credenciales en el Llavero
+
+Cuatro secretos, todos bajo la cuenta `centinela`:
+
+| Servicio | Qué es |
+|---|---|
+| `centinela-xtb-email` | El email de la cuenta de XTB |
+| `centinela-xtb-cuenta` | El número de la cuenta **demo** (solo dígitos) |
+| `centinela-xtb-password` | La contraseña |
+| `centinela-xtb-totp` | El secreto TOTP en base32, si hay segundo factor |
+
+El último **no es opcional si la cuenta tiene 2FA**: sin él el login muere en
+`CASError: 2FA is required but no totp_secret was provided`. Se obtiene
+reconfigurando el segundo factor en XTB y copiando la clave que aparece junto
+al código QR (la opción de "introducir manualmente"). Reconfigurarlo invalida
+la app de autenticación anterior, así que hay que volver a escanear el QR
+también ahí.
+
+```bash
+security add-generic-password -U -s "centinela-xtb-totp" -a centinela -w
+```
+
+Sin `-w` con valor: así la pide por teclado y no queda en el historial.
+
 ## Instalación
 
 ```bash
