@@ -188,3 +188,9 @@ ZBH | dd=46.4% | prob=0.477 < umbral -> SIN SEÑAL
 ZTS | dd=70.2% | prob=0.474 < umbral -> SIN SEÑAL
 COHR | dd=34.0% | prob=0.808 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-09-25 18:00:44 ET =====
+POST-CIERRE 2026-09-25
+entradas ejecutadas: []
+cambios de objetivo: 8
+cierres: [('SNDK', 'A', 'tiempo', 0.1684), ('WDC', 'A', 'tiempo', 0.098), ('TER', 'A', 'objetivo', 0.1852), ('SNDK', 'B', 'tiempo', 0.1684), ('WDC', 'B', 'tiempo', 0.098), ('TER', 'B', 'objetivo', 0.1852)]
