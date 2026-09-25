@@ -6,6 +6,18 @@
 <meta name="color-scheme" content="light dark">
 <title>Centinela SP500</title>
 <meta name="description" content="Panel de seguimiento del experimento de paper trading Centinela SP500.">
+<script>
+/* Resuelve el tema ANTES de aplicar el CSS. Con data-tema siempre puesto, la
+   paleta oscura se declara UNA vez en vez de dos (media query + override
+   manual): medio kilobyte repetido letra por letra, y este fichero tiene un
+   techo de 50 KB. De paso, no hay destello claro al abrir en oscuro. */
+(function(){
+  var r = document.documentElement, g = null;
+  try{ g = localStorage.getItem("centinela-tema"); }catch(e){}
+  r.dataset.tema = (g === "dark" || g === "light") ? g
+    : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+})();
+</script>
 <style>
 /* --------------------------------------------------------------------------
    Tema. Claro por defecto; oscuro si el sistema lo pide; y el toggle manda
@@ -28,17 +40,6 @@
   /* Ámbar de aviso: ni error (rojo, que aquí ya significa pérdida) ni
      informativo (azul, que significa posición abierta). Registro propio. */
   --aviso:#92400e; --aviso-fondo:#fef6e0; --aviso-borde:#f0c775;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-tema="light"]){
-    --fondo:#101418; --superficie:#181d23; --superficie-2:#212831;
-    --borde:#2c343d; --texto:#e7ebef; --tenue:#9aa5b1; --muy-tenue:#6e7a87;
-    --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
-    --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
-    --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
-    --serie-b:#a78bfa;
-    --aviso:#fbbf24; --aviso-fondo:#33280f; --aviso-borde:#6b5119;
-  }
 }
 :root[data-tema="dark"]{
   --fondo:#101418; --superficie:#181d23; --superficie-2:#212831;
@@ -110,6 +111,18 @@ h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
 .nota{
   margin:.7rem 0 0; font-size:.72rem; line-height:1.5; color:var(--tenue); max-width:74ch;
 }
+/* Cuenta simulada: la cifra principal. Rejilla de métricas dentro de cada
+   tarjeta de cartera, que reaprovecha .cartera/.kpi-sm en vez de estrenar una
+   familia de estilos nueva (el index.html tiene un techo de 50 KB). */
+.metricas{display:grid; grid-template-columns:repeat(2,1fr); gap:.45rem}
+@media (min-width:520px){.metricas{grid-template-columns:repeat(3,1fr)}}
+.metricas .kpi{padding:.5rem .6rem}
+.metricas .v{font-size:1.05rem}
+.metricas .e{font-size:.66rem; margin-top:.15rem}
+.destacado .v{font-size:1.35rem}
+/* Aviso de orden que vence: mismo registro ámbar que el resto de avisos. */
+.urge{color:var(--aviso); font-weight:600}
+tr.urge-fila td{background:var(--aviso-fondo)}
 .nota a{color:inherit; text-decoration:underline}
 
 /* ------------------------------ Curva de equity ----------------------------- */
@@ -267,6 +280,19 @@ footer a{color:var(--acento)}
 </header>
 
 <main>
+  <h2>Cuenta simulada</h2>
+  <div class="carteras" id="cuenta-sim"></div>
+  <p class="nota">
+    Rentabilidad de una cuenta real de capital finito: cada cartera parte de su
+    capital inicial dividido en 20 slots, cada entrada usa un slot y el capital
+    compone al cerrar. Todas las cifras van <b>netas</b> de comisión, spread y
+    slippage. Esta es la cifra principal del panel; la suma de retornos sigue
+    más abajo, con su propia etiqueta, porque mide otra cosa.
+    <a href="https://github.com/sebas1331/centinela-sp500/blob/main/reportes/auditoria_fiabilidad.md">Auditoría
+    de fiabilidad</a>.
+  </p>
+
+  <h2>Actividad</h2>
   <div class="resumen" id="kpis"></div>
   <p class="nota">Estadísticas del sistema en operación. Ver histórico completo en el
     <a id="repo-nota" href="https://github.com/sebas1331/centinela-sp500">repositorio</a>.</p>
@@ -283,6 +309,9 @@ footer a{color:var(--acento)}
   <div class="carteras" id="carteras"></div>
 
   <h2>Curva de equity</h2>
+  <div class="controles">
+    <div class="chips" id="modo-curva"></div>
+  </div>
   <div id="curva">
     <div class="leyenda">
       <span><i class="la"></i>Cartera A</span>
@@ -306,6 +335,28 @@ footer a{color:var(--acento)}
     </table>
     <div class="vacio" id="vacio" hidden>Ninguna operación coincide con los filtros.</div>
   </div>
+
+  <h2>Órdenes activas</h2>
+  <details id="det-ordenes" open>
+    <summary>Lo que debería estar puesto hoy en el broker <small id="ord-sello"></small></summary>
+    <div class="envoltorio">
+      <div class="caja">
+        <table>
+          <thead><tr>
+            <th>Ticker</th><th>Cart.</th><th class="n">Entrada</th>
+            <th class="n">Límite venta</th><th class="n">Stop</th><th>Vence</th>
+          </tr></thead>
+          <tbody id="cuerpo-ordenes"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  <p class="nota">
+    Órdenes límite de venta (el objetivo vigente de cada posición) y órdenes
+    stop, que solo tiene la Cartera A. Una fila en ámbar es una
+    <b>venta al cierre</b> programada: esa posición cumple su décima sesión y
+    sale market-on-close, se haya tocado el objetivo o no.
+  </p>
 
   <h2>Detalle de posiciones abiertas</h2>
   <details id="det-mfe">
@@ -335,21 +386,25 @@ footer a{color:var(--acento)}
 "use strict";
 
 /* ---------------------------------------------------------------- Tema ---- */
+/* data-tema ya viene resuelto del <head>: aquí solo se lee y se alterna. */
 var raiz = document.documentElement, btnTema = document.getElementById("tema");
-try{ var g = localStorage.getItem("centinela-tema"); if(g) raiz.dataset.tema = g; }catch(e){}
+function guardado(){
+  try{ return localStorage.getItem("centinela-tema"); }catch(e){ return null; }
+}
 function pintarBoton(){
-  var oscuro = raiz.dataset.tema === "dark" || (raiz.dataset.tema !== "light" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches);
-  btnTema.textContent = oscuro ? "Claro" : "Oscuro";
+  btnTema.textContent = raiz.dataset.tema === "dark" ? "Claro" : "Oscuro";
 }
 btnTema.addEventListener("click", function(){
-  var oscuro = raiz.dataset.tema === "dark" || (raiz.dataset.tema !== "light" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches);
-  raiz.dataset.tema = oscuro ? "light" : "dark";
+  raiz.dataset.tema = raiz.dataset.tema === "dark" ? "light" : "dark";
   try{ localStorage.setItem("centinela-tema", raiz.dataset.tema); }catch(e){}
   pintarBoton();
 });
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", pintarBoton);
+/* Seguir al sistema solo hasta que el usuario elija a mano. */
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(e){
+  if(guardado()) return;
+  raiz.dataset.tema = e.matches ? "dark" : "light";
+  pintarBoton();
+});
 pintarBoton();
 
 /* ------------------------------------------------------------- Formato ---- */
@@ -440,6 +495,80 @@ function iniciar(D){
      duplicadas del bug del 2026-08-06). Es lo que refleja la estrategia real,
      y ya no hay una vista alternativa que elegir en el HTML. */
   var R = D.resumen || {}, CARTS = D.carteras || {}, CURVA = D.curva_equity || [];
+  var CUENTA = D.cuenta || {}, ORDENES = D.ordenes || [];
+
+  /* --- Cuenta simulada: la cifra principal ----------------------------- */
+  function pintarCuenta(){
+    var zona = document.getElementById("cuenta-sim");
+    zona.textContent = "";
+    ["A","B"].forEach(function(nombre){
+      var c = CUENTA[nombre] || {};
+      var caja = el("div","cartera");
+      var h3 = el("h3","", "Cartera " + nombre + " ");
+      h3.appendChild(el("span","", nombre === "A" ? "con stop" : "sin stop"));
+      caja.appendChild(h3);
+
+      var rej = el("div","metricas");
+      /* Capital y rentabilidad primero y más grandes: son la respuesta a
+         "¿cuánto vale mi dinero?". El resto es el contexto de riesgo sin el
+         cual esa cifra no significa nada. */
+      [["Capital actual", precio(c.capital_actual), null, true],
+       ["Rentabilidad", pct(c.rentabilidad), signoCero(c.rentabilidad), true],
+       ["Drawdown máx.", pct(c.drawdown_max), c.drawdown_max ? "neg" : null, true],
+       ["Capital inicial", precio(c.capital_inicial), null, false],
+       ["CAGR anualizado", pct(c.cagr, 1), signoCero(c.cagr), false],
+       ["Sharpe aprox.", c.sharpe === null || c.sharpe === undefined ? "—" : c.sharpe.toFixed(2), null, false]
+      ].forEach(function(m){
+        var k = el("div","kpi" + (m[3] ? " destacado" : ""));
+        k.appendChild(el("div","v num" + (m[2] ? " " + m[2] : ""), m[1]));
+        k.appendChild(el("div","e", m[0]));
+        rej.appendChild(k);
+      });
+      caja.appendChild(rej);
+
+      var pie = el("p","nota", "Slots ocupados: " + (c.slots_usados === undefined ? "—" : c.slots_usados) +
+        " de " + (c.slots || 20) + " · caja libre " + precio(c.caja));
+      pie.style.margin = ".55rem 0 0";
+      caja.appendChild(pie);
+      zona.appendChild(caja);
+    });
+  }
+
+  /* --- Órdenes activas ------------------------------------------------- */
+  function pintarOrdenes(){
+    var cuerpo = document.getElementById("cuerpo-ordenes");
+    cuerpo.textContent = "";
+    var urgentes = 0;
+    ORDENES.forEach(function(o){
+      var tr = el("tr", o.cierre_programado ? "urge-fila" : "");
+      if(o.cierre_programado) urgentes++;
+      tr.appendChild(el("td","", o.ticker));
+      tr.appendChild(el("td","", o.cartera));
+      tr.appendChild(el("td","n num", precio(o.entrada)));
+      tr.appendChild(el("td","n num", precio(o.objetivo)));
+      /* B no tiene stop por diseño: se dice, no se deja en blanco (un hueco
+         se lee como "falta el dato"). */
+      tr.appendChild(el("td","n num", o.stop === null || o.stop === undefined ? "sin stop" : precio(o.stop)));
+      var venc = el("td","", "");
+      if(o.cierre_programado){
+        venc.appendChild(el("span","urge", "cierre " + fecha(o.fecha_limite)));
+      } else {
+        venc.textContent = fecha(o.fecha_limite);
+      }
+      tr.appendChild(venc);
+      cuerpo.appendChild(tr);
+    });
+    if(!ORDENES.length){
+      var tr = el("tr");
+      var td = el("td","", "No hay posiciones abiertas: ninguna orden que poner.");
+      td.colSpan = 6;
+      tr.appendChild(td);
+      cuerpo.appendChild(tr);
+    }
+    document.getElementById("ord-sello").textContent =
+      ORDENES.length + (ORDENES.length === 1 ? " orden" : " órdenes") +
+      (urgentes ? " · " + urgentes + " vence" + (urgentes === 1 ? "" : "n") + " ya" : "");
+  }
 
   /* --- 4 tarjetas de resumen ------------------------------------------ */
   function pintarKpis(){
@@ -540,7 +669,37 @@ function iniciar(D){
     return t;
   }
 
+  /* Dos lecturas de lo mismo. "dinero" es la principal: el valor de la cuenta
+     marcado a mercado. "retornos" es la de siempre, suma de P&L realizados;
+     se queda como secundaria porque responde a otra pregunta —cuánto rinde la
+     estrategia, no cuánto vale el dinero— y da continuidad al histórico. */
+  var MODOS = {
+    dinero:   {etiqueta:"Cuenta ($)", a:"equity_a", b:"equity_b",
+               fmt:function(v){ return precio(v); },
+               eje:function(v){ return "$" + Math.round(v).toLocaleString("en-US"); }},
+    retornos: {etiqueta:"Suma de retornos (%)", a:"pl_acumulado_a", b:"pl_acumulado_b",
+               fmt:function(v){ return pct(v); },
+               eje:function(v, d){ return (v > 0 ? "+" : "") + v.toFixed(d) + "%"; }}
+  };
+  /* Sin serie en dólares (JSON antiguo) se cae a la vista de retornos. */
+  var modo = (CURVA.length && CURVA[0].equity_a !== undefined) ? "dinero" : "retornos";
+
+  function pintarModoCurva(){
+    var zona = document.getElementById("modo-curva");
+    zona.textContent = "";
+    Object.keys(MODOS).forEach(function(k){
+      var b = el("button","chip", MODOS[k].etiqueta);
+      b.type = "button";
+      b.setAttribute("aria-pressed", modo === k ? "true" : "false");
+      b.addEventListener("click", function(){
+        modo = k; pintarModoCurva(); dibujarCurva();
+      });
+      zona.appendChild(b);
+    });
+  }
+
   function dibujarCurva(){
+    var M0 = MODOS[modo];
     var lienzo = document.getElementById("lienzo");
     var globo = document.getElementById("globo");
     var leyenda = document.querySelector("#curva .leyenda");
@@ -573,15 +732,20 @@ function iniciar(D){
         : M.l + (marca(CURVA[i].fecha) - t0) / spanT * ancho;
     }
 
-    var vals = [0];
-    CURVA.forEach(function(p){ vals.push(p.pl_acumulado_a, p.pl_acumulado_b); });
+    /* En dólares el eje NO se ancla al cero: la cuenta arranca en $10.000 y
+       forzar el origen aplastaría la curva contra el borde. En retornos sí:
+       ahí el cero es "ni gano ni pierdo" y da sentido al resto. */
+    var vals = modo === "retornos" ? [0] : [];
+    CURVA.forEach(function(p){ vals.push(p[M0.a], p[M0.b]); });
+    vals = vals.filter(function(v){ return v !== null && v !== undefined; });
+    if(!vals.length) vals = [0];
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     var pad = ((hi - lo) || 1) * 0.10;          /* 10% arriba y abajo */
     lo -= pad; hi += pad;
     function Y(v){ return M.t + (hi - v) / ((hi - lo) || 1) * alto; }
 
     var svg = svgEl("svg", {width:W, height:H, viewBox:"0 0 " + W + " " + H,
-                            role:"img", "aria-label":"Curva de P&L acumulado de las carteras A y B"});
+                            role:"img", "aria-label":"Curva de " + M0.etiqueta + " de las carteras A y B"});
 
     var marcasY = ticksY(lo, hi, movil ? 4 : 5);
     /* Los decimales los fija el PASO del eje, no cada valor por su cuenta: si no,
@@ -591,7 +755,7 @@ function iniciar(D){
     marcasY.forEach(function(v){
       svg.appendChild(svgEl("line", {class:"rejilla", x1:M.l, x2:W-M.r, y1:Y(v), y2:Y(v)}));
       var tx = svgEl("text", {class:"eje-txt", x:M.l-7, y:Y(v)+3, "text-anchor":"end"});
-      tx.textContent = (v > 0 ? "+" : "") + v.toFixed(decY) + "%";
+      tx.textContent = M0.eje(v, decY);
       svg.appendChild(tx);
     });
     /* Referencia dura del 0%: el eje se fuerza a incluirlo para que esta línea
@@ -622,8 +786,8 @@ function iniciar(D){
       }).join(" ");
     }
     if(CURVA.length > 1){
-      svg.appendChild(svgEl("path", {class:"serie serie-a", d:trazo("pl_acumulado_a")}));
-      svg.appendChild(svgEl("path", {class:"serie serie-b", d:trazo("pl_acumulado_b")}));
+      svg.appendChild(svgEl("path", {class:"serie serie-a", d:trazo(M0.a)}));
+      svg.appendChild(svgEl("path", {class:"serie serie-b", d:trazo(M0.b)}));
     }
 
     var guia = svgEl("line", {class:"guia", y1:M.t, y2:M.t+alto, opacity:0});
@@ -632,8 +796,8 @@ function iniciar(D){
     /* Con un único punto no hay línea, así que los círculos se dejan fijos para
        que el dato siga siendo visible sin necesidad de hover. */
     if(CURVA.length === 1){
-      pa.setAttribute("opacity",1); pa.setAttribute("cx",X(0)); pa.setAttribute("cy",Y(CURVA[0].pl_acumulado_a));
-      pb.setAttribute("opacity",1); pb.setAttribute("cx",X(0)); pb.setAttribute("cy",Y(CURVA[0].pl_acumulado_b));
+      pa.setAttribute("opacity",1); pa.setAttribute("cx",X(0)); pa.setAttribute("cy",Y(CURVA[0][M0.a]));
+      pb.setAttribute("opacity",1); pb.setAttribute("cx",X(0)); pb.setAttribute("cy",Y(CURVA[0][M0.b]));
     }
     svg.appendChild(guia); svg.appendChild(pa); svg.appendChild(pb);
     lienzo.appendChild(svg);
@@ -652,18 +816,20 @@ function iniciar(D){
     function mostrar(e){
       var i = cercano(e.clientX), p = CURVA[i];
       guia.setAttribute("x1", X(i)); guia.setAttribute("x2", X(i)); guia.setAttribute("opacity", 1);
-      pa.setAttribute("cx", X(i)); pa.setAttribute("cy", Y(p.pl_acumulado_a)); pa.setAttribute("opacity", 1);
-      pb.setAttribute("cx", X(i)); pb.setAttribute("cy", Y(p.pl_acumulado_b)); pb.setAttribute("opacity", 1);
+      pa.setAttribute("cx", X(i)); pa.setAttribute("cy", Y(p[M0.a])); pa.setAttribute("opacity", 1);
+      pb.setAttribute("cx", X(i)); pb.setAttribute("cy", Y(p[M0.b])); pb.setAttribute("opacity", 1);
 
       globo.textContent = "";
       globo.appendChild(el("b","",fecha(p.fecha)));
-      [["la", "A", p.pl_acumulado_a, p.n_cerradas_a],
-       ["lb", "B", p.pl_acumulado_b, p.n_cerradas_b]].forEach(function(s){
+      [["la", "A", p[M0.a], p.n_cerradas_a],
+       ["lb", "B", p[M0.b], p.n_cerradas_b]].forEach(function(s){
         var f = el("div","fila");
         f.appendChild(el("i", s[0]));
         f.appendChild(el("span","", "Cartera " + s[1] + " · " + s[3] +
           (s[3] === 1 ? " cerrada" : " cerradas")));
-        f.appendChild(el("span","v num " + signoCero(s[2]), pct(s[2])));
+        /* En dólares no se colorea por signo: un saldo no es "positivo". */
+        f.appendChild(el("span","v num" + (modo === "retornos" ? " " + signoCero(s[2]) : ""),
+                         M0.fmt(s[2])));
         globo.appendChild(f);
       });
       globo.className = "visible";
@@ -877,9 +1043,12 @@ function iniciar(D){
   /* --- Primer pintado ---------------------------------------------------- */
   /* Un único juego de datos (los limpios): no hay vista alternativa que
      elegir, así que no hace falta más que pintar una vez. */
+  pintarCuenta();
+  pintarOrdenes();
   pintarKpis();
   pintarPnlCarteras();
   pintarComparativa();
+  pintarModoCurva();
   dibujarCurva();
   pintar();
 

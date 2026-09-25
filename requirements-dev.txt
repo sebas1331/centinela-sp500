@@ -1,0 +1,14 @@
+# Dependencias SOLO de desarrollo y tests. No se instalan en los workflows de
+# trading: allí corre requirements.txt y nada más, para que el entorno que
+# opera sea lo más pequeño posible.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   python -m pytest -q
+
+-r requirements.txt
+
+pytest==9.1.1
+# Los tests de aislamiento leen los workflows de .github/ y comprueban que el
+# envío de notificaciones vive en un job aparte. Sin parsear el YAML de verdad
+# habría que hacerlo con expresiones regulares, que es como no comprobarlo.
+PyYAML==6.0.3

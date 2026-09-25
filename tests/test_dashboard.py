@@ -100,7 +100,24 @@ def _csv_sintetico(filas=None) -> str:
     return "\n".join(lineas) + "\n"
 
 
-def _construir(tmp_path, monkeypatch, filas=None, mfe_md=None) -> dict:
+def _precios_sinteticos(filas=None) -> dict:
+    """OHLC plano e igual al precio de entrada de cada ticker.
+
+    Con precios planos, marcar a mercado no cambia nada y el equity de la
+    cuenta solo se mueve cuando cierra una operación: así la aritmética de los
+    tests sigue siendo verificable a mano. Lo que sí se prueba es el CAMINO
+    real —el generador recibe precios y los usa—, no una rama especial.
+    """
+    import pandas as pd
+    fechas = pd.date_range("2026-06-25", "2026-07-31", freq="B")
+    precios = {}
+    for (_, tk, _, _, pe, *_resto) in (FILAS if filas is None else filas):
+        precios.setdefault(tk, pd.DataFrame(
+            {"Open": pe, "High": pe, "Low": pe, "Close": pe}, index=fechas))
+    return precios
+
+
+def _construir(tmp_path, monkeypatch, filas=None, mfe_md=None, precios=None) -> dict:
     """Redirige las tres entradas del generador a ficheros temporales."""
     bit = tmp_path / "bitacora.csv"
     bit.write_text(_csv_sintetico(filas), encoding="utf-8")
@@ -112,7 +129,16 @@ def _construir(tmp_path, monkeypatch, filas=None, mfe_md=None) -> dict:
     monkeypatch.setattr(gd, "RUTA_BITACORA", bit)
     monkeypatch.setattr(gd, "RUTA_MFE", mfe)
     monkeypatch.setattr(gd, "RUTA_ESTADO", est)
-    return gd.construir_datos()
+    # Red cortada de raíz: si algún camino intentara descargar, el test falla
+    # con un mensaje claro en vez de tardar treinta segundos y depender de que
+    # yfinance esté de buenas.
+    monkeypatch.setattr(gd.datos, "descargar", _sin_red)
+    return gd.construir_datos(
+        _precios_sinteticos(filas) if precios is None else precios)
+
+
+def _sin_red(*args, **kwargs):
+    raise AssertionError("Los tests del dashboard no pueden descargar precios.")
 
 
 @pytest.fixture
@@ -125,10 +151,26 @@ def datos(tmp_path, monkeypatch) -> dict:
 # 1. Contrato de datos.json
 # --------------------------------------------------------------------------- #
 def test_schema_datos_json(datos):
-    assert set(datos) == {"resumen", "carteras", "curva_equity",
+    assert set(datos) == {"cuenta", "ordenes", "resumen", "carteras", "curva_equity",
                           "resumen_con_duplicados", "comparativa_ab_con_duplicados",
                           "pnl_por_cartera_con_duplicados", "curva_equity_con_duplicados",
                           "operaciones", "mfe", "meta"}
+
+    # La cuenta simulada es ahora la cifra principal del panel.
+    assert set(datos["cuenta"]) == {"A", "B"}
+    for c in datos["cuenta"].values():
+        assert set(c) == {"capital_inicial", "capital_actual", "rentabilidad",
+                          "cagr", "drawdown_max", "sharpe", "slots",
+                          "slots_usados", "caja"}
+        assert isinstance(c["capital_inicial"], float)
+        assert isinstance(c["capital_actual"], float)
+        assert isinstance(c["slots"], int) and isinstance(c["slots_usados"], int)
+
+    for o in datos["ordenes"]:
+        assert set(o) == {"id", "ticker", "cartera", "entrada", "objetivo",
+                          "stop", "fecha_limite", "cierre_programado",
+                          "acciones", "importe"}
+        assert isinstance(o["cierre_programado"], bool)
 
     r = datos["resumen"]
     assert set(r) == {"cerradas", "abiertas", "win_rate", "pnl_acumulado", "ultima_cerrada"}
@@ -148,11 +190,14 @@ def test_schema_datos_json(datos):
 
     assert isinstance(datos["curva_equity"], list)
     for p in datos["curva_equity"]:
+        # La serie principal es `equity_*` (dólares); `pl_acumulado_*` (suma de
+        # retornos) se mantiene como vista secundaria del mismo punto.
         assert set(p) == {"fecha", "pl_acumulado_a", "pl_acumulado_b",
-                          "n_cerradas_a", "n_cerradas_b"}
+                          "n_cerradas_a", "n_cerradas_b", "equity_a", "equity_b"}
         assert isinstance(p["fecha"], str) and len(p["fecha"]) == 10
         assert isinstance(p["pl_acumulado_a"], float)
         assert isinstance(p["pl_acumulado_b"], float)
+        assert isinstance(p["equity_a"], float) and isinstance(p["equity_b"], float)
         assert isinstance(p["n_cerradas_a"], int) and isinstance(p["n_cerradas_b"], int)
         for extremo in (c["mejor"], c["peor"]):
             assert set(extremo) == {"ticker", "pnl_pct", "fecha_salida"}
@@ -198,7 +243,7 @@ def test_schema_de_los_bloques_con_duplicados(datos):
                   | set(datos["pnl_por_cartera_con_duplicados"][c]))
         assert fusion == set(datos["carteras"][c])
     assert isinstance(datos["curva_equity_con_duplicados"], list)
-    for p in datos["curva_equity_con_duplicados"]:
+    for p in datos["curva_equity_con_duplicados"]:  # sin equity: ver nota abajo
         assert set(p) == {"fecha", "pl_acumulado_a", "pl_acumulado_b",
                           "n_cerradas_a", "n_cerradas_b"}
 
@@ -317,24 +362,61 @@ def test_una_abierta_sin_fila_en_el_informe_mfe_se_cuenta_y_no_se_inventa(
 # --------------------------------------------------------------------------- #
 # 2c. Curva de equity
 # --------------------------------------------------------------------------- #
-def test_curva_equity_puntos_y_acumulados(datos):
-    """Un punto por fecha de salida, ordenados, con el acumulado de AMBAS series.
+def test_curva_equity_tiene_un_punto_por_SESION(datos):
+    """La curva es DIARIA, no una lista de fechas de salida.
 
-    Salidas: A el 08 (+20), 09 (−10), 10 (+5) y 13 (−15); B el 14 (+30) y 15 (−10).
-    B no cierra nada hasta el 14, así que hasta entonces su acumulado es 0 y su
-    contador también: la serie va plana, no ausente.
+    El equity de una cuenta se mueve todos los días aunque no cierre nada, y
+    una curva con puntos solo en los cierres escondería justo los tramos de
+    caída. Las operaciones van del 01 al 20 de julio de 2026; el rango de
+    sesiones va de la primera entrada a la última fecha con actividad.
     """
     curva = datos["curva_equity"]
-    assert [p["fecha"] for p in curva] == [
-        "2026-07-08", "2026-07-09", "2026-07-10",
-        "2026-07-13", "2026-07-14", "2026-07-15"]
+    fechas = [p["fecha"] for p in curva]
+    assert fechas[0] == "2026-07-01"        # primera entrada
+    assert fechas[-1] == "2026-07-20"       # última actividad (las dos abiertas)
+    assert fechas == sorted(fechas)
+    assert len(set(fechas)) == len(fechas)  # sin fechas repetidas
+    # Solo días de bolsa: en ese tramo no hay ni un sábado ni un domingo.
+    import pandas as pd
+    assert all(pd.Timestamp(f).weekday() < 5 for f in fechas)
 
-    assert [p["pl_acumulado_a"] for p in curva] == [
-        pytest.approx(x) for x in (20.0, 10.0, 15.0, 0.0, 0.0, 0.0)]
-    assert [p["pl_acumulado_b"] for p in curva] == [
-        pytest.approx(x) for x in (0.0, 0.0, 0.0, 0.0, 30.0, 20.0)]
-    assert [p["n_cerradas_a"] for p in curva] == [1, 2, 3, 4, 4, 4]
-    assert [p["n_cerradas_b"] for p in curva] == [0, 0, 0, 0, 1, 2]
+
+def test_curva_equity_acumulados_escalonados(datos):
+    """La suma de retornos solo cambia el día en que se realiza un cierre.
+
+    Salidas: A el 08 (+20), 09 (−10), 10 (+5) y 13 (−15); B el 14 (+30) y 15
+    (−10). Entre medias las series van PLANAS en su último valor, que es lo que
+    significa un P&L realizado: no se mueve hasta que algo cierra.
+    """
+    por_fecha = {p["fecha"]: p for p in datos["curva_equity"]}
+    esperado_a = {"2026-07-07": 0.0, "2026-07-08": 20.0, "2026-07-09": 10.0,
+                  "2026-07-10": 15.0, "2026-07-13": 0.0, "2026-07-14": 0.0}
+    esperado_b = {"2026-07-13": 0.0, "2026-07-14": 30.0, "2026-07-15": 20.0}
+    for f, v in esperado_a.items():
+        assert por_fecha[f]["pl_acumulado_a"] == pytest.approx(v), f
+    for f, v in esperado_b.items():
+        assert por_fecha[f]["pl_acumulado_b"] == pytest.approx(v), f
+    # Y el contador de cerradas avanza igual, sin retroceder nunca.
+    ns = [p["n_cerradas_a"] for p in datos["curva_equity"]]
+    assert ns == sorted(ns) and ns[-1] == 4
+
+
+def test_curva_equity_en_dolares_arranca_en_el_capital_inicial(datos):
+    """La serie de dinero empieza en el capital y termina donde dice la cuenta.
+
+    Con precios planos (ver `_precios_sinteticos`) el equity solo se mueve al
+    cerrar, así que el primer punto es el capital íntegro salvo las fricciones
+    ya pagadas por las entradas del día.
+    """
+    curva = datos["curva_equity"]
+    capital = datos["cuenta"]["A"]["capital_inicial"]
+    # Primer día: solo ha entrado una posición, y lo único que se ha perdido es
+    # su fricción de entrada. Menos del 0,1% del capital.
+    assert curva[0]["equity_a"] == pytest.approx(capital, rel=1e-3)
+    assert curva[-1]["equity_a"] == pytest.approx(
+        datos["cuenta"]["A"]["capital_actual"], rel=1e-6)
+    assert curva[-1]["equity_b"] == pytest.approx(
+        datos["cuenta"]["B"]["capital_actual"], rel=1e-6)
 
 
 def test_curva_equity_cierra_donde_dice_el_realizado(datos):
@@ -347,7 +429,11 @@ def test_curva_equity_cierra_donde_dice_el_realizado(datos):
 
 
 def test_curva_equity_agrega_los_cierres_del_mismo_dia(tmp_path, monkeypatch):
-    """Tres operaciones que cierran el mismo día son UN punto, no tres."""
+    """Tres operaciones que cierran el mismo día son UN punto, no tres.
+
+    Ahora que la curva es diaria eso ya no se ve en el número de puntos, sino
+    en que el punto de ese día lleva los tres cierres sumados de golpe.
+    """
     filas = [
         (1, "AAA", "A", "2026-07-01", 100.0, "2026-07-08", 110.0, "objetivo", 0.10, "cerrada"),
         (2, "BBB", "A", "2026-07-01", 100.0, "2026-07-08", 95.0, "stop", -0.05, "cerrada"),
@@ -355,28 +441,32 @@ def test_curva_equity_agrega_los_cierres_del_mismo_dia(tmp_path, monkeypatch):
         (4, "DDD", "A", "2026-07-02", 100.0, "2026-07-09", 90.0, "stop", -0.10, "cerrada"),
     ]
     curva = _construir(tmp_path, monkeypatch, filas=filas)["curva_equity"]
-    assert len(curva) == 2
+    por_fecha = {p["fecha"]: p for p in curva}
+    # La víspera todavía no se ha realizado nada.
+    assert por_fecha["2026-07-07"]["pl_acumulado_a"] == pytest.approx(0.0)
+    assert por_fecha["2026-07-07"]["n_cerradas_a"] == 0
     # Día 1: A suma +10 y −5 en un solo punto; B suma +20.
-    assert curva[0]["fecha"] == "2026-07-08"
-    assert curva[0]["pl_acumulado_a"] == pytest.approx(5.0)
-    assert curva[0]["pl_acumulado_b"] == pytest.approx(20.0)
-    assert curva[0]["n_cerradas_a"] == 2 and curva[0]["n_cerradas_b"] == 1
+    assert por_fecha["2026-07-08"]["pl_acumulado_a"] == pytest.approx(5.0)
+    assert por_fecha["2026-07-08"]["pl_acumulado_b"] == pytest.approx(20.0)
+    assert por_fecha["2026-07-08"]["n_cerradas_a"] == 2
+    assert por_fecha["2026-07-08"]["n_cerradas_b"] == 1
     # Día 2: solo cierra A; B se queda plana en su último valor.
-    assert curva[1]["pl_acumulado_a"] == pytest.approx(-5.0)
-    assert curva[1]["pl_acumulado_b"] == pytest.approx(20.0)
-    assert curva[1]["n_cerradas_b"] == 1
+    assert por_fecha["2026-07-09"]["pl_acumulado_a"] == pytest.approx(-5.0)
+    assert por_fecha["2026-07-09"]["pl_acumulado_b"] == pytest.approx(20.0)
+    assert por_fecha["2026-07-09"]["n_cerradas_b"] == 1
 
 
 def test_curva_equity_ignora_las_abiertas(datos):
-    """La curva es de resultado REALIZADO: lo no realizado no la toca.
+    """La serie de RETORNOS es de resultado realizado: lo no realizado no la toca.
 
-    Las dos abiertas van +8% cada una. Si se colaran, el último punto no
-    coincidiría con el realizado de su cartera.
+    Las dos abiertas van +8% cada una según el informe MFE. Si se colaran, el
+    último punto no coincidiría con el realizado de su cartera. (La serie en
+    dólares sí las vale a mercado: son dos lecturas distintas a propósito.)
     """
     assert datos["resumen"]["abiertas"] == 2
-    assert len(datos["curva_equity"]) == 6           # 6 fechas de salida, ni una más
     assert datos["curva_equity"][-1]["pl_acumulado_a"] == pytest.approx(0.0)
     assert datos["curva_equity"][-1]["pl_acumulado_b"] == pytest.approx(20.0)
+    assert datos["curva_equity"][-1]["n_cerradas_a"] == 4
 
 
 def test_pocas_operaciones_cerradas_no_rompe_nada(tmp_path, monkeypatch):
@@ -392,9 +482,8 @@ def test_pocas_operaciones_cerradas_no_rompe_nada(tmp_path, monkeypatch):
     ]
     d = _construir(tmp_path, monkeypatch, filas=filas)
     assert d["resumen"]["cerradas"] == 1
-    assert len(d["curva_equity"]) == 1
-    assert d["curva_equity"][0]["pl_acumulado_a"] == pytest.approx(10.0)
-    assert d["curva_equity"][0]["pl_acumulado_b"] == pytest.approx(0.0)
+    assert d["curva_equity"][-1]["pl_acumulado_a"] == pytest.approx(10.0)
+    assert d["curva_equity"][-1]["pl_acumulado_b"] == pytest.approx(0.0)
     assert d["carteras"]["B"]["pnl_realizado"] == pytest.approx(0.0)
     assert d["carteras"]["B"]["pnl_total"] == pytest.approx(8.0)
     json.dumps(d, allow_nan=False)      # serializable pese a la cartera vacía
@@ -407,7 +496,13 @@ def test_sin_ninguna_operacion_cerrada(tmp_path, monkeypatch):
         (2, "EEE", "B", "2026-07-20", 10.0, None, None, None, None, "abierta"),
     ]
     d = _construir(tmp_path, monkeypatch, filas=filas)
-    assert d["curva_equity"] == []
+    # La curva ya no está vacía: con cuenta simulada hay equity desde el primer
+    # día aunque no haya cerrado nada. Lo que sí sigue a cero es lo REALIZADO.
+    assert len(d["curva_equity"]) == 1
+    assert d["curva_equity"][0]["pl_acumulado_a"] == pytest.approx(0.0)
+    assert d["curva_equity"][0]["n_cerradas_a"] == 0
+    assert d["curva_equity"][0]["equity_a"] == pytest.approx(
+        d["cuenta"]["A"]["capital_inicial"], rel=1e-3)
     assert d["resumen"]["cerradas"] == 0
     assert d["resumen"]["pnl_acumulado"] is None
     for c in d["carteras"].values():
@@ -514,7 +609,13 @@ def test_sin_duplicadas_las_dos_vistas_coinciden(datos):
     assert datos["meta"]["duplicadas"] == 0
     assert all(not o["es_duplicada"] for o in datos["operaciones"])
     assert datos["resumen_con_duplicados"] == datos["resumen"]
-    assert datos["curva_equity_con_duplicados"] == datos["curva_equity"]
+    # La curva con duplicados no lleva las series en dólares: la cuenta solo se
+    # calcula sobre la vista limpia (con duplicados llegó a haber 30 posiciones
+    # vivas a la vez en la Cartera B, diez más de las que caben en 20 slots, así
+    # que la cifra en dinero no sería "otra vista": sería imposible).
+    sin_equity = [{k: v for k, v in p.items() if not k.startswith("equity_")}
+                  for p in datos["curva_equity"]]
+    assert datos["curva_equity_con_duplicados"] == sin_equity
     for c in ("A", "B"):
         fusion = {**datos["comparativa_ab_con_duplicados"][c],
                   **datos["pnl_por_cartera_con_duplicados"][c]}
@@ -684,7 +785,12 @@ def test_html_es_autocontenido_y_responsive(html_generado):
         assert prohibido not in auditable, f"referencia externa: {prohibido}"
     # El único origen que se contacta es el propio datos.json, mismo directorio.
     assert 'fetch("datos.json"' in html_generado
-    assert html_generado.count("<script") == 1
+    # Dos <script>, los dos INLINE: el del <head> resuelve el tema antes de
+    # pintar (y así la paleta oscura se declara una sola vez) y el del final
+    # monta el panel. Lo que se prueba aquí no es cuántos hay, sino que ninguno
+    # trae código de fuera: un `src=` sería una dependencia externa.
+    assert "<script src" not in html_generado
+    assert html_generado.count("<script") == 2
     assert "viewport" in html_generado
     assert "@media (max-width:719px)" in html_generado       # layout de tarjetas
     assert "prefers-color-scheme" in html_generado
@@ -711,7 +817,13 @@ def test_html_contiene_las_secciones_del_diseno(html_generado):
     # Paleta exacta del diseño, en sus dos temas.
     for color in ("#0a7d3b", "#4ade80", "#c2410c", "#f87171", "#0369a1", "#60a5fa"):
         assert color in html_generado, f"falta el color {color}"
-    assert "details" in html_generado and "open" not in html_generado.split("<details")[1][:40]
+    # El detalle MFE va PLEGADO (es material de consulta). El de órdenes
+    # activas, en cambio, va ABIERTO: son las órdenes que hay que poner hoy y
+    # esconderlas tras un clic derrotaría su propósito.
+    mfe = html_generado.split('<details id="det-mfe"')[1][:40]
+    assert "open" not in mfe
+    ordenes = html_generado.split('<details id="det-ordenes"')[1][:40]
+    assert "open" in ordenes
 
 
 def test_html_tiene_la_nota_de_honestidad_de_los_acumulados(html_generado):
@@ -794,9 +906,10 @@ def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado)
     monkeypatch.setattr(gd, "RUTA_BITACORA", bit)
     monkeypatch.setattr(gd, "RUTA_MFE", mfe)
     monkeypatch.setattr(gd, "RUTA_ESTADO", est)
+    monkeypatch.setattr(gd.datos, "descargar", _sin_red)
 
     destino = tmp_path / "docs"
-    gd.generar(destino)
+    gd.generar(destino, _precios_sinteticos())
     assert (destino / "index.html").read_text(encoding="utf-8") == html_generado
     assert (destino / ".nojekyll").exists()
     publicado = json.loads((destino / "datos.json").read_text(encoding="utf-8"))
@@ -805,7 +918,7 @@ def test_el_html_publicado_es_la_plantilla(tmp_path, monkeypatch, html_generado)
     # Idempotencia: una segunda pasada no cambia un solo byte, así que el
     # workflow no genera un commit de ruido cuando no ha pasado nada.
     antes = {f.name: f.read_bytes() for f in destino.iterdir()}
-    gd.generar(destino)
+    gd.generar(destino, _precios_sinteticos())
     assert {f.name: f.read_bytes() for f in destino.iterdir()} == antes
 
 

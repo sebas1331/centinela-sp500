@@ -197,11 +197,54 @@ MAX_ENTRADAS_POR_DIA = 5         # tope de entradas nuevas por día (prudencia)
 MIN_OPERACIONES_PARA_CAMBIO = 30  # sin <30 cierres nuevos, no se cambia nada
 
 # --------------------------------------------------------------------------- #
-# Notificaciones (Telegram) — DESACTIVADO por defecto
+# Cuenta simulada — de "suma de retornos" a dinero
+#
+# La suma de retornos responde "cuánto gana la estrategia por operación"; una
+# cuenta responde "cuánto habría ganado mi dinero", que es otra pregunta y otra
+# cifra: compone al cerrar y tiene un número finito de slots. Estos parámetros
+# son de CONTABILIDAD (ver centinela/cuenta.py); no entran en ninguna decisión
+# de trading ni en el backtest.
+# --------------------------------------------------------------------------- #
+CAPITAL_INICIAL_CUENTA = 10000.0   # capital de partida de cada cartera (USD)
+SLOTS_CUENTA = MAX_POSICIONES_ABIERTAS   # el capital se divide en tantos slots
+                                         # como posiciones simultáneas admite
+
+# Fricciones de ejecución. Se aplican SIEMPRE por lado.
+COMISION_SPREAD_POR_LADO = 0.0010   # 0,10% de comisión + spread, en cada lado
+# Slippage: solo en órdenes a MERCADO (compra market-on-open, stop disparado y
+# venta market-on-close por tiempo). Una salida por objetivo es una orden LÍMITE
+# y se ejecuta a su precio o mejor, así que no paga slippage.
+SLIPPAGE_MERCADO = 0.0015           # 0,15%
+
+# --------------------------------------------------------------------------- #
+# Notificaciones (Telegram)
+#
+# Se activan con CENTINELA_NOTIF=on y los dos secretos del repositorio. Están
+# deliberadamente separadas de la persistencia: un fallo de Telegram NUNCA puede
+# revertir la bitácora (ver los jobs `notificar` de los workflows).
 # --------------------------------------------------------------------------- #
 NOTIFICACIONES_ACTIVAS = os.environ.get("CENTINELA_NOTIF", "off").lower() == "on"
 TELEGRAM_TOKEN = os.environ.get("CENTINELA_TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("CENTINELA_TELEGRAM_CHAT_ID", "")
+
+#: Carteras sobre las que se avisa. Para dejar de recibir una, se quita de aquí
+#: y nada más: el resto del sistema sigue simulando las dos igual.
+CARTERAS_NOTIFICADAS = ["A", "B"]
+
+#: Registro anti-duplicados de notificaciones ya enviadas. La escalera de crons
+#: puede reejecutar un peldaño; sin este registro, el mismo aviso llegaría dos
+#: veces y la confianza en el canal se acabaría el primer día.
+ARCHIVO_NOTIFICACIONES = ESTADO_DIR / "notificaciones.json"
+
+#: Reintentos del envío antes de dar el job por rojo, con backoff exponencial.
+#: En un 429 manda el `retry_after` que indique Telegram, no esta fórmula.
+NOTIF_REINTENTOS = 4
+NOTIF_BACKOFF_BASE_SEG = 2.0
+#: Timeout por intento. Telegram responde en menos de un segundo cuando la red
+#: está sana; 20 s daba margen de sobra pero convertía una red con IPv6 roto
+#: —donde cada conexión agota el plazo antes de caer a IPv4— en un job de
+#: varios minutos. Con 10 s el reintento llega antes y el total sigue acotado.
+NOTIF_TIMEOUT_SEG = 10
 
 # --------------------------------------------------------------------------- #
 # Fuente del universo

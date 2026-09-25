@@ -44,7 +44,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import config  # noqa: E402
+from centinela import calendario, config, cuenta, datos  # noqa: E402
 
 DOCS_DIR = config.BASE_DIR / "docs"
 PLANTILLA = Path(__file__).resolve().parent / "plantilla_dashboard.html"
@@ -221,72 +221,68 @@ def pnl_por_cartera(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
     }
 
 
-def curva_equity(cerradas: pd.DataFrame) -> list[dict]:
-    """Evolución del P&L acumulado REALIZADO de A y B, punto por fecha de salida.
+def curva_equity(cerradas: pd.DataFrame, sesiones: list[str],
+                 cuentas: dict | None = None) -> list[dict]:
+    """Evolución DIARIA de las dos carteras, en dólares y en suma de retornos.
 
-    Solo entran operaciones cerradas: la curva es de resultado hecho. Lo no
-    realizado de las abiertas está en las tarjetas de arriba, que sí avisan de
-    que se mueve; mezclarlo aquí convertiría el histórico en algo que cambia de
-    forma cada día hacia atrás, que es justo lo que una curva no debe hacer.
+    Hasta ahora esta curva tenía un punto por fecha de salida y una sola serie:
+    el P&L acumulado como SUMA de retornos. Sigue estando (`pl_acumulado_a/b`),
+    pero ya no es la principal: ahora cada punto lleva también el equity de la
+    cuenta simulada en dólares (`equity_a/b`), marcado a mercado, que es la
+    cifra que responde "¿cuánto vale hoy mi dinero?".
 
-    Todas las operaciones que cierran el mismo día se agregan en un solo punto.
-    En cada fecha se registra el acumulado de AMBAS carteras, aunque ese día solo
-    haya cerrado una: así la otra serie queda plana en su último valor y el HTML
-    puede dibujar las dos sobre el mismo eje sin interpolar nada por su cuenta.
+    Los puntos son SESIONES, no fechas de salida: el equity de una cuenta se
+    mueve todos los días aunque no cierre nada, y una curva que solo tuviera
+    puntos en los cierres escondería justo los tramos de caída, que es lo que
+    más importa ver.
+
+    Las series de suma de retornos se mantienen escalonadas (solo cambian
+    cuando cierra algo), porque ese es su significado exacto: un retorno solo
+    se suma cuando se realiza.
     """
-    if cerradas.empty:
+    if not sesiones:
         return []
-    df = cerradas.dropna(subset=["fecha_salida"])
-    if df.empty:
-        return []
+    cerr = cerradas.dropna(subset=["fecha_salida"]) if not cerradas.empty else cerradas
+
+    equity = {}
+    if cuentas:
+        for c in ("A", "B"):
+            curva = cuentas[c]["curva"]
+            equity[c] = dict(zip(curva["fecha"], curva["equity"]))
 
     acumulado = {"A": 0.0, "B": 0.0}
     n = {"A": 0, "B": 0}
     puntos = []
-    for fecha in sorted(df["fecha_salida"].unique()):
-        del_dia = df[df["fecha_salida"] == fecha]
-        for c in ("A", "B"):
-            de_la_cartera = del_dia[del_dia["portafolio"] == c]
-            acumulado[c] += float(de_la_cartera["pnl_pct_pp"].sum())
-            n[c] += int(len(de_la_cartera))
-        puntos.append({
+    for fecha in sesiones:
+        if not cerr.empty:
+            del_dia = cerr[cerr["fecha_salida"] == fecha]
+            for c in ("A", "B"):
+                de_la_cartera = del_dia[del_dia["portafolio"] == c]
+                acumulado[c] += float(de_la_cartera["pnl_pct_pp"].sum())
+                n[c] += int(len(de_la_cartera))
+        punto = {
             "fecha": str(fecha),
             "pl_acumulado_a": _redondear(acumulado["A"]),
             "pl_acumulado_b": _redondear(acumulado["B"]),
             "n_cerradas_a": n["A"],
             "n_cerradas_b": n["B"],
-        })
+        }
+        if equity:
+            punto["equity_a"] = _redondear(equity["A"].get(fecha))
+            punto["equity_b"] = _redondear(equity["B"].get(fecha))
+        puntos.append(punto)
     return puntos
 
 
-def marcar_duplicadas(bit: pd.DataFrame) -> pd.Series:
-    """True en cada entrada que se abrió teniendo ya ese ticker vivo en su cartera.
-
-    Es la cicatriz del bug corregido el 2026-08-06 (ver CHANGELOG): el filtro de
-    tickers ocupados miraba siempre la cartera A, así que cuando el stop cerraba
-    la posición de A pero la de B seguía abierta, el ticker volvía a entrar y B
-    acababa con dos posiciones del mismo valor a la vez.
-
-    Se marca la SEGUNDA y siguientes, nunca la primera: la primera entrada era
-    legítima. Una posición que cierra el mismo día en que se abre la siguiente
-    cuenta como solape, porque durante esa sesión las dos estuvieron vivas.
-    """
-    dup = pd.Series(False, index=bit.index)
-    entrada = pd.to_datetime(bit["fecha_entrada"])
-    salida = pd.to_datetime(bit["fecha_salida"])
-    # Una posición abierta ocupa hasta hoy; se usa el máximo del fichero como
-    # "hoy" para que el cálculo no dependa de cuándo se ejecute este script.
-    fin = salida.fillna(max(entrada.max(), salida.max()))
-
-    for _, grupo in bit.groupby([bit["ticker"], bit["portafolio"]], sort=False):
-        orden = grupo.sort_values(["fecha_entrada", "id"]).index
-        for pos, idx in enumerate(orden):
-            if any(fin[previo] >= entrada[idx] for previo in orden[:pos]):
-                dup[idx] = True
-    return dup
+#: El criterio de "entrada duplicada por el bug" vive en el paquete, no aquí:
+#: la auditoría de fiabilidad y las notificaciones necesitan exactamente el
+#: mismo, y dos copias acabarían contando universos distintos sin que nadie se
+#: entere. Se reexporta con este nombre porque es como lo llaman los tests.
+marcar_duplicadas = cuenta.marcar_duplicadas
 
 
-def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
+def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame,
+           sesiones: list[str], cuentas: dict | None = None) -> dict:
     """Los cuatro bloques agregados a partir de un subconjunto de operaciones.
 
     Se calcula dos veces: con todo, y solo con las operaciones limpias. Que sea
@@ -314,8 +310,142 @@ def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
                                abiertas[abiertas["portafolio"] == c])
             for c in ("A", "B")
         },
-        "curva": curva_equity(cerradas),
+        "curva": curva_equity(cerradas, sesiones, cuentas),
     }
+
+
+def sesiones_del_periodo(bit: pd.DataFrame) -> list[str]:
+    """Sesiones de mercado desde la primera entrada hasta la última actividad."""
+    if bit.empty:
+        return []
+    inicio = str(bit["fecha_entrada"].min())
+    fin = str(max(bit["fecha_entrada"].max(),
+                  bit["fecha_salida"].dropna().max() if bit["fecha_salida"].notna().any()
+                  else bit["fecha_entrada"].max()))
+    return [d.date().isoformat() for d in calendario.sesiones_en_rango(inicio, fin)]
+
+
+def _exigir_precios(bit: pd.DataFrame, precios: dict) -> None:
+    """Sin precios de las posiciones ABIERTAS no hay marca a mercado posible.
+
+    `datos.descargar` no lanza cuando un ticker falla: lo deja fuera del dict.
+    Si esto no lo comprobara, una descarga a medias valoraría las posiciones
+    abiertas a su precio de coste y el dashboard publicaría un drawdown y un
+    Sharpe distintos SIN QUE NADA LO DIJERA. Ese silencio es exactamente lo que
+    este repositorio lleva dos incidentes intentando hacer imposible: mejor un
+    dashboard rojo que un dashboard que miente en la cifra principal.
+    """
+    abiertos = set(bit[bit["estado"] != "cerrada"]["ticker"].dropna())
+    faltan = sorted(t for t in abiertos if t not in precios)
+    if faltan:
+        raise RuntimeError(
+            f"Faltan precios de {len(faltan)} ticker(s) con posición abierta "
+            f"({', '.join(faltan)}). Sin ellos no se puede marcar la cuenta a "
+            f"mercado y las métricas de riesgo saldrían falseadas.")
+
+
+def cuentas_simuladas(bit: pd.DataFrame, sesiones: list[str],
+                     precios: dict | None = None) -> dict:
+    """La cuenta de cada cartera, en dólares y neta de fricciones.
+
+    Esta es AHORA la cifra principal del dashboard. La suma de retornos que se
+    publicaba antes sigue abajo, con su etiqueta: mide la estrategia, no el
+    dinero, y las dos cosas no coinciden porque una cuenta compone al cerrar y
+    solo tiene 20 slots.
+
+    Necesita precios para marcar a mercado las posiciones abiertas, así que
+    este generador ya no es puramente offline. Es un riesgo aceptado y acotado:
+    el dashboard vive en su propio job (ver postcierre.yml) y si la descarga
+    falla, lo único que ocurre es que la web se queda con los datos de ayer,
+    con la bitácora y el estado ya cerrados y verificados varios jobs antes.
+    """
+    if precios is None:
+        # Vía caché incremental, no descarga en bruto: el escaneo del día ya
+        # dejó los parquet al día y aquí solo hace falta leerlos. Tres jobs
+        # pidiendo lo mismo a yfinance por separado es como se consigue que
+        # empiece a limitar.
+        precios = (datos.actualizar_precios(sorted(bit["ticker"].dropna().unique()))
+                   if sesiones else {})
+    _exigir_precios(bit, precios)
+    salida = {}
+    for c in ("A", "B"):
+        cta = cuenta.simular(bit[bit["portafolio"] == c], fricciones=True)
+        curva = cuenta.curva_diaria(cta, precios, sesiones)
+        m = cuenta.metricas(curva, cta["capital_inicial"])
+        salida[c] = {"cta": cta, "curva": curva, "metricas": m}
+    return salida
+
+
+def bloque_cuenta(cuentas: dict) -> dict:
+    """Lo que pinta la sección "Cuenta simulada", ya cocinado."""
+    return {
+        c: {
+            "capital_inicial": _redondear(cuentas[c]["cta"]["capital_inicial"]),
+            "capital_actual": cuentas[c]["metricas"]["equity_final"],
+            "rentabilidad": cuentas[c]["metricas"]["rentabilidad_pct"],
+            "cagr": cuentas[c]["metricas"]["cagr_pct"],
+            "drawdown_max": cuentas[c]["metricas"]["drawdown_max_pct"],
+            "sharpe": cuentas[c]["metricas"]["sharpe"],
+            "slots": cuentas[c]["cta"]["slots"],
+            "slots_usados": len(cuentas[c]["cta"]["abiertas"]),
+            "caja": _redondear(cuentas[c]["cta"]["cash"]),
+        }
+        for c in ("A", "B")
+    }
+
+
+def ordenes_activas(bit: pd.DataFrame, estado: dict, cuentas: dict) -> list[dict]:
+    """Lo que debería estar puesto HOY en el broker, posición a posición.
+
+    Tres cosas y en este orden de urgencia:
+      - venta al cierre programada: la posición cumple su décima sesión mañana
+        (o ya la cumplió), así que sale market-on-close;
+      - orden STOP: solo Cartera A;
+      - orden LÍMITE de venta: el objetivo vigente de cada posición abierta.
+
+    El día límite sale del estado, que es quien lo lleva; si una posición no lo
+    trajera (estados anteriores a que existiera el campo) se recalcula con el
+    calendario en vez de omitir la fila.
+    """
+    limites = {}
+    for cart in ("A", "B"):
+        for p in estado.get("posiciones", {}).get(cart, []):
+            limites[int(p["id"])] = p.get("dia_limite")
+
+    hoy = max(estado.get("ultima_postcierre") or "",
+              estado.get("ultima_preapertura") or "")
+    manana = calendario.sesion_n_despues(hoy, 1) if hoy else None
+    manana_iso = pd.Timestamp(manana).date().isoformat() if manana is not None else None
+
+    tamanos = {t["id"]: t for c in ("A", "B") for t in cuentas[c]["cta"]["trades"]}
+
+    filas = []
+    for _, r in bit[bit["estado"] != "cerrada"].iterrows():
+        oid = int(r["id"])
+        limite = limites.get(oid)
+        if not limite:
+            s = calendario.sesion_n_despues(str(r["fecha_entrada"]),
+                                            config.HORIZONTE_DIAS_HABILES - 1)
+            limite = pd.Timestamp(s).date().isoformat()
+        t = tamanos.get(oid, {})
+        filas.append({
+            "id": oid,
+            "ticker": r["ticker"],
+            "cartera": r["portafolio"],
+            "entrada": _redondear(r["precio_entrada"]),
+            "objetivo": _redondear(r["objetivo_actual"]),
+            "stop": None if pd.isna(r["stop"]) else _redondear(r["stop"]),
+            "fecha_limite": limite,
+            # Una venta al cierre se programa cuando el día límite ya llegó o
+            # llega en la próxima sesión: es el aviso que da tiempo a actuar.
+            "cierre_programado": bool(manana_iso and limite <= manana_iso),
+            "acciones": _redondear(t.get("acciones")),
+            "importe": _redondear(t.get("coste")),
+        })
+    # Lo urgente arriba: primero los cierres programados, luego por fecha límite.
+    filas.sort(key=lambda f: (not f["cierre_programado"], f["fecha_limite"],
+                              f["ticker"], f["cartera"]))
+    return filas
 
 
 def _ultimo_commit_de_datos() -> str | None:
@@ -335,8 +465,12 @@ def _ultimo_commit_de_datos() -> str | None:
     return salida or None
 
 
-def construir_datos() -> dict:
-    """Todo lo que el dashboard necesita, ya calculado."""
+def construir_datos(precios: dict | None = None) -> dict:
+    """Todo lo que el dashboard necesita, ya calculado.
+
+    `precios` se inyecta en los tests para que no toquen la red; en producción
+    se descarga aquí dentro (ver `cuentas_simuladas`).
+    """
     bit = pd.read_csv(RUTA_BITACORA)
     if len(bit) > MAX_OPERACIONES:
         raise RuntimeError(
@@ -408,10 +542,19 @@ def construir_datos() -> dict:
     # duplicados se sigue calculando y publicando igual que siempre, pero solo
     # como material de auditoría bajo el toggle correspondiente; la bitácora
     # que las origina no se toca ni se recorta.
-    limpio = _vista(cerradas_ok, abiertas_ok)
-    todo = _vista(cerradas, abiertas)
+    sesiones = sesiones_del_periodo(limpias)
+    # La cuenta se calcula SIEMPRE sobre la vista limpia: las 13 entradas del
+    # bug del 2026-08-06 llegaron a poner 30 posiciones vivas a la vez en la
+    # Cartera B, diez más de las que caben en la cuenta. Incluirlas no daría una
+    # cifra "con duplicados": daría una cifra imposible.
+    ctas = cuentas_simuladas(limpias, sesiones, precios)
+
+    limpio = _vista(cerradas_ok, abiertas_ok, sesiones, ctas)
+    todo = _vista(cerradas, abiertas, sesiones)
 
     return {
+        "cuenta": bloque_cuenta(ctas),
+        "ordenes": ordenes_activas(limpias, estado, ctas),
         "resumen": limpio["resumen"],
         "carteras": {c: {**limpio["comparativa"][c], **limpio["pnl_por_cartera"][c]}
                      for c in ("A", "B")},
@@ -447,7 +590,8 @@ def _escribir_si_cambia(ruta: Path, contenido: str) -> bool:
     return True
 
 
-def generar(destino: Path = DOCS_DIR) -> tuple[dict, bool]:
+def generar(destino: Path = DOCS_DIR,
+            precios: dict | None = None) -> tuple[dict, bool]:
     """Escribe docs/datos.json y docs/index.html.
 
     Devuelve (datos publicados, si se tocó algún fichero). El segundo valor es lo
@@ -459,7 +603,7 @@ def generar(destino: Path = DOCS_DIR) -> tuple[dict, bool]:
         raise FileNotFoundError(f"Falta la plantilla del dashboard: {PLANTILLA}")
 
     destino.mkdir(parents=True, exist_ok=True)
-    datos = construir_datos()
+    datos = construir_datos(precios)
 
     # `sort_keys` + separadores fijos: dos ejecuciones con los mismos datos
     # producen el mismo byte, que es de lo que depende la idempotencia.
