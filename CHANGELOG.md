@@ -5,6 +5,103 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-25 — Fase beta (1/2): se corrige el sesgo de salida y se retira Telegram
+
+### 1. El objetivo del día vuelve a ser el de la víspera
+
+**Es lo único de la lógica de decisión que se ha tocado, y es la corrección del
+sesgo que encontró la auditoría de ayer.**
+
+`simulador.gestionar_posiciones` hacía dos cosas en este orden: recalcular el
+objetivo con `_atr(df)` y `resistencia_reciente(df)` sobre un `df` que ya
+incluía la barra del día cerrado, y después evaluar la salida contra ese nivel
+recién puesto. En un día de máximos la resistencia de 20 sesiones ES el máximo
+de hoy: el objetivo se clavaba ahí, `high >= objetivo` se cumplía con igualdad
+exacta y la venta se registraba en el máximo EXACTO de la sesión. Ocurrió en
+las 13 salidas por objetivo del periodo auditado, las 13.
+
+Ahora el orden es el inverso: **primero se evalúa la salida contra el objetivo
+vigente al abrir la sesión** (el calculado la víspera, que es el que un
+operador tendría puesto como orden límite) y solo si la posición sobrevive se
+recalcula el objetivo, para que rija mañana. Una posición que cierra hoy ya no
+registra cambio de objetivo: mover la orden límite de algo vendido no
+significa nada.
+
+**La bitácora histórica NO se recalcula.** Lo ocurrido ocurrió así y
+reescribirlo sería falsear el registro; la corrección vale desde hoy. El
+impacto medido era de 0,24 pp por operación y 0,93 pp de rentabilidad de la
+cuenta.
+
+Tests: `tests/test_sesgo_objetivo.py`, con el caso real de MRNA del 2026-08-13
+(operaciones 72 y 73) calcado de la bitácora.
+
+### 2. Se retira Telegram por completo
+
+Funcionó en producción —la pre-apertura del 25 envió sus órdenes de compra—
+pero el canal deja de tener sentido cuando la ejecución pasa a ser automática:
+avisar a un humano de lo que hay que teclear sobra si nadie va a teclearlo.
+
+Eliminados: `centinela/notificaciones.py`, `scripts/notificar.py`,
+`estado/notificaciones.json`, sus dos ficheros de tests, los jobs `notificar`
+de los dos escaneos y el job `alertar` del Vigilante, las constantes de
+Telegram de `config.py`, el resultado `omitido:sin-notificaciones` del
+vocabulario (vuelve a tener tres motivos) y la publicación de problemas del
+Vigilante, que solo existía para alimentar ese aviso. Los secrets
+`TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID` se borraron del repositorio.
+
+### 3. Limpieza del dashboard
+
+- Fuera **"P&L acumulado por cartera"**: la Cuenta simulada queda como única
+  cifra de rentabilidad, que era el objetivo desde que se introdujo.
+- Fuera **"Detalle de posiciones abiertas — MFE/MAE"** y el job `mfe` del
+  post-cierre. `scripts/analizar_mfe.py` se queda en el repositorio, pero ya no
+  se ejecuta.
+- La **curva de equity queda solo en dólares**; se retira el selector de suma
+  de retornos y las series `pl_acumulado_*` del JSON.
+- Consecuencia que había que resolver: el P&L no realizado de las posiciones
+  abiertas salía de `reportes/mfe_actual.md`. Con el job `mfe` apagado ese
+  informe se congela, y seguir leyéndolo habría publicado el P&L del día en que
+  el análisis corrió por última vez **sin que nada lo dijera**. Ahora el
+  generador lo valora contra los precios que ya descarga, por ratio contra el
+  open del día de entrada, igual que `cuenta.curva_diaria`.
+- Se retiran también los bloques `*_con_duplicados` de `datos.json`: se
+  conservaban desde el 2026-09-10 "por si acaso", y al desaparecer la sección
+  de P&L dejan de tener lector posible. `datos.json` baja de 55,3 a 44,6 KB y
+  `index.html` de 49,5 a 44,7.
+
+### 4. Capa del broker para XTB (preparación)
+
+`centinela/broker_xtb.py`: fachada síncrona sobre el cliente no oficial de
+xStation5, con el **candado demo** verificado en cada conexión (endpoint y
+número de cuenta; "no se pudo determinar" cuenta como fallo, no como permiso) y
+traducción de los desenlaces del broker al vocabulario de este repositorio. 26
+tests con un cliente simulado, sin red.
+
+`centinela/riesgo.py`: riesgo y resultados por operación en dólares y en
+porcentaje, con el riesgo agregado si saltaran todos los stops a la vez.
+
+### Hallazgos sobre XTB que condicionan el diseño
+
+- **Solo hay un cliente viable**: `xtb-api-python` 0.10.0 (MIT, Python 3.12+).
+  Los demás (`xapi-python` ★46, `xapi-node` ★64, `xapi-php`, `xapi-cpp`) están
+  archivados: usaban la API oficial que XTB cerró el 14 de marzo de 2025.
+  Auditadas sus 10.824 líneas: los únicos dominios a los que se conecta son de
+  XTB.
+- **No se puede modificar el take profit** de una posición abierta. Medido: con
+  el TP fijo en el objetivo inicial, la Cartera A habría hecho +12,25% en vez
+  de +12,07% y la B +11,15% en vez de +11,73%. Se acepta la divergencia.
+- **No se puede cerrar una posición por id**: se vende el mismo volumen y la
+  reconciliación comprueba que desapareció.
+- **No hay acciones fraccionadas por la API**: el cliente redondea el volumen
+  con `int(volume + 0.5)` y rechaza lo que quede bajo 1. Con $10.000 y 20 slots
+  (un slot de $500), **23 de las 141 entradas del histórico no se habrían
+  podido ejecutar** y un 15% del capital se pierde en redondeo. A partir de
+  $50.000 no se pierde ninguna.
+- **Salida por tiempo**: cerrar al cierre del día 10 (lo que simula hoy) se
+  desvía 0,03 pp; hacerlo a la apertura del día 11 se desvía 0,40 pp de media
+  pero con ±3,14 pp de dispersión, que es ruido de gap overnight que la
+  estrategia no contempla.
+
 ## 2026-09-24 — Formato final: cuenta simulada, auditoría de fiabilidad y notificaciones
 
 **No se tocó la lógica de decisión: ni el modelo, ni el umbral (0.79), ni las

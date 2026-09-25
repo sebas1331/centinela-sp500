@@ -5,8 +5,8 @@ QUÉ HACE Y QUÉ NO
 -----------------
 Este script es SOLO LECTURA sobre el sistema de trading. No toca el modelo, ni el
 umbral, ni las features, ni los objetivos, ni los stops, ni la bitácora. Lee lo
-que el pipeline ya dejó escrito (bitacora.csv, reportes/mfe_actual.md,
-estado/estado.json), lo agrega y lo publica en docs/.
+que el pipeline ya dejó escrito (bitacora.csv, estado/estado.json), lo agrega,
+lo valora a precios de mercado y lo publica en docs/.
 
 DÓNDE SE CALCULA CADA COSA
 --------------------------
@@ -48,7 +48,6 @@ from centinela import calendario, config, cuenta, datos  # noqa: E402
 
 DOCS_DIR = config.BASE_DIR / "docs"
 PLANTILLA = Path(__file__).resolve().parent / "plantilla_dashboard.html"
-RUTA_MFE = config.REPORTES_DIR / "mfe_actual.md"
 RUTA_BITACORA = config.BASE_DIR / "bitacora.csv"
 RUTA_ESTADO = config.ESTADO_DIR / "estado.json"
 
@@ -70,84 +69,6 @@ MOTIVOS = {"objetivo": "Objetivo", "stop": "Stop", "tiempo": "Tiempo"}
 #: Día en que el simulador dejó de poder abrir dos posiciones del mismo ticker en
 #: la misma cartera. Todo lo anterior puede llevar duplicados; lo posterior no.
 FECHA_CORRECCION_DUPLICADOS = "2026-08-06"
-
-
-# --------------------------------------------------------------------------- #
-# Lectura del informe MFE/MAE (markdown)
-# --------------------------------------------------------------------------- #
-def _num(celda: str) -> float | None:
-    """'+33.72%' -> 33.72 ; '1.510,26' no aplica ; '' / 'n/d' -> None."""
-    if celda is None:
-        return None
-    limpio = celda.replace("%", "").replace("+", "").replace(",", "").strip()
-    if not limpio or limpio.lower() in {"n/d", "nan", "-", "—"}:
-        return None
-    try:
-        return float(limpio)
-    except ValueError:
-        return None
-
-
-def _si_no(celda: str) -> bool:
-    """'✅ sí' -> True ; 'no' -> False. El emoji es del informe, no del dashboard."""
-    return "sí" in (celda or "").lower()
-
-
-def _tabla_tras(seccion: str, texto: str) -> list[dict]:
-    """Primera tabla markdown que aparece bajo `seccion`, como lista de dicts.
-
-    Se indexa POR NOMBRE de columna, no por posición: las dos tablas del informe
-    (abiertas y cerradas) tienen distinto número de columnas, y así añadir una
-    columna al informe no descoloca silenciosamente el dashboard.
-    """
-    idx = texto.find(seccion)
-    if idx == -1:
-        return []
-    lineas = texto[idx:].splitlines()[1:]
-    filas: list[dict] = []
-    cabecera: list[str] | None = None
-    for linea in lineas:
-        linea = linea.strip()
-        if linea.startswith("##"):
-            break
-        if not linea.startswith("|"):
-            if cabecera is not None and filas:
-                break
-            continue
-        celdas = [c.strip() for c in linea.strip("|").split("|")]
-        if cabecera is None:
-            cabecera = celdas
-            continue
-        if all(set(c) <= set("-: ") for c in celdas):  # separador |---|---|
-            continue
-        filas.append(dict(zip(cabecera, celdas)))
-    return filas
-
-
-def leer_mfe(ruta: Path = RUTA_MFE) -> tuple[list[dict], str | None]:
-    """Posiciones abiertas del informe MFE/MAE + su fecha de generación."""
-    if not ruta.exists():
-        raise FileNotFoundError(
-            f"No existe {ruta}. El dashboard necesita el informe MFE/MAE para el "
-            f"P&L no realizado de las posiciones abiertas.")
-    texto = ruta.read_text(encoding="utf-8")
-
-    m = re.search(r"_Generado (.+?)_", texto)
-    generado = m.group(1).strip() if m else None
-
-    posiciones = []
-    for f in _tabla_tras("## Posiciones abiertas", texto):
-        posiciones.append({
-            "ticker": f.get("Ticker", ""),
-            "cartera": f.get("Cartera", ""),
-            "fecha_entrada": f.get("Entrada", ""),
-            "precio_entrada": _num(f.get("Precio entrada")),
-            "mfe_pct": _num(f.get("MFE %")),
-            "mae_pct": _num(f.get("MAE %")),
-            "pnl_actual_pct": _num(f.get("P&L actual %")),
-            "toco_5": _si_no(f.get("¿Tocó +5%?", "")),
-        })
-    return posiciones, generado
 
 
 # --------------------------------------------------------------------------- #
@@ -196,49 +117,17 @@ def metricas_cartera(cerradas: pd.DataFrame) -> dict:
     }
 
 
-def pnl_por_cartera(cerradas: pd.DataFrame, abiertas: pd.DataFrame) -> dict:
-    """P&L acumulado de una cartera, separando lo realizado de lo que no lo es.
-
-      - realizado  = suma del P&L de las operaciones YA CERRADAS. Es dinero
-        (simulado) hecho: no puede cambiar.
-      - total      = realizado + suma del P&L actual de las ABIERTAS. Ese segundo
-        sumando es una marca a mercado contra el último cierre disponible y se
-        mueve cada día, así que el total es una foto, no un resultado.
-
-    Las dos cifras son SUMAS de retornos de posiciones equiponderadas, no una
-    curva de capital compuesta (ver la nota que el dashboard enseña debajo).
-
-    `abiertas_sin_pnl` cuenta las posiciones abiertas para las que el informe
-    MFE/MAE todavía no tiene fila —típicamente una entrada de hoy—, porque si no
-    el total saldría corto sin que nada lo dijera.
-    """
-    realizado = float(cerradas["pnl_pct_pp"].sum()) if len(cerradas) else 0.0
-    no_realizado = abiertas["pnl_abierta_pp"].dropna()
-    return {
-        "pnl_realizado": _redondear(realizado),
-        "pnl_total": _redondear(realizado + float(no_realizado.sum())),
-        "abiertas_sin_pnl": int(abiertas["pnl_abierta_pp"].isna().sum()),
-    }
-
-
 def curva_equity(cerradas: pd.DataFrame, sesiones: list[str],
                  cuentas: dict | None = None) -> list[dict]:
-    """Evolución DIARIA de las dos carteras, en dólares y en suma de retornos.
-
-    Hasta ahora esta curva tenía un punto por fecha de salida y una sola serie:
-    el P&L acumulado como SUMA de retornos. Sigue estando (`pl_acumulado_a/b`),
-    pero ya no es la principal: ahora cada punto lleva también el equity de la
-    cuenta simulada en dólares (`equity_a/b`), marcado a mercado, que es la
-    cifra que responde "¿cuánto vale hoy mi dinero?".
+    """Evolución DIARIA del valor de cada cuenta, en dólares.
 
     Los puntos son SESIONES, no fechas de salida: el equity de una cuenta se
     mueve todos los días aunque no cierre nada, y una curva que solo tuviera
     puntos en los cierres escondería justo los tramos de caída, que es lo que
     más importa ver.
 
-    Las series de suma de retornos se mantienen escalonadas (solo cambian
-    cuando cierra algo), porque ese es su significado exacto: un retorno solo
-    se suma cuando se realiza.
+    `n_cerradas_a/b` acompaña a cada punto para que el globo del gráfico pueda
+    decir cuántas operaciones llevaba cerradas la cartera ese día.
     """
     if not sesiones:
         return []
@@ -250,20 +139,15 @@ def curva_equity(cerradas: pd.DataFrame, sesiones: list[str],
             curva = cuentas[c]["curva"]
             equity[c] = dict(zip(curva["fecha"], curva["equity"]))
 
-    acumulado = {"A": 0.0, "B": 0.0}
     n = {"A": 0, "B": 0}
     puntos = []
     for fecha in sesiones:
         if not cerr.empty:
             del_dia = cerr[cerr["fecha_salida"] == fecha]
             for c in ("A", "B"):
-                de_la_cartera = del_dia[del_dia["portafolio"] == c]
-                acumulado[c] += float(de_la_cartera["pnl_pct_pp"].sum())
-                n[c] += int(len(de_la_cartera))
+                n[c] += int((del_dia["portafolio"] == c).sum())
         punto = {
             "fecha": str(fecha),
-            "pl_acumulado_a": _redondear(acumulado["A"]),
-            "pl_acumulado_b": _redondear(acumulado["B"]),
             "n_cerradas_a": n["A"],
             "n_cerradas_b": n["B"],
         }
@@ -283,12 +167,7 @@ marcar_duplicadas = cuenta.marcar_duplicadas
 
 def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame,
            sesiones: list[str], cuentas: dict | None = None) -> dict:
-    """Los cuatro bloques agregados a partir de un subconjunto de operaciones.
-
-    Se calcula dos veces: con todo, y solo con las operaciones limpias. Que sea
-    la MISMA función garantiza que las dos vistas no puedan divergir en la
-    definición de win rate, expectancy o P&L; si una cambia, cambian las dos.
-    """
+    """Los agregados a partir de un subconjunto de operaciones."""
     pnl = cerradas["pnl_pct_pp"]
     fechas = cerradas["fecha_salida"].dropna() if not cerradas.empty else []
     return {
@@ -303,11 +182,6 @@ def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame,
         "comparativa": {
             c: {**metricas_cartera(cerradas[cerradas["portafolio"] == c]),
                 "abiertas": int((abiertas["portafolio"] == c).sum())}
-            for c in ("A", "B")
-        },
-        "pnl_por_cartera": {
-            c: pnl_por_cartera(cerradas[cerradas["portafolio"] == c],
-                               abiertas[abiertas["portafolio"] == c])
             for c in ("A", "B")
         },
         "curva": curva_equity(cerradas, sesiones, cuentas),
@@ -448,6 +322,33 @@ def ordenes_activas(bit: pd.DataFrame, estado: dict, cuentas: dict) -> list[dict
     return filas
 
 
+def _pnl_no_realizado(bit: pd.DataFrame, precios: dict) -> list:
+    """P&L en puntos porcentuales de cada posición abierta, a precio de mercado.
+
+    Por RATIO contra el open del día de entrada de la misma serie descargada, no
+    contra el precio_entrada de la bitácora: aquel se guardó ajustado en su día
+    y esta serie está reajustada por los dividendos posteriores. Es el mismo
+    criterio que usa `cuenta.curva_diaria`, y por la misma razón.
+
+    None cuando no hay precio: el dashboard lo pinta como "—" en vez de
+    inventarse un cero, que se leería como "esta posición no se ha movido".
+    """
+    salida = []
+    for _, r in bit.iterrows():
+        if r["estado"] == "cerrada":
+            salida.append(None)
+            continue
+        df = precios.get(r["ticker"])
+        ts = pd.Timestamp(r["fecha_entrada"])
+        if df is None or ts not in df.index or df.empty:
+            salida.append(None)
+            continue
+        base = float(df.loc[ts, "Open"])
+        ultimo = float(df["Close"].iloc[-1])
+        salida.append(None if base <= 0 else 100.0 * (ultimo / base - 1.0))
+    return salida
+
+
 def _ultimo_commit_de_datos() -> str | None:
     """Fecha ISO del último commit que tocó datos reales (no docs/).
 
@@ -479,29 +380,25 @@ def construir_datos(precios: dict | None = None) -> dict:
             f"publicando un JSON que ya no cabe en el presupuesto de 500 KB.")
 
     estado = json.loads(RUTA_ESTADO.read_text(encoding="utf-8"))
-    # Ruta explícita, no el valor por defecto de leer_mfe: los defaults se
-    # congelan al definir la función y los tests no podrían redirigirla.
-    mfe, mfe_generado = leer_mfe(RUTA_MFE)
-
-    # P&L no realizado de las abiertas, indexado por la clave que las distingue.
-    # Un mismo ticker puede estar abierto dos veces en la misma cartera con
-    # fechas de entrada distintas (p.ej. LITE B el 28 y el 30 de julio), así que
-    # la fecha forma parte de la clave.
-    pnl_abiertas = {(p["ticker"], p["cartera"], p["fecha_entrada"]): p["pnl_actual_pct"]
-                    for p in mfe}
 
     bit["pnl_pct_pp"] = bit["pnl_pct"] * 100.0  # fracción -> puntos porcentuales
-    # El P&L no realizado, como columna: así las tarjetas de "P&L por cartera" y
-    # la tabla de operaciones leen exactamente el mismo dato en vez de repetir
-    # cada una su propio cruce contra el informe MFE.
-    bit["pnl_abierta_pp"] = [
-        pnl_abiertas.get(clave)
-        for clave in zip(bit["ticker"], bit["portafolio"], bit["fecha_entrada"])
-    ]
     bit["duplicada"] = marcar_duplicadas(bit)
+    limpias = bit[~bit["duplicada"]]
+    sesiones = sesiones_del_periodo(limpias)
+
+    if precios is None:
+        precios = (datos.actualizar_precios(sorted(bit["ticker"].dropna().unique()))
+                   if sesiones else {})
+
+    # El P&L no realizado de las abiertas se valora AQUÍ, contra el último
+    # cierre descargado. Antes salía de reportes/mfe_actual.md; desde que el job
+    # `mfe` dejó de ejecutarse (2026-09-25) ese informe se queda congelado, y
+    # leerlo publicaría el P&L del día en que el análisis corrió por última vez
+    # sin que nada lo dijera.
+    bit["pnl_abierta_pp"] = _pnl_no_realizado(bit, precios)
+    limpias = bit[~bit["duplicada"]]
     cerradas = bit[bit["estado"] == "cerrada"].copy()
     abiertas = bit[bit["estado"] != "cerrada"].copy()
-    limpias = bit[~bit["duplicada"]]
     cerradas_ok = limpias[limpias["estado"] == "cerrada"].copy()
     abiertas_ok = limpias[limpias["estado"] != "cerrada"].copy()
 
@@ -531,18 +428,6 @@ def construir_datos(precios: dict | None = None) -> dict:
                        if es_cerrada else "Abierta"),
         })
 
-    # P&L acumulado = SUMA de los retornos de cada operación cerrada. Es la
-    # lectura correcta para carteras de posiciones equiponderadas e
-    # independientes como estas, donde cada entrada arriesga el mismo tamaño;
-    # NO es un retorno compuesto de una curva de capital, que exigiría un modelo
-    # de asignación de capital que este experimento no tiene.
-    #
-    # La vista LIMPIA (sin las entradas del bug) es ahora la que alimenta el
-    # dashboard por defecto: refleja la estrategia real. La vista CON
-    # duplicados se sigue calculando y publicando igual que siempre, pero solo
-    # como material de auditoría bajo el toggle correspondiente; la bitácora
-    # que las origina no se toca ni se recorta.
-    sesiones = sesiones_del_periodo(limpias)
     # La cuenta se calcula SIEMPRE sobre la vista limpia: las 13 entradas del
     # bug del 2026-08-06 llegaron a poner 30 posiciones vivas a la vez en la
     # Cartera B, diez más de las que caben en la cuenta. Incluirlas no daría una
@@ -550,24 +435,16 @@ def construir_datos(precios: dict | None = None) -> dict:
     ctas = cuentas_simuladas(limpias, sesiones, precios)
 
     limpio = _vista(cerradas_ok, abiertas_ok, sesiones, ctas)
-    todo = _vista(cerradas, abiertas, sesiones)
 
     return {
         "cuenta": bloque_cuenta(ctas),
         "ordenes": ordenes_activas(limpias, estado, ctas),
         "resumen": limpio["resumen"],
-        "carteras": {c: {**limpio["comparativa"][c], **limpio["pnl_por_cartera"][c]}
-                     for c in ("A", "B")},
+        "carteras": limpio["comparativa"],
         "curva_equity": limpio["curva"],
-        "resumen_con_duplicados": todo["resumen"],
-        "comparativa_ab_con_duplicados": todo["comparativa"],
-        "pnl_por_cartera_con_duplicados": todo["pnl_por_cartera"],
-        "curva_equity_con_duplicados": todo["curva"],
         "operaciones": operaciones,
-        "mfe": mfe,
         "meta": {
             "actualizado": _ultimo_commit_de_datos() or estado.get("actualizado"),
-            "mfe_generado": mfe_generado,
             "ultima_preapertura": estado.get("ultima_preapertura"),
             "ultima_postcierre": estado.get("ultima_postcierre"),
             "repo": "https://github.com/sebas1331/centinela-sp500",
@@ -627,8 +504,7 @@ def generar(destino: Path = DOCS_DIR,
     print(f"datos.json: {tam_json / 1024:.1f} KB | index.html: {tam_html / 1024:.1f} KB")
     print(f"operaciones={len(datos['operaciones'])} "
           f"cerradas={datos['resumen']['cerradas']} "
-          f"abiertas={datos['resumen']['abiertas']} "
-          f"mfe={len(datos['mfe'])}")
+          f"abiertas={datos['resumen']['abiertas']}")
     print("cambios: " + (", ".join(cambios) if cambios else
                          "ninguno (nada que commitear)"), flush=True)
 

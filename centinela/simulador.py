@@ -226,14 +226,22 @@ def recalcular_objetivo(pos: dict, df: pd.DataFrame, target_analista=None):
     return actual, False, ""
 
 
-def evaluar_salida_dia(pos: dict, bar, es_dia_limite: bool):
+def evaluar_salida_dia(pos: dict, bar, es_dia_limite: bool,
+                       objetivo: float | None = None):
     """Evalúa la salida de HOY para una posición. Devuelve (motivo, precio) o None.
 
     Reglas conservadoras: stop antes que objetivo; gaps al open real.
+
+    `objetivo` es el nivel que ESTABA PUESTO como orden límite al abrir la
+    sesión, no el que se recalcula al cerrarla. La diferencia no es cosmética:
+    ver la nota de gestionar_posiciones y el CHANGELOG del 2026-09-25. Si no se
+    pasa, se usa el de la posición, que es lo correcto para quien solo quiera
+    evaluar una barra suelta.
     """
     o = float(bar["Open"]); h = float(bar["High"]); l = float(bar["Low"]); c = float(bar["Close"])
     stop = pos.get("stop")
-    objetivo = pos["objetivo"]
+    if objetivo is None:
+        objetivo = pos["objetivo"]
     if stop is not None and l <= stop:
         return "stop", (o if o <= stop else stop)
     if h >= objetivo:
@@ -245,8 +253,29 @@ def evaluar_salida_dia(pos: dict, bar, es_dia_limite: bool):
 
 def gestionar_posiciones(estado: dict, precios: dict, fecha_iso: str,
                          targets_analista: dict | None = None):
-    """Recalcula objetivos y evalúa salidas de todas las posiciones con la barra
-    de hoy. Devuelve (cerradas, cambios_objetivo)."""
+    """Evalúa salidas y recalcula objetivos con la barra de hoy, EN ESE ORDEN.
+
+    Devuelve (cerradas, cambios_objetivo).
+
+    EL ORDEN ES LA CORRECCIÓN DEL 2026-09-25, y es lo único de la lógica de
+    decisión que se ha tocado. Antes esta función recalculaba primero el
+    objetivo —con `_atr(df)` y `resistencia_reciente(df)` sobre un `df` que ya
+    incluía la barra del día cerrado— y después evaluaba la salida contra ese
+    nivel recién puesto. En un día de máximos, la resistencia de 20 sesiones ES
+    el máximo de hoy: el objetivo se clavaba ahí, `high >= objetivo` se cumplía
+    con igualdad exacta y la venta se registraba en el máximo EXACTO de la
+    sesión. Pasó en las 13 salidas por objetivo del periodo auditado, las 13
+    (ver reportes/auditoria_fiabilidad.md).
+
+    Un operador real no puede vender ahí: su orden límite del martes es la que
+    calculó el lunes por la noche. Así que ahora la salida se evalúa contra el
+    objetivo VIGENTE AL ABRIR LA SESIÓN, y el recálculo ocurre después, para
+    que rija mañana. Una posición que cierra hoy ya no registra cambio de
+    objetivo: mover la orden límite de algo vendido no significa nada.
+
+    La bitácora histórica NO se recalcula: lo ya ocurrido ocurrió así y
+    reescribirlo sería falsear el registro. La corrección vale desde hoy.
+    """
     targets_analista = targets_analista or {}
     ac = calendario.apertura_cierre_et(fecha_iso)
     hora_salida_et = (ac[1].strftime("%Y-%m-%d %H:%M:%S %Z") if ac else fecha_iso)
@@ -260,21 +289,24 @@ def gestionar_posiciones(estado: dict, precios: dict, fecha_iso: str,
             if df is None or fecha_ts not in df.index:
                 siguen.append(pos)          # sin datos de hoy: se mantiene
                 continue
-            # 1) recalcular objetivo
-            nuevo, cambio, motivo = recalcular_objetivo(
-                pos, df, targets_analista.get(pos["ticker"]))
-            if cambio:
-                pos["objetivo"] = nuevo
-                pos["historial_objetivos"].append(
-                    {"fecha": fecha_iso, "objetivo": nuevo, "motivo": motivo})
-                bitacora.actualizar_objetivo(pos["id"], nuevo, pos["historial_objetivos"])
-                cambios.append({"ticker": pos["ticker"], "portafolio": cart,
-                                "objetivo": nuevo, "motivo": motivo})
-            # 2) evaluar salida
+            # 1) EVALUAR LA SALIDA, contra el objetivo que estaba puesto al
+            #    abrir la sesión (ver la cabecera de esta función).
+            objetivo_vigente = pos["objetivo"]
             bar = df.loc[fecha_ts]
             es_limite = fecha_iso >= pos["dia_limite"]
-            salida = evaluar_salida_dia(pos, bar, es_limite)
+            salida = evaluar_salida_dia(pos, bar, es_limite, objetivo_vigente)
+
+            # 2) Solo si sigue viva, recalcular el objetivo PARA MAÑANA.
             if salida is None:
+                nuevo, cambio, motivo = recalcular_objetivo(
+                    pos, df, targets_analista.get(pos["ticker"]))
+                if cambio:
+                    pos["objetivo"] = nuevo
+                    pos["historial_objetivos"].append(
+                        {"fecha": fecha_iso, "objetivo": nuevo, "motivo": motivo})
+                    bitacora.actualizar_objetivo(pos["id"], nuevo, pos["historial_objetivos"])
+                    cambios.append({"ticker": pos["ticker"], "portafolio": cart,
+                                    "objetivo": nuevo, "motivo": motivo})
                 siguen.append(pos)
                 continue
             mot, precio = salida

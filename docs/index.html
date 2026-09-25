@@ -297,21 +297,10 @@ footer a{color:var(--acento)}
   <p class="nota">Estadísticas del sistema en operación. Ver histórico completo en el
     <a id="repo-nota" href="https://github.com/sebas1331/centinela-sp500">repositorio</a>.</p>
 
-  <h2>P&amp;L acumulado por cartera</h2>
-  <div class="pnlgrid" id="pnl-carteras"></div>
-  <p class="nota">
-    Suma de retornos con posiciones equiponderadas (cada trade pesa igual). No es
-    una curva de capital compuesta — este experimento no modela asignación de
-    capital.<span id="nota-hueco"></span>
-  </p>
-
   <h2>Comparativa A vs B</h2>
   <div class="carteras" id="carteras"></div>
 
   <h2>Curva de equity</h2>
-  <div class="controles">
-    <div class="chips" id="modo-curva"></div>
-  </div>
   <div id="curva">
     <div class="leyenda">
       <span><i class="la"></i>Cartera A</span>
@@ -357,22 +346,6 @@ footer a{color:var(--acento)}
     <b>venta al cierre</b> programada: esa posición cumple su décima sesión y
     sale market-on-close, se haya tocado el objetivo o no.
   </p>
-
-  <h2>Detalle de posiciones abiertas</h2>
-  <details id="det-mfe">
-    <summary>Posiciones abiertas — MFE/MAE <small id="mfe-sello"></small></summary>
-    <div class="envoltorio">
-      <div class="caja">
-        <table>
-          <thead><tr>
-            <th>Ticker</th><th>Cartera</th><th class="n">MFE %</th><th class="n">MAE %</th>
-            <th class="n">P&amp;L actual</th><th>¿Tocó +5%?</th>
-          </tr></thead>
-          <tbody id="cuerpo-mfe"></tbody>
-        </table>
-      </div>
-    </div>
-  </details>
 
   <footer>
     <a id="repo" href="https://github.com/sebas1331/centinela-sp500">Repositorio en GitHub</a>
@@ -474,7 +447,7 @@ fetch("datos.json", {cache:"no-cache"})
   });
 
 function iniciar(D){
-  var ops = D.operaciones || [], mfe = D.mfe || [], meta = D.meta || {};
+  var ops = D.operaciones || [], meta = D.meta || {};
 
   /* --- Cabecera ------------------------------------------------------- */
   if(meta.actualizado){
@@ -592,35 +565,6 @@ function iniciar(D){
     });
   }
 
-  /* --- P&L acumulado por cartera (realizado vs. no realizado) ---------- */
-  function pintarPnlCarteras(){
-    var contPnl = document.getElementById("pnl-carteras"), huecos = 0;
-    contPnl.textContent = "";
-    ["A","B"].forEach(function(nombre){
-      var c = CARTS[nombre] || {};
-      huecos += (c.abiertas_sin_pnl || 0);
-      var col = el("div","pnlcol");
-      col.appendChild(el("h3","","Cartera " + nombre));
-      var par = el("div","pnlpar");
-      [["Realizado", c.pnl_realizado, "solo cerradas"],
-       ["Total", c.pnl_total, "cerradas + abiertas"]].forEach(function(t){
-        var k = el("div","kpi kpi-sm");
-        k.appendChild(el("div","v num " + signoCero(t[1]), pct(t[1])));
-        k.appendChild(el("div","e", t[0] + " (" + t[2] + ")"));
-        par.appendChild(k);
-      });
-      col.appendChild(par);
-      contPnl.appendChild(col);
-    });
-    /* Si alguna abierta no tiene aún fila en el informe MFE, el total va corto.
-       Se dice, en vez de servir una cifra incompleta con aire de definitiva. */
-    document.getElementById("nota-hueco").textContent = huecos > 0
-      ? " " + huecos + (huecos === 1
-          ? " posición abierta todavía no tiene P&L en el informe MFE/MAE, así que el total va corto."
-          : " posiciones abiertas todavía no tienen P&L en el informe MFE/MAE, así que el total va corto.")
-      : "";
-  }
-
   /* --- Comparativa A vs B --------------------------------------------- */
   function pintarComparativa(){
     var cont = document.getElementById("carteras");
@@ -669,37 +613,7 @@ function iniciar(D){
     return t;
   }
 
-  /* Dos lecturas de lo mismo. "dinero" es la principal: el valor de la cuenta
-     marcado a mercado. "retornos" es la de siempre, suma de P&L realizados;
-     se queda como secundaria porque responde a otra pregunta —cuánto rinde la
-     estrategia, no cuánto vale el dinero— y da continuidad al histórico. */
-  var MODOS = {
-    dinero:   {etiqueta:"Cuenta ($)", a:"equity_a", b:"equity_b",
-               fmt:function(v){ return precio(v); },
-               eje:function(v){ return "$" + Math.round(v).toLocaleString("en-US"); }},
-    retornos: {etiqueta:"Suma de retornos (%)", a:"pl_acumulado_a", b:"pl_acumulado_b",
-               fmt:function(v){ return pct(v); },
-               eje:function(v, d){ return (v > 0 ? "+" : "") + v.toFixed(d) + "%"; }}
-  };
-  /* Sin serie en dólares (JSON antiguo) se cae a la vista de retornos. */
-  var modo = (CURVA.length && CURVA[0].equity_a !== undefined) ? "dinero" : "retornos";
-
-  function pintarModoCurva(){
-    var zona = document.getElementById("modo-curva");
-    zona.textContent = "";
-    Object.keys(MODOS).forEach(function(k){
-      var b = el("button","chip", MODOS[k].etiqueta);
-      b.type = "button";
-      b.setAttribute("aria-pressed", modo === k ? "true" : "false");
-      b.addEventListener("click", function(){
-        modo = k; pintarModoCurva(); dibujarCurva();
-      });
-      zona.appendChild(b);
-    });
-  }
-
   function dibujarCurva(){
-    var M0 = MODOS[modo];
     var lienzo = document.getElementById("lienzo");
     var globo = document.getElementById("globo");
     var leyenda = document.querySelector("#curva .leyenda");
@@ -735,8 +649,10 @@ function iniciar(D){
     /* En dólares el eje NO se ancla al cero: la cuenta arranca en $10.000 y
        forzar el origen aplastaría la curva contra el borde. En retornos sí:
        ahí el cero es "ni gano ni pierdo" y da sentido al resto. */
-    var vals = modo === "retornos" ? [0] : [];
-    CURVA.forEach(function(p){ vals.push(p[M0.a], p[M0.b]); });
+    /* El eje NO se ancla al cero: la cuenta arranca en $10.000 y forzar el
+       origen aplastaría la curva contra el borde. */
+    var vals = [];
+    CURVA.forEach(function(p){ vals.push(p.equity_a, p.equity_b); });
     vals = vals.filter(function(v){ return v !== null && v !== undefined; });
     if(!vals.length) vals = [0];
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
@@ -745,7 +661,7 @@ function iniciar(D){
     function Y(v){ return M.t + (hi - v) / ((hi - lo) || 1) * alto; }
 
     var svg = svgEl("svg", {width:W, height:H, viewBox:"0 0 " + W + " " + H,
-                            role:"img", "aria-label":"Curva de " + M0.etiqueta + " de las carteras A y B"});
+                            role:"img", "aria-label":"Valor de la cuenta de las carteras A y B"});
 
     var marcasY = ticksY(lo, hi, movil ? 4 : 5);
     /* Los decimales los fija el PASO del eje, no cada valor por su cuenta: si no,
@@ -755,7 +671,7 @@ function iniciar(D){
     marcasY.forEach(function(v){
       svg.appendChild(svgEl("line", {class:"rejilla", x1:M.l, x2:W-M.r, y1:Y(v), y2:Y(v)}));
       var tx = svgEl("text", {class:"eje-txt", x:M.l-7, y:Y(v)+3, "text-anchor":"end"});
-      tx.textContent = M0.eje(v, decY);
+      tx.textContent = "$" + Math.round(v).toLocaleString("en-US");
       svg.appendChild(tx);
     });
     /* Referencia dura del 0%: el eje se fuerza a incluirlo para que esta línea
@@ -786,8 +702,8 @@ function iniciar(D){
       }).join(" ");
     }
     if(CURVA.length > 1){
-      svg.appendChild(svgEl("path", {class:"serie serie-a", d:trazo(M0.a)}));
-      svg.appendChild(svgEl("path", {class:"serie serie-b", d:trazo(M0.b)}));
+      svg.appendChild(svgEl("path", {class:"serie serie-a", d:trazo("equity_a")}));
+      svg.appendChild(svgEl("path", {class:"serie serie-b", d:trazo("equity_b")}));
     }
 
     var guia = svgEl("line", {class:"guia", y1:M.t, y2:M.t+alto, opacity:0});
@@ -796,8 +712,8 @@ function iniciar(D){
     /* Con un único punto no hay línea, así que los círculos se dejan fijos para
        que el dato siga siendo visible sin necesidad de hover. */
     if(CURVA.length === 1){
-      pa.setAttribute("opacity",1); pa.setAttribute("cx",X(0)); pa.setAttribute("cy",Y(CURVA[0][M0.a]));
-      pb.setAttribute("opacity",1); pb.setAttribute("cx",X(0)); pb.setAttribute("cy",Y(CURVA[0][M0.b]));
+      pa.setAttribute("opacity",1); pa.setAttribute("cx",X(0)); pa.setAttribute("cy",Y(CURVA[0].equity_a));
+      pb.setAttribute("opacity",1); pb.setAttribute("cx",X(0)); pb.setAttribute("cy",Y(CURVA[0].equity_b));
     }
     svg.appendChild(guia); svg.appendChild(pa); svg.appendChild(pb);
     lienzo.appendChild(svg);
@@ -816,20 +732,19 @@ function iniciar(D){
     function mostrar(e){
       var i = cercano(e.clientX), p = CURVA[i];
       guia.setAttribute("x1", X(i)); guia.setAttribute("x2", X(i)); guia.setAttribute("opacity", 1);
-      pa.setAttribute("cx", X(i)); pa.setAttribute("cy", Y(p[M0.a])); pa.setAttribute("opacity", 1);
-      pb.setAttribute("cx", X(i)); pb.setAttribute("cy", Y(p[M0.b])); pb.setAttribute("opacity", 1);
+      pa.setAttribute("cx", X(i)); pa.setAttribute("cy", Y(p.equity_a)); pa.setAttribute("opacity", 1);
+      pb.setAttribute("cx", X(i)); pb.setAttribute("cy", Y(p.equity_b)); pb.setAttribute("opacity", 1);
 
       globo.textContent = "";
       globo.appendChild(el("b","",fecha(p.fecha)));
-      [["la", "A", p[M0.a], p.n_cerradas_a],
-       ["lb", "B", p[M0.b], p.n_cerradas_b]].forEach(function(s){
+      [["la", "A", p.equity_a, p.n_cerradas_a],
+       ["lb", "B", p.equity_b, p.n_cerradas_b]].forEach(function(s){
         var f = el("div","fila");
         f.appendChild(el("i", s[0]));
         f.appendChild(el("span","", "Cartera " + s[1] + " · " + s[3] +
           (s[3] === 1 ? " cerrada" : " cerradas")));
         /* En dólares no se colorea por signo: un saldo no es "positivo". */
-        f.appendChild(el("span","v num" + (modo === "retornos" ? " " + signoCero(s[2]) : ""),
-                         M0.fmt(s[2])));
+        f.appendChild(el("span","v num", precio(s[2])));
         globo.appendChild(f);
       });
       globo.className = "visible";
@@ -891,7 +806,7 @@ function iniciar(D){
     ticker:"Ticker", cartera:"Cartera", estado:"Estado",
     fecha_entrada:"Fecha entrada", precio_entrada:"Precio entrada",
     fecha_salida:"Fecha salida", precio_salida:"Precio salida",
-    pnl:"P&L %", motivo:"Motivo", mfe:"MFE %", mae:"MAE %", toco:"¿Tocó +5%?"
+    pnl:"P&L %", motivo:"Motivo"
   };
 
   var GRUPOS = {
@@ -1046,38 +961,9 @@ function iniciar(D){
   pintarCuenta();
   pintarOrdenes();
   pintarKpis();
-  pintarPnlCarteras();
   pintarComparativa();
-  pintarModoCurva();
   dibujarCurva();
   pintar();
-
-  /* --- MFE / MAE ------------------------------------------------------- */
-  var cuerpoMfe = document.getElementById("cuerpo-mfe");
-  var ordenadas = mfe.slice().sort(function(a,b){
-    var x = a.mfe_pct, y = b.mfe_pct;
-    if(x === null || x === undefined) return 1;
-    if(y === null || y === undefined) return -1;
-    return y - x;
-  });
-  ordenadas.forEach(function(p){
-    var tr = el("tr");
-    function c(col, nodo, clase){
-      var td = el("td",(clase || "") + " c-" + col);
-      td.dataset.col = ETIQUETAS[col];
-      if(typeof nodo === "string") td.textContent = nodo; else if(nodo) td.appendChild(nodo);
-      tr.appendChild(td);
-    }
-    c("ticker", el("span","tk",p.ticker));
-    c("cartera", p.cartera);
-    c("mfe", el("span","num pos", pct(p.mfe_pct)), "n");
-    c("mae", el("span","num neg", pct(p.mae_pct)), "n");
-    c("pnl", el("span","num " + signo(p.pnl_actual_pct), pct(p.pnl_actual_pct)), "n");
-    c("toco", p.toco_5 ? "Sí" : "No");
-    cuerpoMfe.appendChild(tr);
-  });
-  document.getElementById("mfe-sello").textContent =
-    ordenadas.length + " posiciones" + (meta.mfe_generado ? " · " + meta.mfe_generado : "");
 
   /* --- Pie -------------------------------------------------------------- */
   if(R.ultima_cerrada)

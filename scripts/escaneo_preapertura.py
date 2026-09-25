@@ -12,7 +12,7 @@ si ya se procesó hoy, no repite.
 from _comun import parse_args, contexto, log, finalizar, esperar_a_ventana
 
 from centinela import (calendario, estado as est_mod, screener, simulador,
-                       bitacora, runtime, notificaciones, resultados as res)
+                       bitacora, runtime, resultados as res)
 from centinela.modelo import Modelo
 
 
@@ -110,10 +110,6 @@ def main():
 
     log(f"resumen: universo={resumen['universo']} drawdown>=30%={resumen['en_drawdown']} "
         f"con_senal={resumen['con_senal']} decididas={len(nuevas)}")
-    if nuevas:
-        notificaciones.enviar(
-            f"🛰️ Centinela pre-apertura {hoy_iso}: {len(nuevas)} entradas decididas: "
-            + ", ".join(n["ticker"] for n in nuevas))
 
     return res.PROCESADO
 

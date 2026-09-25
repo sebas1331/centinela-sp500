@@ -1,0 +1,367 @@
+"""Capa de aislamiento frente a XTB. TODO lo que toca el broker pasa por aquí.
+
+POR QUÉ UNA CAPA PROPIA
+-----------------------
+XTB cerró su API oficial (xapi.xtb.com / ws.xtb.com) el 14 de marzo de 2025.
+Lo único que queda es ingeniería inversa de xStation5, y eso se puede romper
+cualquier martes sin aviso. Envolviéndolo aquí, el día que se rompa solo hay
+que reescribir este fichero: el ejecutor, el simulador y el dashboard no saben
+que `xtb_api` existe.
+
+EL CANDADO DEMO
+---------------
+La librería, por defecto, se conecta a la cuenta REAL cuando no se le dice lo
+contrario (`resolve_account_type` devuelve "real" si `XTB_ACCOUNT_TYPE` no está
+puesto). Eso es una mina antipersona, así que aquí el tipo de cuenta se pasa
+SIEMPRE explícito y además se verifica dos veces:
+
+  1. antes de conectar, que el endpoint resuelto sea el de demo;
+  2. después de conectar, que el número de cuenta sea el que se esperaba.
+
+Si cualquiera de las dos falla —o no se puede determinar— no se envía nada y se
+lanza `CuentaNoDemo`. Nunca "por si acaso"; nunca un aviso y seguir.
+
+LO QUE EL CLIENTE NO PUEDE HACER (medido, no supuesto)
+------------------------------------------------------
+El protocolo reverse-engineered solo expone abrir órdenes y cancelar las que
+están en cola. NO existe modificar una posición abierta ni cerrarla por id:
+
+* **Modificar el take profit**: imposible. El objetivo del simulador se
+  recalcula a diario, así que el TP del broker se queda en el inicial. Medido
+  sobre la bitácora: con el TP fijo la Cartera A habría hecho +12,25% en vez de
+  +12,07% y la B +11,15% en vez de +11,73%. Media docena de décimas — se acepta
+  la divergencia y se registra en `bitacora_broker.csv` para poder seguirla.
+
+* **Cerrar una posición**: se hace vendiendo el mismo volumen (`vender`). En
+  acciones al contado eso netea la posición; si XTB la tratara como cobertura y
+  abriera una corta, la reconciliación posterior lo detecta y el ejecutor
+  termina en ROJO en lugar de dejar una posición espuria abierta.
+
+VOLUMEN ENTERO
+--------------
+XTB vende acciones fraccionadas en su plataforma, pero el cliente redondea el
+volumen (`int(volume + 0.5)`) y rechaza lo que quede por debajo de 1. Un
+redondeo AL ALZA silencioso rompería el tamaño de posición, así que aquí solo
+se aceptan enteros ya calculados por `riesgo.acciones_enteras`.
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import subprocess
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from . import config
+
+
+# --------------------------------------------------------------------------- #
+# Errores
+# --------------------------------------------------------------------------- #
+class ErrorBroker(RuntimeError):
+    """Cualquier fallo hablando con el broker."""
+
+
+class CuentaNoDemo(ErrorBroker):
+    """La cuenta conectada no es demo, o no se pudo determinar que lo fuera."""
+
+
+class OperacionNoSoportada(ErrorBroker):
+    """El cliente de xStation5 no expone esta operación (ver cabecera)."""
+
+
+# --------------------------------------------------------------------------- #
+# Credenciales — Llavero de macOS
+# --------------------------------------------------------------------------- #
+#: Nombres de los servicios en el Llavero. Se leen con `security find-generic-
+#: password`, que NO imprime nada por stdout salvo el valor pedido, y nunca se
+#: escriben en disco, en logs ni en el repositorio.
+LLAVERO = {
+    "email": "centinela-xtb-email",
+    "cuenta": "centinela-xtb-cuenta",
+    "password": "centinela-xtb-password",
+}
+LLAVERO_CUENTA = "centinela"
+
+
+def _del_llavero(servicio: str) -> str:
+    """Lee un secreto del Llavero de macOS. Lanza si no está."""
+    try:
+        r = subprocess.run(
+            ["security", "find-generic-password", "-s", servicio,
+             "-a", LLAVERO_CUENTA, "-w"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ErrorBroker(f"No se pudo consultar el Llavero: {exc!r}") from exc
+    if r.returncode != 0:
+        raise ErrorBroker(
+            f"Falta el secreto '{servicio}' en el Llavero. Guárdalo con:\n"
+            f"  security add-generic-password -U -s \"{servicio}\" "
+            f"-a {LLAVERO_CUENTA} -w")
+    return r.stdout.strip()
+
+
+@dataclass
+class Credenciales:
+    """Credenciales de XTB. `password` nunca se imprime ni se serializa."""
+
+    email: str
+    cuenta: int
+    password: str = field(repr=False)
+
+    @classmethod
+    def del_llavero(cls) -> "Credenciales":
+        cuenta = _del_llavero(LLAVERO["cuenta"])
+        if not cuenta.isdigit():
+            raise ErrorBroker(
+                f"El número de cuenta del Llavero no es numérico. Debe ser solo "
+                f"dígitos (lo ves en el selector de cuenta de xStation 5).")
+        return cls(email=_del_llavero(LLAVERO["email"]),
+                   cuenta=int(cuenta),
+                   password=_del_llavero(LLAVERO["password"]))
+
+    @classmethod
+    def del_entorno(cls) -> "Credenciales":
+        """Alternativa para entornos sin Llavero (CI). Mismo contrato."""
+        faltan = [v for v in ("XTB_EMAIL", "XTB_CUENTA", "XTB_PASSWORD")
+                  if not os.environ.get(v)]
+        if faltan:
+            raise ErrorBroker(f"Faltan variables de entorno: {', '.join(faltan)}")
+        return cls(email=os.environ["XTB_EMAIL"],
+                   cuenta=int(os.environ["XTB_CUENTA"]),
+                   password=os.environ["XTB_PASSWORD"])
+
+
+# --------------------------------------------------------------------------- #
+# Resultado de una operación, en el vocabulario de ESTE repositorio
+# --------------------------------------------------------------------------- #
+@dataclass
+class Ejecucion:
+    """Lo que el broker hizo de verdad con una orden.
+
+    Deliberadamente NO es el objeto del cliente: si mañana hay que cambiar de
+    librería, lo que el resto del sistema consume sigue siendo esto.
+    """
+
+    ticker: str
+    lado: str                    # "compra" | "venta"
+    acciones: int
+    estado: str                  # ejecutada | en_cola | rechazada | ambigua
+    precio: float | None = None
+    orden: int | None = None     # número de orden de XTB
+    error: str | None = None
+    cuando: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.estado in ("ejecutada", "en_cola")
+
+
+#: Traducción del vocabulario del cliente al nuestro. AMBIGUOUS se traduce por
+#: "ambigua" y NO por "rechazada": la orden puede haberse enviado, y tratarla
+#: como fallida llevaría a mandarla dos veces.
+_ESTADOS = {
+    "FILLED": "ejecutada",
+    "QUEUED": "en_cola",
+    "REJECTED": "rechazada",
+    "AMBIGUOUS": "ambigua",
+    "INSUFFICIENT_VOLUME": "rechazada",
+    "AUTH_EXPIRED": "rechazada",
+    "RATE_LIMITED": "rechazada",
+    "TIMEOUT": "ambigua",
+}
+
+
+# --------------------------------------------------------------------------- #
+# El broker
+# --------------------------------------------------------------------------- #
+class BrokerXTB:
+    """Fachada síncrona sobre el cliente async de xStation5.
+
+    El resto del repositorio es síncrono; envolver aquí el `asyncio.run` evita
+    contagiar async a los escaneos, al dashboard y a los tests.
+
+    Se usa como contexto para que la desconexión esté garantizada:
+
+        with BrokerXTB(credenciales) as b:
+            saldo = b.saldo()
+    """
+
+    def __init__(self, credenciales: Credenciales, *, demo: bool = True,
+                 cliente=None):
+        self._cred = credenciales
+        self._demo = demo
+        # `cliente` inyectable: los tests pasan un doble y no tocan la red ni
+        # necesitan tener instalada la librería.
+        self._cliente = cliente
+        self._conectado = False
+
+    # ---------------------------------------------------------------- ciclo --
+    def __enter__(self) -> "BrokerXTB":
+        self.conectar()
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.desconectar()
+
+    def conectar(self) -> None:
+        if not self._demo:
+            raise CuentaNoDemo(
+                "Este ejecutor solo opera en DEMO. Conectarse a la cuenta real "
+                "exigiría cambiar el código a propósito, no una variable de "
+                "entorno.")
+        if self._cliente is None:
+            self._cliente = self._crear_cliente()
+        self._ejecutar(self._cliente.connect())
+        self._conectado = True
+        self._verificar_demo()
+
+    def desconectar(self) -> None:
+        if self._cliente is not None and self._conectado:
+            self._ejecutar(self._cliente.disconnect())
+            self._conectado = False
+
+    def _crear_cliente(self):
+        try:
+            from xtb_api import XTBClient
+        except ImportError as exc:  # pragma: no cover - entorno sin la librería
+            raise ErrorBroker(
+                "Falta la librería del broker. Instálala con:\n"
+                "  pip install 'xtb-api-python==0.10.0'\n"
+                "  playwright install chromium") from exc
+        return XTBClient(
+            email=self._cred.email,
+            password=self._cred.password,
+            account_number=self._cred.cuenta,
+            # EXPLÍCITO y no por variable de entorno: el default de la librería
+            # es "real" y no se puede depender de que el entorno esté bien.
+            account_type="demo",
+        )
+
+    @staticmethod
+    def _ejecutar(corutina):
+        return asyncio.run(corutina) if asyncio.iscoroutine(corutina) else corutina
+
+    # -------------------------------------------------------------- candado --
+    def _verificar_demo(self) -> None:
+        """El candado. Se ejecuta en CADA conexión, sin excepción.
+
+        Comprueba que el endpoint al que se ha conectado el cliente es el de
+        demo y que el número de cuenta es el que se pidió. Si algo no cuadra, o
+        simplemente no se puede leer, se corta: "no se pudo determinar" cuenta
+        como fallo, no como permiso.
+        """
+        url = str(getattr(getattr(self._cliente, "ws", None), "url", "") or "")
+        if not url:
+            cfg = getattr(getattr(self._cliente, "ws", None), "config", None)
+            url = str(getattr(cfg, "url", "") or "")
+        if "demo" not in url.lower():
+            raise CuentaNoDemo(
+                f"El endpoint conectado no es de demo (url={url!r}). No se "
+                f"envía ninguna orden.")
+
+        try:
+            numero = int(self._cliente.account_number)
+        except (TypeError, ValueError) as exc:
+            raise CuentaNoDemo(
+                "No se pudo leer el número de cuenta conectado; sin esa "
+                "confirmación no se opera.") from exc
+        if numero != self._cred.cuenta:
+            raise CuentaNoDemo(
+                f"Conectado a la cuenta {numero}, pero se esperaba "
+                f"{self._cred.cuenta}. No se envía ninguna orden.")
+
+    # --------------------------------------------------------------- lectura --
+    def saldo(self) -> dict:
+        """Saldo, equity y divisa de la cuenta demo."""
+        b = self._ejecutar(self._cliente.get_balance())
+        return {"saldo": float(b.balance), "equity": float(b.equity),
+                "margen_libre": float(getattr(b, "free_margin", 0.0)),
+                "divisa": b.currency, "cuenta": int(b.account_number)}
+
+    def posiciones(self) -> list[dict]:
+        """Posiciones abiertas, en el vocabulario de este repositorio."""
+        return [
+            {"ticker": p.symbol, "acciones": float(p.volume),
+             "precio_entrada": float(p.open_price),
+             "precio_actual": float(getattr(p, "current_price", 0.0) or 0.0),
+             "stop": p.stop_loss, "objetivo": p.take_profit,
+             "lado": p.side, "orden": p.order_id,
+             "pnl": float(getattr(p, "profit_net", 0.0) or 0.0)}
+            for p in self._ejecutar(self._cliente.get_positions())
+        ]
+
+    def ordenes_pendientes(self) -> list[dict]:
+        return [
+            {"ticker": o.symbol, "acciones": float(o.volume),
+             "precio": float(o.price), "lado": o.side, "orden": o.order_id}
+            for o in self._ejecutar(self._cliente.get_orders())
+        ]
+
+    # -------------------------------------------------------------- escritura --
+    def comprar(self, ticker: str, acciones: int, *, objetivo: float | None = None,
+                stop: float | None = None) -> Ejecucion:
+        """Compra a mercado. Con el mercado cerrado, XTB la deja EN COLA.
+
+        Esa cola es justo lo que la estrategia necesita: la decisión se toma en
+        la pre-apertura y la compra tiene que ejecutarse al precio de apertura,
+        no al de la víspera.
+        """
+        self._exigir_entero(acciones)
+        r = self._ejecutar(self._cliente.buy(
+            ticker, volume=acciones, stop_loss=stop, take_profit=objetivo))
+        return self._traducir(r, ticker, "compra", acciones)
+
+    def vender(self, ticker: str, acciones: int) -> Ejecucion:
+        """Vende a mercado. Es la ÚNICA forma de cerrar una posición.
+
+        El cliente no expone cerrar por id (ver cabecera del módulo), así que se
+        vende el mismo volumen y se comprueba después, en la reconciliación, que
+        la posición desapareció de verdad.
+        """
+        self._exigir_entero(acciones)
+        r = self._ejecutar(self._cliente.sell(ticker, volume=acciones))
+        return self._traducir(r, ticker, "venta", acciones)
+
+    def cancelar(self, numero_orden: int) -> str:
+        """Cancela una orden que sigue en cola."""
+        r = self._ejecutar(self._cliente.cancel_order(numero_orden))
+        return str(getattr(r, "status", r))
+
+    def modificar_objetivo(self, *_a, **_k):
+        """No se puede: el cliente no expone modificar una posición abierta.
+
+        Existe para que el ejecutor pueda pedirlo y recibir un "no" explícito en
+        vez de que el hueco se note el día que alguien asuma que sí se hizo. El
+        impacto está medido en la cabecera del módulo.
+        """
+        raise OperacionNoSoportada(
+            "xStation5 (cliente no oficial) no permite modificar el take profit "
+            "de una posición abierta. El TP se queda en el que se puso al "
+            "comprar; la divergencia está medida y registrada.")
+
+    # ---------------------------------------------------------------- interno --
+    @staticmethod
+    def _exigir_entero(acciones) -> None:
+        if not isinstance(acciones, int) or isinstance(acciones, bool):
+            raise ErrorBroker(
+                f"El volumen tiene que ser un entero ya calculado, y llegó "
+                f"{acciones!r}. El cliente redondea al alza por su cuenta "
+                f"(int(v+0.5)) y eso rompería el tamaño de posición.")
+        if acciones < 1:
+            raise ErrorBroker(
+                f"Volumen {acciones}: XTB no acepta menos de una acción por la "
+                f"API. La entrada no cabe en el slot con este capital.")
+
+    @staticmethod
+    def _traducir(r, ticker: str, lado: str, acciones: int) -> Ejecucion:
+        estado = _ESTADOS.get(str(getattr(r, "status", "")), "ambigua")
+        precio = getattr(r, "price", None)
+        return Ejecucion(
+            ticker=ticker, lado=lado, acciones=acciones, estado=estado,
+            precio=None if precio is None else float(precio),
+            orden=getattr(r, "order_number", None),
+            error=getattr(r, "error", None),
+            cuando=datetime.now(config.TZ_ET).isoformat(),
+        )

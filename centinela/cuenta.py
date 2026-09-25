@@ -30,9 +30,10 @@ MODELO DE CUENTA (decisiones interpretativas, explícitas a propósito)
   cotizaba a $1.510: con acciones enteras la operación sería de CERO acciones y
   la cuenta simulada no podría reproducir la bitácora. Se usan fracciones (las
   admiten IBKR, Schwab, Robinhood...), que además dejan la ponderación exacta y
-  sin residuos de caja que ensucien el retorno. Las notificaciones dan el
-  importe en dólares además del número de acciones, porque el importe es lo que
-  se puede teclear en cualquier broker.
+  sin residuos de caja que ensucien el retorno. OJO: el BROKER no admite
+  fracciones por la API (ver centinela/broker_xtb.py), así que la cuenta
+  simulada y la ejecución real difieren en el redondeo; es una de las
+  divergencias que mide la sección "XTB vs. simulador" del panel.
 
 * ORDEN DENTRO DE UN DÍA: primero las ENTRADAS, después las SALIDAS. Es lo que
   hace el sistema real —la pre-apertura decide con el estado de ayer, cuando las

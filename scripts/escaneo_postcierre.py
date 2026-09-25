@@ -14,8 +14,7 @@ Verifica calendario/ventana e idempotencia igual que la pre-apertura.
 from _comun import parse_args, contexto, log, finalizar, esperar_a_ventana
 
 from centinela import (calendario, estado as est_mod, simulador, bitacora,
-                       runtime, reportes, notificaciones, ath as ath_mod,
-                       resultados as res)
+                       runtime, reportes, ath as ath_mod, resultados as res)
 
 
 def _control_de_ventana(args, ahora, hoy, hoy_iso):
@@ -101,11 +100,6 @@ def main():
         r = reportes.generar_semanal(hoy_iso); log(f"reporte semanal -> {r}")
     if mes_previo and mes_previo != hoy_iso[:7]:  # primer día de mercado del mes
         r = reportes.generar_mensual(hoy_iso); log(f"reporte mensual -> {r}")
-
-    if cerradas:
-        notificaciones.enviar(
-            f"🛰️ Centinela post-cierre {hoy_iso}: {len(cerradas)} cierres. "
-            + ", ".join(f"{c['ticker']}/{c['portafolio']} {c['pnl_pct']:.1%}" for c in cerradas))
 
     return res.PROCESADO
 
