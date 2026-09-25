@@ -53,6 +53,9 @@ permissions:
 jobs:
   vigilar:
     runs-on: ubuntu-latest
+    outputs:
+      problemas: ${{ steps.revision.outputs.problemas }}
+      hay_problemas: ${{ steps.revision.outputs.hay_problemas }}
     # Un Vigilante sano tarda 30-45 s (solo lee ficheros del repo y `git log`; no
     # descarga precios ni llama a ninguna API). Si pasa de 5 minutos está roto por
     # definición, y morir pronto y en rojo es preferible a colgarse.
@@ -75,6 +78,57 @@ jobs:
       # GITHUB_TOKEN es necesario para la consulta de rachas de rojos contra la
       # API de Actions; sin él esa comprobación se anuncia como no aplicable.
       - name: Revisar que no falte ninguna sesión ni haya rachas de rojos
+        id: revision
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/vigilante.py --sesiones "${{ inputs.sesiones || '1' }}"
+
+  # Avisa al móvil de que el sistema tiene una avería. Corre SOLO si `vigilar`
+  # terminó en rojo, y va en un job aparte a propósito: si el aviso fallara
+  # dentro del propio vigilante, un Telegram caído podría acabar enmascarando
+  # justo la avería que se acaba de detectar. Aquí lo peor que puede pasar es
+  # que haya DOS jobs rojos en vez de uno, que es exactamente lo que se quiere.
+  #
+  # Este job SÍ escribe (el registro anti-duplicados), así que sube su permiso
+  # por encima del `contents: read` del workflow, que sigue valiendo para el
+  # vigilante de arriba.
+  alertar:
+    needs: vigilar
+    if: always() && needs.vigilar.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Avisar de la avería por Telegram
+        id: notif
+        env:
+          CENTINELA_NOTIF: "on"
+          CENTINELA_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CENTINELA_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PROBLEMAS: ${{ needs.vigilar.outputs.problemas }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python scripts/notificar.py alerta \
+            --problema "${PROBLEMAS:-El Vigilante terminó en rojo y no publicó el detalle. Abre el run.}" \
+            --url "$RUN_URL"
+
+      - name: Commit y push del registro de notificaciones
+        if: always() && steps.notif.outputs.resultado != ''
+        run: |
+          scripts/commit_y_push.sh \
+            "notificaciones: alerta del vigilante enviada [skip ci]" \
+            "${{ steps.notif.outputs.resultado }}" \
+            estado

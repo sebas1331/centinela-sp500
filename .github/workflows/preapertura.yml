@@ -158,3 +158,58 @@ jobs:
           RESULTADO: ${{ needs.preapertura.outputs.resultado }}
           ESTADO_JOB: ${{ needs.preapertura.result }}
         run: bash scripts/verificar_persistencia.sh
+
+  # Órdenes de compra por Telegram. JOB APARTE por la misma razón que el MFE y
+  # el dashboard en el post-cierre: es comunicación, no trading. La bitácora y
+  # el estado ya quedaron persistidos y VERIFICADOS contra el remoto en los dos
+  # jobs de arriba, que no saben ni que este existe. Si Telegram está caído,
+  # este job se pone rojo y no arrastra nada consigo.
+  notificar:
+    needs: preapertura
+    if: needs.preapertura.result == 'success' && needs.preapertura.outputs.resultado == 'procesado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # La punta de la rama: `preapertura` acaba de commitear el estado con las
+      # entradas decididas, y son justo las que hay que notificar.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # Misma caché que usan los escaneos: aquí solo se lee y se completa el
+      # incremento del día. Sin ella este job pediría a yfinance el historial
+      # entero por su cuenta, duplicando trabajo y tentando al rate-limit.
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Enviar órdenes de compra
+        id: notif
+        env:
+          CENTINELA_NOTIF: "on"
+          CENTINELA_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CENTINELA_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/notificar.py preapertura
+
+      # `always()` a propósito: si el envío número siete falla, los seis que
+      # SÍ salieron tienen que quedar registrados en el repositorio o mañana se
+      # repetirán. El job se ve rojo igualmente por el paso de arriba; lo que
+      # este paso evita es que además se pierda lo ya enviado.
+      - name: Commit y push del registro de notificaciones
+        if: always() && steps.notif.outputs.resultado != ''
+        run: |
+          scripts/commit_y_push.sh \
+            "notificaciones: órdenes de compra enviadas [skip ci]" \
+            "${{ steps.notif.outputs.resultado }}" \
+            estado

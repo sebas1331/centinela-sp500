@@ -195,6 +195,16 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # Misma caché que usan los escaneos: aquí solo se lee y se completa el
+      # incremento del día. Sin ella este job pediría a yfinance el historial
+      # entero por su cuenta, duplicando trabajo y tentando al rate-limit.
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
       - name: Generar dashboard
         id: dash
         run: python scripts/generar_dashboard.py
@@ -210,3 +220,58 @@ jobs:
             "dashboard: republicado tras el post-cierre [skip ci]" \
             "procesado" \
             docs
+
+  # Avisos del cierre por Telegram: entradas confirmadas, cambios de objetivo,
+  # ventas ejecutadas, salidas por tiempo de mañana y resumen del día. JOB
+  # APARTE, por la misma razón que `mfe` y `dashboard`: es comunicación, no
+  # trading. Cuando este job corre, la bitácora y el estado llevan ya varios
+  # jobs persistidos y verificados contra el remoto. Un Telegram caído deja
+  # este job en rojo y NO revierte ni bloquea nada de lo anterior.
+  #
+  # Depende solo de `postcierre` —no de `mfe` ni de `dashboard`— para que los
+  # avisos salgan aunque un reporte de solo lectura se haya roto.
+  notificar:
+    needs: postcierre
+    if: needs.postcierre.result == 'success' && needs.postcierre.outputs.resultado == 'procesado'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # Misma caché que usan los escaneos: aquí solo se lee y se completa el
+      # incremento del día. Sin ella este job pediría a yfinance el historial
+      # entero por su cuenta, duplicando trabajo y tentando al rate-limit.
+      - name: Restaurar caché de precios
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
+
+      - name: Enviar avisos del post-cierre
+        id: notif
+        env:
+          CENTINELA_NOTIF: "on"
+          CENTINELA_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CENTINELA_TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/notificar.py postcierre
+
+      # Ver la nota del job equivalente en preapertura.yml: se commitea aunque
+      # el envío haya fallado a medias, para no reenviar mañana lo ya enviado.
+      - name: Commit y push del registro de notificaciones
+        if: always() && steps.notif.outputs.resultado != ''
+        run: |
+          scripts/commit_y_push.sh \
+            "notificaciones: avisos del post-cierre enviados [skip ci]" \
+            "${{ steps.notif.outputs.resultado }}" \
+            estado

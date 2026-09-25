@@ -30,11 +30,18 @@ OMITIDO_SIN_MERCADO = "omitido:sin-mercado"            # hoy la bolsa no abre
 OMITIDO_YA_PROCESADO = "omitido:ya-procesado"          # otro disparo de hoy ya lo hizo
 OMITIDO_ANTES_DE_VENTANA = "omitido:antes-de-ventana"  # aún no toca; vendrá otro disparo
 
+# El envío de notificaciones no tenía nada nuevo que decir: ni entradas, ni
+# cierres, ni cambios de objetivo, o el canal está apagado. Terminar sin tocar
+# estado/notificaciones.json es lo correcto. Ojo: esto NO cubre "Telegram
+# falló" —eso lanza y el job se ve rojo—, solo "no había nada que enviar".
+OMITIDO_SIN_NOTIFICACIONES = "omitido:sin-notificaciones"
+
 #: Únicos resultados que permiten terminar en verde sin commit.
 LEGITIMOS_SIN_COMMIT = (
     OMITIDO_SIN_MERCADO,
     OMITIDO_YA_PROCESADO,
     OMITIDO_ANTES_DE_VENTANA,
+    OMITIDO_SIN_NOTIFICACIONES,
 )
 
 # Fallos. El escaneo sale con código 1 y el workflow se ve ROJO.

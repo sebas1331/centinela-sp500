@@ -342,6 +342,7 @@ def main() -> int:
     if problemas:
         for p in problemas:
             print(f"::error::{p}", flush=True)
+        _publicar_problemas(problemas)
         _log("")
         emergencias = sum(1 for p in problemas if p.startswith("EMERGENCIA:"))
         _log(f"❌ {len(problemas)} problema(s)"
@@ -354,6 +355,27 @@ def main() -> int:
     _log("✅ Sin silencios: todas las sesiones exigibles están procesadas y "
          "commiteadas.")
     return 0
+
+
+def _publicar_problemas(problemas: list[str]) -> None:
+    """Deja los problemas donde el workflow pueda leerlos para avisar por Telegram.
+
+    El vigilante sigue sin escribir NADA en el repositorio ni tomar ninguna
+    decisión: solo publica en la salida del step el texto que ya imprimió como
+    ::error::. Quien envía el aviso es un job aparte (ver vigilante.yml), para
+    que un Telegram caído no pueda enmascarar la avería que el vigilante acaba
+    de encontrar.
+    """
+    destino = os.environ.get("GITHUB_OUTPUT")
+    if not destino:
+        return
+    # Las emergencias primero: si hay una racha de rojos en curso, es lo que
+    # tiene que leerse en la primera línea del mensaje del móvil.
+    ordenados = sorted(problemas, key=lambda p: not p.startswith("EMERGENCIA:"))
+    texto = "\n".join(f"• {p}" for p in ordenados)
+    with open(destino, "a", encoding="utf-8") as fh:
+        fh.write(f"problemas<<FIN_PROBLEMAS\n{texto}\nFIN_PROBLEMAS\n")
+        fh.write(f"hay_problemas=si\n")
 
 
 if __name__ == "__main__":
