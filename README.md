@@ -22,18 +22,25 @@ y **B (sin stop)**.
 Panel web con todo el experimento de un vistazo. **Se regenera solo tras cada
 post-cierre**, así que lo que se ve ahí es siempre la última sesión cerrada.
 
-> ⚠️ **Los datos hasta el 2026-08-06 llevan operaciones duplicadas** por el bug
-> descrito en el [CHANGELOG](CHANGELOG.md): el simulador podía abrir una segunda
-> posición del mismo ticker en la misma cartera teniendo la primera aún viva. El
-> dashboard lo avisa y trae un interruptor **"Solo operaciones limpias"** que
-> recalcula todo sin esas entradas. En corto: el P&L realizado de la Cartera B
-> pasa de **+31.05% a −46.91%** al quitarlas.
+> ⚠️ **Hasta el 2026-08-06 el simulador pudo abrir posiciones duplicadas** (una
+> segunda entrada del mismo ticker en la misma cartera teniendo la primera aún
+> viva), por el bug descrito en el [CHANGELOG](CHANGELOG.md). Son 13, todas en
+> la Cartera B, y el dashboard **ya no las cuenta en ninguna cifra**: todo lo
+> que se publica sale de la vista limpia. Las filas siguen en `bitacora.csv`
+> para cualquier auditoría.
 
 Está pensado **para el móvil primero**: en pantalla pequeña cada operación se
 convierte en una tarjeta con el ticker y su P&L destacados, sin scroll lateral.
 
 Qué hay dentro:
 
+- **Cuenta simulada** *(la cifra principal)* — capital inicial y actual,
+  rentabilidad, CAGR, drawdown máximo y Sharpe, para A y para B, **netos** de
+  comisión, spread y slippage. Es la respuesta a "¿cuánto valdría mi dinero?",
+  que no es la misma pregunta que responde la suma de retornos de más abajo.
+- **Órdenes activas** — lo que debería estar puesto hoy en el broker: órdenes
+  límite de venta (el objetivo vigente de cada posición), órdenes stop (solo la
+  Cartera A) y ventas al cierre programadas, con las que vencen mañana en ámbar.
 - **Cuatro cifras de cabecera** — operaciones cerradas, win rate global, P&L
   acumulado y posiciones abiertas ahora mismo.
 - **P&L acumulado por cartera** — para A y para B, lo **realizado** (solo
@@ -176,6 +183,45 @@ señales, pero mejores que la tasa base. En holdout el modelo **degrada** (68 % 
 80 %) pero sigue por encima del azar. La Cartera **B** domina en el histórico, pero
 la ventaja se estrecha en holdout.
 
+## 🔍 ¿Es fiable el rendimiento que se reporta?
+
+El sistema se auditó a sí mismo con
+[`scripts/auditar_fiabilidad.py`](scripts/auditar_fiabilidad.py), que lee la
+bitácora, vuelve a descargar los precios y trata de romperla. El informe
+completo está en
+[`reportes/auditoria_fiabilidad.md`](reportes/auditoria_fiabilidad.md).
+
+**Cuenta de $10.000 por cartera, 20 slots, neta de fricciones, 47 sesiones:**
+
+| | Cartera A | Cartera B | SPY |
+|---|---|---|---|
+| Rentabilidad | **+12.07 %** | **+11.73 %** | +3.05 % |
+| Drawdown máximo | −10.44 % | −12.16 % | −3.06 % |
+| Sharpe aprox. | 1.92 | 1.83 | 1.35 |
+| Sin las 5 mejores operaciones | +4.26 % | +5.38 % | — |
+
+**Lo que es de fiar:** la selección de entradas. Sigue siendo rentable sin sus
+cinco mejores operaciones, y el stop de la Cartera A no destruye valor — A y B
+acaban a menos de un punto de distancia.
+
+**Lo que no:**
+
+1. **Un sesgo optimista en las salidas.** Las 13 salidas por objetivo del
+   periodo se ejecutaron **en el máximo exacto de la sesión**, las 13. El
+   objetivo se recalcula con la barra del día ya cerrada y después se evalúa la
+   salida contra ese nivel recién puesto, así que la simulación vende a un
+   precio en el que ninguna orden límite real estaba esperando. Vale 0.93
+   puntos de rentabilidad de la cuenta. Está medido y **no corregido**, a
+   propósito: tocarlo sería cambiar la lógica de decisión en caliente.
+2. **La concentración.** 57 de 71 operaciones y el 85 % del P&L están en la
+   cadena de valor del silicio. El filtro de "drawdown ≥ 30 % del ATH"
+   seleccionó casi en bloque el mismo sector. Esto no es una cartera
+   diversificada del S&P 500; es una apuesta al ciclo de los semiconductores
+   con 20 patas, y el stop no protege de una caída correlacionada.
+3. **Dos meses no demuestran nada.** El CAGR del 84 % es un artefacto de
+   anualizar 47 sesiones, todas en mercado alcista. Sin un tramo bajista no hay
+   forma de separar el alfa de la beta (que es 1.72).
+
 ## ⚠️ Limitaciones (sin maquillar)
 
 - **Sesgo de supervivencia:** se usan los constituyentes **actuales** del S&P 500
@@ -216,9 +262,11 @@ centinela/            paquete Python
   resultados.py       vocabulario CERRADO de desenlaces de un escaneo
   reportes.py         reporte semanal y mensual
   runtime.py          preparación de datos compartida
-  notificaciones.py   Telegram (DESACTIVADO por defecto)
+  cuenta.py           contabilidad de la cuenta simulada (dinero, no % sueltos)
+  notificaciones.py   Telegram: mensajes, envío con backoff y anti-duplicados
 scripts/              entrenar_inicial, escaneo_preapertura, escaneo_postcierre,
-                      reentrenar_mensual, generar_reporte, vigilante
+                      reentrenar_mensual, generar_reporte, vigilante, notificar,
+                      auditar_fiabilidad, generar_dashboard, analizar_mfe,
                       commit_y_push.sh, verificar_persistencia.sh
 .github/workflows/    preapertura.yml, postcierre.yml, vigilante.yml,
                       reentrenamiento.yml
@@ -231,8 +279,9 @@ Un workflow verde que no escribe nada es **peor** que uno rojo: disimula el
 fallo. Cuatro capas independientes lo impiden:
 
 1. **Vocabulario cerrado** ([`resultados.py`](centinela/resultados.py)): cada
-   escaneo declara su desenlace. Solo tres motivos permiten terminar sin commit;
-   cualquier otro es un fallo. Un motivo nuevo no hereda el permiso de callarse.
+   escaneo declara su desenlace. Solo cuatro motivos permiten terminar sin
+   commit; cualquier otro es un fallo. Un motivo nuevo no hereda el permiso de
+   callarse: añadirlo obliga a decidirlo a mano.
 2. **Commit verificado** ([`commit_y_push.sh`](scripts/commit_y_push.sh)): si el
    escaneo dijo `procesado`, tiene que haber cambios, commit y push; luego relee
    el remoto y comprueba autor y marca del run.
@@ -242,7 +291,13 @@ fallo. Cuatro capas independientes lo impiden:
 4. **Vigilante** ([`vigilante.py`](scripts/vigilante.py)): a diario, comprueba que
    ninguna sesión exigible se haya quedado sin sus **dos** escaneos. Es la única
    capa que detecta lo que ningún run puede detectar por sí mismo: que falte un
-   run entero.
+   run entero. Si encuentra algo, un job aparte lo manda por Telegram.
+
+Y una quinta capa que no vigila el sistema sino **las cifras que publica**:
+[`auditar_fiabilidad.py`](scripts/auditar_fiabilidad.py) vuelve a descargar los
+precios y recalcula el rendimiento desde cero, buscando look-ahead y
+concentración. Fue lo que encontró que las salidas por objetivo se estaban
+ejecutando en el máximo exacto de la sesión.
 
 ## ⏰ Calendario de ejecución
 
@@ -348,7 +403,7 @@ el primer día de mercado de cada mes, uno mensual.
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt   # dev = pytest + PyYAML
 
 python scripts/entrenar_inicial.py           # entrenamiento + backtest (pesado)
 python scripts/escaneo_preapertura.py --forzar --fecha 2026-07-17   # prueba
@@ -357,8 +412,40 @@ python scripts/generar_reporte.py semanal
 pytest -q                                    # tests
 ```
 
-## 🔔 Notificaciones (opcional, desactivadas)
-Módulo de Telegram listo pero **apagado**. Para activarlo en el futuro: definir
-las variables de entorno `CENTINELA_NOTIF=on`, `CENTINELA_TELEGRAM_TOKEN` y
-`CENTINELA_TELEGRAM_CHAT_ID` (p. ej. como *secrets* del repo). Sin ellas, no envía
-nada y todo sigue funcionando.
+## 🔔 Notificaciones por Telegram
+
+El sistema avisa al móvil con **lo que habría que teclear en el broker**, no con
+un resumen decorativo. Siete tipos de mensaje, todos con cartera, ticker y
+precios a dos decimales:
+
+| Cuándo | Mensaje | Qué pide hacer |
+|---|---|---|
+| Pre-apertura | **Orden de compra** (una por ticker) | comprar a la apertura, con importe y nº de acciones según la cuenta simulada, objetivo (orden límite) y stop (solo A) |
+| Post-cierre | **Entrada confirmada** | nada: informa del precio real de apertura |
+| Post-cierre | **Actualización de objetivo** | modificar la orden límite de venta |
+| Post-cierre | **Venta ejecutada** | nada: informa del motivo y el P&L en % y en $ |
+| Post-cierre | **Salida por tiempo mañana** | vender al cierre (market-on-close) |
+| Post-cierre | **Resumen del día** | nada: abiertas, cierres y P&L de la cuenta |
+| Vigilante en rojo | **Alerta del sistema** | revisar el run que se enlaza |
+
+**Configuración:** `CENTINELA_NOTIF=on` y los *secrets* del repo
+`TELEGRAM_TOKEN` y `TELEGRAM_CHAT_ID`. Sin ellos no se envía nada y todo lo
+demás sigue igual. Para recibir solo una cartera, se quita la otra de
+`config.CARTERAS_NOTIFICADAS`.
+
+**Dos garantías que importan:**
+
+- **Nada llega dos veces.** Cada aviso lleva un id `fecha|tipo|cartera|ticker`
+  registrado en `estado/notificaciones.json`, así que la escalera de crons puede
+  reejecutar un peldaño sin duplicar mensajes.
+- **Un fallo de Telegram no toca la bitácora.** El envío vive en un job aparte
+  de cada workflow, con `needs`: cuando corre, la sesión ya está persistida y
+  verificada contra el remoto. Si Telegram está caído, ese job se pone rojo y no
+  revierte ni bloquea nada. Hay tests que lo comprueban por los dos lados.
+
+## 🔍 Auditoría de fiabilidad
+
+```bash
+python scripts/auditar_fiabilidad.py          # regenera reportes/auditoria_fiabilidad.md
+python scripts/notificar.py prueba            # un mensaje [PRUEBA] de cada tipo
+```

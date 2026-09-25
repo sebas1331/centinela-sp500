@@ -5,6 +5,158 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-24 — Formato final: cuenta simulada, auditoría de fiabilidad y notificaciones
+
+**No se tocó la lógica de decisión: ni el modelo, ni el umbral (0.79), ni las
+features, ni el cálculo de objetivos, ni el stop, ni el backtest, ni el
+simulador.** Todo lo que sigue es contabilidad derivada, comunicación y
+presentación, sobre la bitácora que el sistema ya escribía.
+
+### 1. La cifra principal pasa a ser el dinero, no la suma de retornos
+
+Hasta hoy el sistema publicaba la SUMA de los retornos de cada operación:
++244,10% en la Cartera A. Esa cifra responde "cuánto rinde la estrategia por
+operación", pero no responde "cuánto habría ganado mi dinero", que es la única
+pregunta que importa si esto llega a operar en real. Faltaban dos cosas:
+composición (una cuenta reinvierte) y capital finito (una cuenta tiene 20 slots
+y no puede abrir la 21ª posición aunque la señal sea buena).
+
+- **`centinela/cuenta.py` (nuevo)**: reinterpreta la bitácora como una cuenta.
+  `equity_contable = caja + coste de las abiertas`; cada entrada invierte
+  `equity/SLOTS` y el capital compone **al cerrar**. Acciones fraccionarias
+  (con $10.000 y 20 slots un slot son ~$500, y SNDK cotizaba a $1.510: con
+  acciones enteras la operación sería de cero acciones). Marca a mercado por
+  RATIO contra el open del día de entrada de la misma serie descargada, no por
+  precio absoluto: los precios de la bitácora se guardaron ajustados en su día
+  y los de hoy están reajustados por dividendos posteriores (discrepancia
+  medida: 0,07% de media). Las decisiones interpretativas están todas escritas
+  en la cabecera del módulo.
+- **`centinela/config.py`**: `CAPITAL_INICIAL_CUENTA` (10.000), `SLOTS_CUENTA`
+  (= `MAX_POSICIONES_ABIERTAS`), `COMISION_SPREAD_POR_LADO` (0,10%) y
+  `SLIPPAGE_MERCADO` (0,15%). Son parámetros de contabilidad: no entran en
+  ninguna decisión de trading.
+- `marcar_duplicadas` se muda de `scripts/generar_dashboard.py` a
+  `centinela/cuenta.py`. La auditoría, las notificaciones y el dashboard usan
+  ahora exactamente la misma definición; dos copias habrían acabado contando
+  universos distintos sin que nadie se enterara. El nombre se reexporta desde
+  el generador para no romper a quien lo importaba de allí.
+
+Resultado (neto de fricciones, $10.000 por cartera, 47 sesiones):
+**A +12,07% · B +11,73%**, frente al +3,05% del SPY en el mismo periodo.
+
+### 2. Auditoría de fiabilidad — y un sesgo optimista encontrado
+
+**`scripts/auditar_fiabilidad.py` (nuevo)** y su informe
+`reportes/auditoria_fiabilidad.md`. Es solo lectura: mide, no arregla.
+
+El hallazgo importante: **las 13 salidas por objetivo del periodo se ejecutaron
+exactamente en el máximo de la sesión, las 13.** No es casualidad.
+`simulador.gestionar_posiciones` recalcula el objetivo con `_atr(df)` y
+`resistencia_reciente(df)` sobre un `df` que YA incluye la barra del día que
+acaba de cerrar, y después evalúa la salida contra ese objetivo recién puesto.
+En un día de máximos, la resistencia de 20 sesiones ES el máximo de hoy, el
+objetivo se clava ahí y `high >= objetivo` se cumple con igualdad exacta. Un
+operador real no puede vender ahí: su orden límite del martes es la que calculó
+el lunes por la noche.
+
+Cuantificado con una re-simulación completa que cambia UNA cosa —el objetivo de
+cada sesión es el que ya estaba puesto al abrirla—: **0,24 puntos por operación
+y 0,93 puntos de rentabilidad de la cuenta** (A pasaría de +12,07% a +11,14%).
+
+**No se ha corregido**, por instrucción expresa del encargo. Queda escrito
+dónde está el arreglo si algún día se hace: recalcular el objetivo antes de
+evaluar la salida, o evaluar contra el objetivo de la víspera.
+
+Lo que SÍ está bien y se verificó: stop antes que objetivo (supuesto
+conservador aplicado), gaps ejecutados al open real, la decisión de entrada no
+ve el open, y ninguna de las 47 sesiones se quedó sin post-cierre.
+
+Lo más frágil no es el sesgo, es la **concentración**: 57 de 71 operaciones y
+el 85% del P&L están en la cadena de valor del silicio. El filtro de
+"drawdown >= 30% del ATH" seleccionó casi en bloque el mismo sector. Un giro
+del ciclo golpearía las 20 posiciones el mismo día y el stop de la Cartera A no
+protege de una caída correlacionada.
+
+### 3. Notificaciones por Telegram
+
+- **`centinela/notificaciones.py` (reescrito)**: el módulo estaba preparado y
+  desactivado desde el inicio. Ahora envía de verdad, con reintentos y backoff
+  exponencial, y **lanza si no puede enviar**. Antes devolvía `False` y se
+  tragaba el error: un Telegram caído era indistinguible de un día sin
+  noticias, que es exactamente el modo en que este repositorio ha perdido días
+  enteros dos veces.
+- Siete tipos de mensaje, todos con cartera, ticker y precios a dos decimales:
+  orden de compra (pre-apertura, con importe y número de acciones según la
+  cuenta simulada), entrada confirmada, actualización de objetivo, venta
+  ejecutada, aviso de salida por tiempo de mañana, resumen diario y alerta del
+  Vigilante. Las funciones que construyen el texto son puras y se prueban sin
+  red.
+- **Anti-duplicados**: cada aviso lleva un id `fecha|tipo|cartera|ticker`
+  registrado en `estado/notificaciones.json`. La escalera de crons puede
+  reejecutar un peldaño sin que llegue nada dos veces. El id se marca DESPUÉS
+  de un envío correcto, para que un fallo sea reintentable.
+- **`scripts/notificar.py` (nuevo)**: reúne los datos y decide qué toca enviar.
+- **`config.CARTERAS_NOTIFICADAS`**: `["A", "B"]`. Para dejar de recibir una,
+  se quita de esa lista y nada más.
+
+**La regla dura del diseño**: el envío vive en un JOB APARTE de los workflows,
+con `needs`, igual que el análisis MFE y el dashboard. Cuando ese job corre, la
+bitácora y el estado ya están persistidos y VERIFICADOS contra el remoto. Un
+Telegram caído deja el job en rojo y no revierte ni bloquea nada. El aviso del
+Vigilante va en su propio job por la razón simétrica: si fallara dentro del
+Vigilante, un Telegram caído podría enmascarar justo la avería recién
+detectada.
+
+- `centinela/resultados.py`: nuevo `omitido:sin-notificaciones`. El vocabulario
+  es cerrado por diseño, así que añadir un motivo obliga a decidir
+  explícitamente si puede terminar sin commit. Este puede: no tener nada que
+  enviar es legítimo; no PODER enviar, no.
+- `scripts/vigilante.py`: publica los problemas en `GITHUB_OUTPUT` para que el
+  job de alerta los ponga en el mensaje. Sigue sin escribir nada en el repo.
+
+### 4. Dashboard
+
+- Nueva sección **"Cuenta simulada"** arriba del todo: capital inicial, capital
+  actual, rentabilidad, CAGR, drawdown máximo y Sharpe, netos, para A y B. La
+  suma de retornos se queda más abajo con su etiqueta de siempre.
+- La **curva de equity** pasa a ser DIARIA (un punto por sesión, no por fecha
+  de salida) y su serie principal es el valor de la cuenta en dólares, marcado
+  a mercado. La suma de retornos sigue disponible como vista secundaria con un
+  selector. Una curva con puntos solo en los cierres escondía justo los tramos
+  de caída.
+- Nueva sección **"Órdenes activas"**: órdenes límite de venta, órdenes stop
+  (solo A) y ventas al cierre programadas, ordenadas por urgencia.
+- El generador ya no es puramente offline: necesita precios para marcar a
+  mercado. Si falta el precio de una posición abierta **falla en rojo** en vez
+  de valorarla a coste, porque eso publicaría un drawdown y un Sharpe distintos
+  sin que nada lo dijera. Vive en su propio job: si revienta, la web se queda
+  con los datos de ayer y el trading no se entera.
+- **Techo de 50 KB respetado** (49,5 KB). Para hacer sitio se eliminó
+  duplicación real: la paleta de tema oscuro estaba escrita DOS veces idéntica
+  (media query + override manual). Un script mínimo en el `<head>` resuelve
+  `data-tema` antes de que se aplique el CSS, así la paleta se declara una sola
+  vez y además desaparece el destello claro al abrir en modo oscuro.
+
+### 5. Tests
+
+De 123 a 181. Nuevos: `tests/test_cuenta.py` (17) con la aritmética de la
+cuenta, las fricciones y el drawdown contra números calculados a mano;
+`tests/test_notificaciones.py` (24) con el transporte, el anti-duplicados y
+cada tipo de mensaje; `tests/test_aislamiento_notificaciones.py` (15) que
+comprueba por los dos lados que un fallo de Telegram no toca la bitácora: el
+código no la abre en escritura y los workflows aíslan el job.
+
+`requirements-dev.txt` (nuevo) separa pytest y PyYAML de las dependencias que
+corren en los workflows de trading.
+
+### Estado del sistema revisado
+
+Últimos 300 runs: 291 en verde, 9 cancelados (todos por la cola del grupo de
+concurrencia, ninguno un fallo). Reentrenamiento del 1 de septiembre en verde y
+el cron del 1 de octubre intacto. Integridad de datos: cero posiciones
+duplicadas nuevas desde el fix del 2026-08-06, estado y bitácora coherentes
+(8 abiertas en cada cartera, mismos ids), y ningún precio nulo o absurdo.
+
 ## 2026-09-10 (2) — Dashboard: se elimina el toggle de auditoría
 
 **Solo presentación del dashboard. No se tocó el modelo, el umbral (0.79), las
