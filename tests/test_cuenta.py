@@ -258,8 +258,13 @@ def test_el_dashboard_usa_la_misma_definicion_de_duplicada():
 
 
 def test_los_parametros_de_cuenta_son_los_documentados():
-    """Si alguien cambia el capital o las fricciones, que se entere por aquí."""
-    assert config.CAPITAL_INICIAL_CUENTA == 10000.0
+    """Si alguien cambia el capital o las fricciones, que se entere por aquí.
+
+    El capital es el SALDO REAL de la cuenta demo de XTB, no un número
+    redondo elegido a ojo: simulador y broker tienen que partir del mismo
+    dinero para que compararlos signifique algo.
+    """
+    assert config.CAPITAL_INICIAL_CUENTA == 30000.0
     assert config.SLOTS_CUENTA == config.MAX_POSICIONES_ABIERTAS == 20
     assert config.COMISION_SPREAD_POR_LADO == 0.0010
     assert config.SLIPPAGE_MERCADO == 0.0015

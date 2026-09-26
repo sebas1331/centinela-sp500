@@ -205,7 +205,19 @@ MIN_OPERACIONES_PARA_CAMBIO = 30  # sin <30 cierres nuevos, no se cambia nada
 # son de CONTABILIDAD (ver centinela/cuenta.py); no entran en ninguna decisión
 # de trading ni en el backtest.
 # --------------------------------------------------------------------------- #
-CAPITAL_INICIAL_CUENTA = 10000.0   # capital de partida de cada cartera (USD)
+#: Capital de partida de cada cartera. Es el SALDO REAL de la cuenta demo de
+#: XTB (22770385), leído el 2026-09-25, para que el simulador y el broker
+#: partan del mismo dinero y la comparación entre los dos signifique algo.
+#:
+#: Las DOS carteras usan la misma cifra aunque solo la A se opere en el broker:
+#: B es puramente simulada y no consume capital real, y darle otro tamaño
+#: rompería la comparación A vs B, que es el experimento.
+#:
+#: Con $30.000 en 20 slots ($1.500 por posición) quedan fuera 4 de las 141
+#: entradas del histórico — las de SNDK por encima de $1.500 la acción, porque
+#: XTB no admite fracciones por la API. Con los $10.000 anteriores quedaban
+#: fuera 23. Desde $50.000 no quedaría ninguna.
+CAPITAL_INICIAL_CUENTA = 30000.0
 SLOTS_CUENTA = MAX_POSICIONES_ABIERTAS   # el capital se divide en tantos slots
                                          # como posiciones simultáneas admite
 
