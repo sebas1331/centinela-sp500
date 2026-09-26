@@ -94,8 +94,16 @@ async def _login(cred: bx.Credenciales, ruta_codigo: Path) -> None:
 
     tgt = resultado.tgt
     expira = getattr(resultado, "expires_at", time.time() + 8 * 3600)
-    SESION.write_text(json.dumps({"tgt": tgt, "expires_at": expira}),
-                      encoding="utf-8")
+    # EXACTAMENTE el formato que la librería escribe y espera leer: las dos
+    # marcas de tiempo como cadenas ISO en UTC. Guardarlas como número hace que
+    # su `_load_session_file` reviente con "fromisoformat: argument must be
+    # str" y el ejecutor se quede sin sesión sin decir por qué.
+    from datetime import datetime, UTC
+    SESION.write_text(json.dumps({
+        "tgt": tgt,
+        "extracted_at": datetime.now(UTC).isoformat(),
+        "expires_at": datetime.fromtimestamp(expira, tz=UTC).isoformat(),
+    }), encoding="utf-8")
     SESION.chmod(0o600)
     log(f"sesión guardada en {SESION} (caduca en "
         f"{(expira - time.time()) / 3600:.1f} h)")

@@ -51,6 +51,7 @@ import os
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 from . import config
 
@@ -86,6 +87,17 @@ LLAVERO = {
     "totp": "centinela-xtb-totp",
 }
 LLAVERO_CUENTA = "centinela"
+
+#: Dónde vive la sesión ya autenticada. FUERA del repositorio: un TGT es una
+#: credencial viva, y las cookies de CAS son lo que hace que XTB reconozca el
+#: navegador y no vuelva a pedir el segundo factor.
+#:
+#: Esto es lo que hace viable el ejecutor desatendido. XTB no ofrece TOTP —sus
+#: métodos son SMS, push y correo, y los tres necesitan que alguien lea un
+#: código— así que el 2FA se resuelve UNA vez a mano (scripts/login_xtb.py) y
+#: a partir de ahí se reutiliza la sesión.
+ARCHIVO_SESION = Path.home() / ".centinela_xtb_session"
+ARCHIVO_COOKIES = Path.home() / ".centinela_xtb_cookies.json"
 
 
 def _del_llavero(servicio: str, obligatorio: bool = True) -> str:
@@ -207,6 +219,8 @@ class BrokerXTB:
         # necesitan tener instalada la librería.
         self._cliente = cliente
         self._conectado = False
+        # UN SOLO event loop para toda la sesión. Ver `_ejecutar`.
+        self._loop = None
 
     # ---------------------------------------------------------------- ciclo --
     def __enter__(self) -> "BrokerXTB":
@@ -217,6 +231,8 @@ class BrokerXTB:
         self.desconectar()
 
     def conectar(self) -> None:
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
         if not self._demo:
             raise CuentaNoDemo(
                 "Este ejecutor solo opera en DEMO. Conectarse a la cuenta real "
@@ -229,9 +245,14 @@ class BrokerXTB:
         self._verificar_demo()
 
     def desconectar(self) -> None:
-        if self._cliente is not None and self._conectado:
-            self._ejecutar(self._cliente.disconnect())
-            self._conectado = False
+        try:
+            if self._cliente is not None and self._conectado:
+                self._ejecutar(self._cliente.disconnect())
+                self._conectado = False
+        finally:
+            if self._loop is not None and not self._loop.is_closed():
+                self._loop.close()
+            self._loop = None
 
     def _crear_cliente(self):
         try:
@@ -241,19 +262,49 @@ class BrokerXTB:
                 "Falta la librería del broker. Instálala con:\n"
                 "  pip install 'xtb-api-python==0.10.0'\n"
                 "  playwright install chromium") from exc
+        # El parche del formulario 2FA tiene que estar puesto ANTES de que el
+        # cliente intente autenticarse: la librería busca el campo del código
+        # por su nombre en polaco y no lo encuentra (ver parche_otp.py).
+        from . import parche_otp
+        parche_otp.aplicar()
+
+        cas = None
+        try:
+            from xtb_api.auth.cas_client import CASClientConfig
+            cas = CASClientConfig(cookies_file=ARCHIVO_COOKIES)
+        except ImportError:
+            pass
+
         return XTBClient(
             email=self._cred.email,
             password=self._cred.password,
             account_number=self._cred.cuenta,
             totp_secret=self._cred.totp,
+            # Sesión y cookies persistidas: sin esto, cada arranque del ejecutor
+            # sería un "dispositivo nuevo" para XTB y volvería a pedir el
+            # segundo factor, que es justo lo que no se puede automatizar.
+            session_file=ARCHIVO_SESION,
+            cas_config=cas,
             # EXPLÍCITO y no por variable de entorno: el default de la librería
             # es "real" y no se puede depender de que el entorno esté bien.
             account_type="demo",
         )
 
-    @staticmethod
-    def _ejecutar(corutina):
-        return asyncio.run(corutina) if asyncio.iscoroutine(corutina) else corutina
+    def _ejecutar(self, corutina):
+        """Ejecuta una corrutina del cliente en el loop de ESTA sesión.
+
+        No `asyncio.run`: crea un event loop nuevo y lo CIERRA al terminar, y
+        el cliente mantiene un WebSocket vivo atado al loop donde se conectó.
+        Con un loop por llamada, la primera lectura después de `connect()`
+        revienta con "RuntimeError: Event loop is closed" — pasó contra la
+        cuenta real el 2026-09-26. El doble de los tests no lo destapaba
+        porque no tiene socket que sobreviva entre llamadas.
+        """
+        if not asyncio.iscoroutine(corutina):
+            return corutina
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+        return self._loop.run_until_complete(corutina)
 
     # -------------------------------------------------------------- candado --
     def _verificar_demo(self) -> None:
@@ -264,13 +315,14 @@ class BrokerXTB:
         simplemente no se puede leer, se corta: "no se pudo determinar" cuenta
         como fallo, no como permiso.
         """
-        url = str(getattr(getattr(self._cliente, "ws", None), "url", "") or "")
+        url = self._url_del_socket()
         if not url:
-            cfg = getattr(getattr(self._cliente, "ws", None), "config", None)
-            url = str(getattr(cfg, "url", "") or "")
+            raise CuentaNoDemo(
+                "No se pudo leer a qué servidor está conectado el cliente. Sin "
+                "poder confirmar que es el de demo, no se envía nada.")
         if "demo" not in url.lower():
             raise CuentaNoDemo(
-                f"El endpoint conectado no es de demo (url={url!r}). No se "
+                f"El endpoint conectado NO es de demo (url={url!r}). No se "
                 f"envía ninguna orden.")
 
         try:
@@ -283,6 +335,26 @@ class BrokerXTB:
             raise CuentaNoDemo(
                 f"Conectado a la cuenta {numero}, pero se esperaba "
                 f"{self._cred.cuenta}. No se envía ninguna orden.")
+
+    def _url_del_socket(self) -> str:
+        """La URL del WebSocket al que el cliente se ha conectado de verdad.
+
+        Se busca por varios caminos porque la librería la guarda en un atributo
+        PRIVADO (`ws._config.url`) y eso puede cambiar sin aviso en cualquier
+        versión. Devolver cadena vacía no es "no pasa nada": el candado lo trata
+        como fallo y se niega a operar, que es la respuesta correcta cuando no
+        se puede comprobar dónde se está.
+        """
+        ws = getattr(self._cliente, "ws", None)
+        candidatos = [
+            getattr(ws, "url", None),
+            getattr(getattr(ws, "_config", None), "url", None),
+            getattr(getattr(ws, "config", None), "url", None),
+        ]
+        for c in candidatos:
+            if c:
+                return str(c)
+        return ""
 
     # --------------------------------------------------------------- lectura --
     def saldo(self) -> dict:

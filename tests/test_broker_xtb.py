@@ -29,9 +29,21 @@ class _Resultado:
         self.error = error
 
 
-class _WS:
+class _ConfigWS:
     def __init__(self, url):
         self.url = url
+
+
+class _WS:
+    """Imita la estructura real: la url vive en un atributo PRIVADO `_config`.
+
+    Si el doble expusiera un `.url` cómodo que la librería no tiene, el candado
+    pasaría en los tests y fallaría contra la cuenta de verdad — que es
+    exactamente lo que pasó el 2026-09-26.
+    """
+
+    def __init__(self, url):
+        self._config = _ConfigWS(url)
 
 
 class _ClienteFalso:
@@ -101,14 +113,19 @@ def test_conecta_contra_el_endpoint_de_demo():
 def test_un_endpoint_REAL_aborta_sin_enviar_nada():
     """El default de la librería es 'real'. Si algo lo resolviera así, aquí muere."""
     b = _broker(url="wss://api5reala.x-station.eu/v1/xstation")
-    with pytest.raises(bx.CuentaNoDemo, match="no es de demo"):
+    with pytest.raises(bx.CuentaNoDemo, match="NO es de demo"):
         b.conectar()
 
 
 def test_un_endpoint_ILEGIBLE_tambien_aborta():
-    """"No se pudo determinar" cuenta como fallo, no como permiso."""
+    """"No se pudo determinar" cuenta como fallo, no como permiso.
+
+    Pasó de verdad el 2026-09-26: la url vive en un atributo privado de la
+    librería, el candado no supo leerla y se negó a operar. Esa negativa es el
+    comportamiento correcto — lo que estaba mal era la lectura.
+    """
     b = _broker(url="")
-    with pytest.raises(bx.CuentaNoDemo):
+    with pytest.raises(bx.CuentaNoDemo, match="No se pudo leer"):
         b.conectar()
 
 
@@ -298,3 +315,56 @@ def test_el_secreto_totp_tampoco_se_imprime():
     """Un repr con el secreto dentro vale tanto como la contraseña."""
     c = bx.Credenciales(email="x@y.z", cuenta=1, password="p", totp="SECRETO32")
     assert "SECRETO32" not in repr(c)
+
+
+# --------------------------------------------------------------------------- #
+# 7. Un solo event loop por sesión
+# --------------------------------------------------------------------------- #
+def test_todas_las_llamadas_comparten_el_MISMO_event_loop():
+    """`asyncio.run` por llamada cierra el loop y deja el WebSocket huérfano.
+
+    Contra la cuenta real dio "RuntimeError: Event loop is closed" en la
+    primera lectura después de conectar. El cliente mantiene un socket vivo
+    atado al loop donde se conectó, así que el loop tiene que durar lo que dure
+    la sesión.
+    """
+    import asyncio
+
+    loops = []
+
+    class _Espia(_ClienteFalso):
+        async def _anotar(self):
+            loops.append(asyncio.get_running_loop())
+
+        async def connect(self):
+            await self._anotar()
+            await super().connect()
+
+        async def get_balance(self):
+            await self._anotar()
+            return await super().get_balance()
+
+        async def get_positions(self):
+            await self._anotar()
+            return await super().get_positions()
+
+    b = bx.BrokerXTB(CRED, cliente=_Espia())
+    b.conectar()
+    b.saldo()
+    b.posiciones()
+    b.desconectar()
+
+    assert len(loops) == 3
+    assert len(set(map(id, loops))) == 1, "cada llamada usó un loop distinto"
+
+
+def test_desconectar_cierra_el_loop_y_se_puede_reconectar():
+    b = _broker()
+    b.conectar()
+    primero = b._loop
+    b.desconectar()
+    assert primero.is_closed()
+
+    b.conectar()          # una reconexión estrena loop, no reusa el cerrado
+    assert not b._loop.is_closed() and b._loop is not primero
+    b.desconectar()
