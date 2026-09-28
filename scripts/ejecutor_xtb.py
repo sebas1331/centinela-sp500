@@ -35,6 +35,8 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
@@ -170,6 +172,96 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             "Órdenes que NO llegaron al broker:\n" + "\n".join(
                 f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
     return hechas
+
+
+# --------------------------------------------------------------------------- #
+# Plan B: salidas por tiempo que se quedaron sin ventana
+# --------------------------------------------------------------------------- #
+def cerrar_tiempos_atrasados(broker: bx.BrokerXTB, registro: dict) -> list:
+    """Cierra a la apertura lo que debió salir por tiempo y no salió.
+
+    La ventana de ventas son 25 minutos justo antes del cierre —tiene que ser
+    así: cerrar antes regala sesión y cerrar después ya no entra— y el cron de
+    Actions se ha retrasado horas en este repositorio más de una vez. Cuando esa
+    ventana se pierde, la posición debía haber salido y amanece viva.
+
+    El plan B es cerrarla con orden de mercado en la pre-apertura siguiente, que
+    XTB ejecuta al abrir. No es gratis: se come el gap overnight, que es
+    exactamente el ruido que la estrategia no contempla. Por eso se registra con
+    su propio motivo, `tiempo_diferido`, y con el cierre del día en que DEBÍA
+    haber salido como precio de referencia: así la columna de slippage de
+    `bitacora_broker.csv` mide, operación a operación, lo que cuesta el plan B.
+
+    Lo que no se hace es dejarla abierta un día más. Una posición pasada de su
+    fecha de salida deja de ser la estrategia que el simulador mide.
+    """
+    estado = est_mod.cargar()
+    cartera = config.CARTERA_BROKER
+    hoy = datetime.now(config.TZ_ET).date().isoformat()
+
+    reales = {p["ticker"].replace(".US", "").replace("-", "."): p
+              for p in broker.posiciones() if p["lado"] == "buy"}
+    hechas = []
+
+    for pos in estado.get("posiciones", {}).get(cartera, []):
+        if str(pos.get("fecha_entrada", "")) < config.EJECUCION_DESDE:
+            continue                       # heredada: no existe en el broker
+        limite = pos.get("dia_limite")
+        if not limite or limite >= hoy:
+            continue                       # aún no le toca, o le toca hoy
+        real = reales.get(pos["ticker"])
+        if real is None:
+            continue                       # lo verá la reconciliación
+
+        acciones = int(real["acciones"])
+        if acciones < 1:
+            continue
+        orden = ords.Orden(
+            id=ords.identificador(hoy, cartera, pos["ticker"],
+                                  ords.VENTA_TIEMPO_DIFERIDO),
+            tipo=ords.VENTA_TIEMPO_DIFERIDO, cartera=cartera,
+            ticker=pos["ticker"], acciones=acciones, sesion=hoy,
+            fecha_limite=limite, id_operacion=int(pos["id"]),
+            # El cierre del día en que DEBÍA salir: contra eso se mide el coste.
+            precio_simulador=_cierre_del_dia_limite(pos, limite))
+        if ords.ya_enviada(registro, orden.id):
+            continue
+
+        log(f"  {pos['ticker']}: debía salir por tiempo el {limite} y sigue "
+            f"abierta -> cerrando a la apertura de hoy (plan B)")
+        e = broker.vender(orden.simbolo, acciones)
+        log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
+            + (f" ERROR: {e.error}" if e.error else ""))
+        ords.registrar_ejecucion(orden, e)
+        if e.ok:
+            ords.marcar_enviada(registro, orden.id,
+                                {"estado": e.estado, "orden": e.orden,
+                                 "diferida_desde": limite})
+        hechas.append((orden, e))
+
+    fallidas = [(o, e) for o, e in hechas if not e.ok]
+    if fallidas:
+        raise RuntimeError(
+            "Salidas por tiempo diferidas que NO llegaron al broker:\n"
+            + "\n".join(f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
+    return hechas
+
+
+def _cierre_del_dia_limite(pos: dict, limite: str) -> float | None:
+    """El precio de cierre del día en que la posición debía haber salido.
+
+    Sale de la bitácora del simulador, que sí cerró la posición ese día en su
+    mundo de papel. Si no está, se devuelve None y la columna de slippage queda
+    vacía: mejor un hueco honesto que un número inventado.
+    """
+    try:
+        bit = pd.read_csv(config.BASE_DIR / "bitacora.csv")
+    except (OSError, pd.errors.ParserError):
+        return None
+    fila = bit[(bit["id"] == pos.get("id")) & (bit["fecha_salida"] == limite)]
+    if fila.empty or pd.isna(fila.iloc[0]["precio_salida"]):
+        return None
+    return float(fila.iloc[0]["precio_salida"])
 
 
 # --------------------------------------------------------------------------- #
@@ -343,6 +435,13 @@ def main() -> int:
             saldo = broker.saldo()
             log(f"cuenta {saldo['cuenta']} (DEMO): saldo {saldo['saldo']:,.2f} "
                 f"{saldo['divisa']} | equity {saldo['equity']:,.2f}")
+
+            # ANTES de comprar nada: cerrar lo que debió salir ayer. Una
+            # posición pasada de su fecha deja de ser la estrategia que el
+            # simulador mide, y el slot que ocupa hace falta hoy.
+            if args.momento == "compras":
+                log("comprobando salidas por tiempo atrasadas...")
+                cerrar_tiempos_atrasados(broker, registro)
 
             if args.momento in ("compras", "ventas"):
                 enviar(broker, pendientes, args.momento, registro)

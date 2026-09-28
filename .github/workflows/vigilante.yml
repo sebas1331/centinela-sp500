@@ -72,6 +72,22 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # MANTIENE VIVA LA CACHÉ DE LA SESIÓN, además de leerla para avisar de
+      # que caduca. GitHub borra una caché que nadie usa en 7 días, y el
+      # Vigilante es el único que corre TODOS los días —fines de semana
+      # incluidos—, así que es el único que puede tocarla siempre. Sin esto, un
+      # puente largo se lleva la sesión por delante y el lunes aparece un rojo
+      # sorpresa antes de la apertura.
+      - name: Restaurar y refrescar la sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
       # GITHUB_TOKEN es necesario para la consulta de rachas de rojos contra la
       # API de Actions; sin él esa comprobación se anuncia como no aplicable.
       - name: Revisar que no falte ninguna sesión ni haya rachas de rojos

@@ -323,12 +323,9 @@ def revisar(n_sesiones: int, ahora: datetime | None = None) -> list[str]:
 
 
 def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str]:
-    """¿Reportó el ejecutor del Mac las sesiones que ya debería haber operado?
+    """¿Reportó el ejecutor las sesiones que ya debería haber operado?
 
-    El ejecutor no corre en GitHub: vive en un Mac que puede estar dormido, sin
-    red o apagado, y un despertar perdido no deja ni un run rojo que mirar —
-    exactamente el mismo agujero que el del 2026-07-27, pero al otro lado del
-    cable. Lo único observable desde aquí es su huella en el repositorio:
+    Lo único observable desde aquí es su huella en el repositorio:
     `bitacora_broker.csv` con una línea de la sesión, o `ordenes_enviadas.json`
     con sus ids.
 
@@ -361,9 +358,108 @@ def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str
     for o in sin_enviar:
         problemas.append(
             f"El ejecutor del Mac no reportó la orden {o.id} ({o.tipo} de "
-            f"{o.acciones} {o.ticker}). O el Mac no despertó, o no tuvo red, o "
-            f"el ejecutor falló y no llegó a publicar. Revisa "
-            f"mac/logs/ en ese ordenador.")
+            f"{o.acciones} {o.ticker}). O su run no llegó a correr, o falló "
+            f"antes de publicar. Revisa los runs del ejecutor en Actions.")
+    return problemas
+
+
+def revisar_salidas_diferidas(dias: int = 7) -> list[str]:
+    """Denuncia cada salida por tiempo que hubo que cerrar con el plan B.
+
+    Que el plan B funcione no lo convierte en gratis: cerrar a la apertura
+    siguiente en vez de al cierre del día que tocaba expone la posición a un
+    gap overnight que la estrategia no contempla. Cada vez que ocurre es señal
+    de que la ventana de ventas se perdió, y eso hay que verlo — si empieza a
+    pasar a menudo, el problema no es el plan B sino el cron.
+
+    No es un fallo del sistema: la posición SÍ se cerró. Pero sale como
+    problema para que no pase inadvertido.
+    """
+    problemas: list[str] = []
+    ruta = config.BASE_DIR / "bitacora_broker.csv"
+    if not ruta.exists():
+        return problemas
+
+    from centinela import ordenes as ords
+    try:
+        import csv
+        with open(ruta, encoding="utf-8") as f:
+            filas = list(csv.DictReader(f))
+    except OSError:
+        return problemas
+
+    corte = (datetime.now(config.TZ_ET).date() - timedelta(days=dias)).isoformat()
+    diferidas = [f for f in filas
+                 if f.get("tipo") == ords.VENTA_TIEMPO_DIFERIDO
+                 and str(f.get("sesion", "")) >= corte]
+    if not diferidas:
+        _log(f"Salidas por tiempo diferidas en los últimos {dias} días: ninguna.")
+        return problemas
+
+    for f in diferidas:
+        coste = f.get("slippage_pct") or "?"
+        problemas.append(
+            f"SALIDA DIFERIDA: {f.get('ticker')} debía cerrarse por tiempo y se "
+            f"cerró en la apertura del {f.get('sesion')} (plan B). Coste frente "
+            f"a haber salido a tiempo: {coste}%. La ventana de ventas de ese "
+            f"día se perdió; si se repite, revisa los retrasos del cron de "
+            f"'Ejecutor de ventas'.")
+    return problemas
+
+
+def revisar_sesion_xtb() -> list[str]:
+    """La sesión de XTB: que exista, que valga y que le quede cuerda.
+
+    Dos cosas a la vez, y las dos importan:
+
+      * AVISAR CON TIEMPO. El TGT dura 8 h y renovarlo necesita a una persona
+        leyendo un código del correo. Avisar cuando ya caducó llega tarde: para
+        entonces un escaneo ya se la encontró cerrada y murió en rojo. Se avisa
+        con `SESION_AVISO_HORAS` de margen.
+
+      * MANTENER VIVA LA CACHÉ. GitHub borra una caché que nadie usa en 7 días,
+        y una sesión que se evapora sola es un rojo sorpresa un lunes por la
+        mañana. Como el Vigilante corre TODOS los días —fines de semana
+        incluidos— es el único que puede tocarla siempre; el propio paso de
+        `actions/cache` de su workflow la reescribe con clave nueva.
+
+    No es un fallo que la sesión no exista: puede ser la primera vez. Se dice y
+    ya está.
+    """
+    problemas: list[str] = []
+    if not getattr(config, "EJECUCION_BROKER", False):
+        return problemas
+
+    from centinela import broker_xtb as bx
+    ruta = bx.ARCHIVO_SESION
+    if not ruta.exists():
+        _log("Sesión de XTB: no hay ninguna guardada. El próximo run que toque "
+             "el broker pedirá código (workflow 'Renovar sesión XTB').")
+        return problemas
+
+    try:
+        datos = json.loads(ruta.read_text(encoding="utf-8"))
+        expira = datetime.fromisoformat(str(datos["expires_at"]))
+    except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        problemas.append(
+            f"La sesión de XTB guardada es ilegible ({exc!r}). El próximo run "
+            f"que toque el broker fallará pidiendo código. Lanza 'Renovar "
+            f"sesión XTB'.")
+        return problemas
+
+    restan = (expira - datetime.now(expira.tzinfo)).total_seconds() / 3600
+    if restan <= 0:
+        problemas.append(
+            f"La sesión de XTB CADUCÓ hace {-restan:.1f} h. El próximo run que "
+            f"toque el broker morirá con {bx.MARCA_SESION_CADUCADA}. Lanza el "
+            f"workflow 'Renovar sesión XTB' desde Actions.")
+    elif restan <= config.SESION_AVISO_HORAS:
+        problemas.append(
+            f"La sesión de XTB caduca en {restan:.1f} h (menos de "
+            f"{config.SESION_AVISO_HORAS}). Renuévala antes de que un escaneo "
+            f"se la encuentre cerrada: Actions -> 'Renovar sesión XTB'.")
+    else:
+        _log(f"Sesión de XTB: válida {restan:.1f} h más.")
     return problemas
 
 
@@ -384,10 +480,17 @@ def main() -> int:
          f"{config.VIGILANTE_RACHA_HORAS} h:")
     problemas.extend(revisar_rachas())
 
-    # Y la pata que no vive en GitHub: el ejecutor del Mac.
     _log("")
-    _log("Ejecutor del Mac:")
+    _log("Ejecutor del broker:")
     problemas.extend(revisar_ejecutor(args.sesiones))
+
+    _log("")
+    _log("Sesión de XTB:")
+    problemas.extend(revisar_sesion_xtb())
+
+    _log("")
+    _log("Salidas por tiempo diferidas:")
+    problemas.extend(revisar_salidas_diferidas())
 
     if problemas:
         for p in problemas:

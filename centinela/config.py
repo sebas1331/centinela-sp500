@@ -273,6 +273,13 @@ TIPO_CUENTA_BROKER = "demo"
 #: ignorar los rojos, que es la peor avería posible en este repositorio.
 EJECUCION_DESDE = "2026-09-29"
 
+#: Con cuántas horas de margen avisa el Vigilante de que la sesión de XTB está
+#: a punto de caducar. El TGT dura 8 h y renovarlo necesita a una persona
+#: leyendo un código del correo, así que avisar cuando ya caducó llega tarde:
+#: el aviso tiene que dar tiempo a actuar antes de que un escaneo se lo
+#: encuentre cerrado.
+SESION_AVISO_HORAS = 3
+
 #: Ventanas del ejecutor, en minutos respecto de la apertura (09:30 ET) o del
 #: cierre (16:00 ET) del mercado. Los tres momentos del día:
 #:

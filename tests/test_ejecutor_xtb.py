@@ -467,3 +467,87 @@ def test_el_fichero_de_ordenes_existe_desde_el_principio():
     assert ruta.exists()
     datos = json.loads(ruta.read_text(encoding="utf-8"))
     assert "ordenes" in datos and isinstance(datos["ordenes"], list)
+
+
+# --------------------------------------------------------------------------- #
+# 8. Plan B: la salida por tiempo que se quedó sin ventana
+# --------------------------------------------------------------------------- #
+def _estado_con_limite(tmp_path, monkeypatch, ticker, dia_limite, ident=1):
+    ruta = tmp_path / "estado.json"
+    ruta.write_text(json.dumps({"posiciones": {"A": [
+        {"id": ident, "ticker": ticker, "fecha_entrada": HOY,
+         "dia_limite": dia_limite, "stop": None, "objetivo": None}
+    ], "B": []}, "entradas_pendientes": []}), encoding="utf-8")
+    monkeypatch.setattr(config, "ARCHIVO_ESTADO", ruta)
+
+
+def test_ventana_perdida_la_posicion_se_cierra_en_la_apertura_siguiente(
+        aislado, tmp_path, monkeypatch):
+    """El caso que motiva todo el plan B.
+
+    La ventana de ventas son 25 minutos justo antes del cierre y el cron de
+    Actions se retrasa. Si se pierde, la posición amanece viva pasada su fecha
+    de salida, y eso deja de ser la estrategia que el simulador mide.
+    """
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-10-20"))
+    _estado_con_limite(tmp_path, monkeypatch, "MRNA", dia_limite="2026-10-19")
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=95.0)])
+
+    hechas = ej.cerrar_tiempos_atrasados(broker, {"enviadas": {}})
+
+    assert broker.enviadas == [("venta", "MRNA.US", 3)]
+    assert hechas[0][0].tipo == ords.VENTA_TIEMPO_DIFERIDO
+    assert hechas[0][0].fecha_limite == "2026-10-19"
+
+
+def test_ventana_cumplida_no_hay_doble_venta(aislado, tmp_path, monkeypatch):
+    """Idempotencia: si ya se cerró, el plan B no vuelve a vender.
+
+    Sin esto, una posición que salió ayer por su ventana normal se vendería
+    otra vez hoy — y como en el broker ya no está, la venta abriría una posición
+    CORTA que nadie pidió.
+    """
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-10-20"))
+    _estado_con_limite(tmp_path, monkeypatch, "MRNA", dia_limite="2026-10-19")
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=95.0)])
+    registro = {"enviadas": {}}
+
+    ej.cerrar_tiempos_atrasados(broker, registro)
+    ej.cerrar_tiempos_atrasados(broker, registro)      # segundo disparo del día
+
+    assert broker.enviadas == [("venta", "MRNA.US", 3)], "se vendió dos veces"
+
+
+def test_una_posicion_que_sale_HOY_no_la_toca_el_plan_B(aislado, tmp_path,
+                                                        monkeypatch):
+    """Hoy le toca por la vía normal, en la ventana de antes del cierre."""
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-10-20"))
+    _estado_con_limite(tmp_path, monkeypatch, "MRNA", dia_limite="2026-10-20")
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=95.0)])
+    assert ej.cerrar_tiempos_atrasados(broker, {"enviadas": {}}) == []
+    assert broker.enviadas == []
+
+
+def test_una_posicion_con_fecha_futura_tampoco(aislado, tmp_path, monkeypatch):
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-10-20"))
+    _estado_con_limite(tmp_path, monkeypatch, "MRNA", dia_limite="2026-10-30")
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=95.0)])
+    assert ej.cerrar_tiempos_atrasados(broker, {"enviadas": {}}) == []
+
+
+def test_el_coste_del_plan_B_queda_medido_en_la_bitacora(aislado):
+    """`precio_simulador` es el CIERRE del día en que debía salir, así que la
+    columna de slippage mide exactamente lo que cuesta cerrar un día tarde."""
+    o = ords.Orden(
+        id="2026-10-20|A|MRNA|tiempo_diferido", tipo=ords.VENTA_TIEMPO_DIFERIDO,
+        cartera="A", ticker="MRNA", acciones=3, sesion="2026-10-20",
+        fecha_limite="2026-10-19", precio_simulador=100.0)
+    e = bx.Ejecucion(ticker="MRNA.US", lado="venta", acciones=3,
+                     estado="ejecutada", precio=97.0)
+    ords.registrar_ejecucion(o, e)
+
+    import csv
+    fila = list(csv.DictReader(open(ords.ARCHIVO_BITACORA_BROKER, encoding="utf-8")))[0]
+    assert fila["tipo"] == "tiempo_diferido"
+    # Vender a 97 lo que debía cerrarse a 100: un 3% peor.
+    assert float(fila["slippage_pct"]) == pytest.approx(3.0)

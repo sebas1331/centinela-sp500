@@ -1,0 +1,74 @@
+name: Renovar sesión XTB
+
+# ---------------------------------------------------------------------------
+# Lo que se lanza desde el móvil cuando un run muere con XTB_REQUIERE_CODIGO.
+#
+# XTB no ofrece TOTP —sus métodos son SMS, push y correo, y los tres necesitan
+# que una persona lea un código— y la sesión dura 8 horas. Así que cada cierto
+# tiempo hace falta un humano, y esto es lo que hace que ese humano no necesite
+# abrir un terminal: Actions -> Renovar sesión XTB -> Run workflow, pegar el
+# código, listo.
+#
+# DOS FASES, porque no se puede pegar un código antes de tenerlo:
+#   sin código -> XTB manda el correo y se guarda el ticket
+#   con código -> se canjea por una sesión de 8 h
+#
+# Casi siempre basta la segunda: cuando el ejecutor falla, XTB YA envió el
+# correo en ese intento.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      codigo:
+        description: "Código de 6 dígitos del correo (déjalo vacío para pedir uno nuevo)"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Comparte turno con los escaneos: renovar la sesión mientras un ejecutor la
+# está usando dejaría a los dos peleándose por el mismo fichero.
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  renovar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      # Se restaura para recuperar el ticket que dejó la fase 1 (o el run del
+      # ejecutor que falló), y se guarda con clave nueva para que la sesión
+      # renovada quede disponible para todos los demás workflows.
+      - name: Restaurar sesión y ticket de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Renovar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          python scripts/renovar_sesion_xtb.py --codigo "${{ inputs.codigo }}"

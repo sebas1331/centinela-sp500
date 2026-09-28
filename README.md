@@ -222,6 +222,36 @@ acaban a menos de un punto de distancia.
    anualizar 47 sesiones, todas en mercado alcista. Sin un tramo bajista no hay
    forma de separar el alfa de la beta (que es 1.72).
 
+## 🔑 Si ves `XTB_REQUIERE_CODIGO`: 3 pasos desde el móvil
+
+La sesión de XTB dura **8 horas** y XTB no ofrece códigos de app (sus métodos
+son SMS, notificación push y correo), así que cada cierto tiempo hace falta una
+persona. Cuando eso pasa, el run muere en rojo con este mensaje:
+
+```
+XTB_REQUIERE_CODIGO: la sesión caducó. XTB acaba de enviarte un código
+de verificación por correo.
+```
+
+**Eso no es una avería del sistema**: es la parte que XTB no deja automatizar.
+Se arregla en tres pasos, sin terminal:
+
+1. **Abre tu correo.** XTB ya te envió un código de 6 dígitos — lo mandó en el
+   mismo intento que falló, así que ya está en tu bandeja.
+2. **Ve a la pestaña *Actions* del repositorio → *Renovar sesión XTB* → botón
+   *Run workflow*.** Pega el código en el campo y dale a *Run workflow*.
+3. **Espera a que salga en verde** (unos dos minutos). La sesión queda renovada
+   por otras 8 horas y los demás runs la encontrarán solos.
+
+**¿Y si el código ya no vale?** Lanza el mismo workflow **con el campo vacío**:
+eso pide uno nuevo y te llega otro correo. Luego repite el paso 2 con ese.
+
+El Vigilante avisa **antes** de que ocurra: revisa la sesión cada día y da la
+voz cuando le quedan menos de 3 horas, para que puedas renovarla sin prisas.
+También mantiene viva la caché donde vive la sesión — GitHub borra las cachés
+que nadie usa en 7 días, y el Vigilante es el único que corre también los fines
+de semana.
+
 ## 🚨 Antes de pasar a dinero real
 
 **Este sistema opera una cuenta DEMO y no está preparado para otra cosa.** Lo

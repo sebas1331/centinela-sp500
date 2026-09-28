@@ -80,6 +80,45 @@ class OperacionNoSoportada(ErrorBroker):
     """El cliente de xStation5 no expone esta operación (ver cabecera)."""
 
 
+#: Marca que el ejecutor imprime y el Vigilante busca. Se escribe así, literal y
+#: en una sola línea, para que se pueda encontrar de un vistazo en el log de un
+#: run desde el móvil.
+MARCA_SESION_CADUCADA = "XTB_REQUIERE_CODIGO"
+
+
+class SesionCaducada(ErrorBroker):
+    """XTB pide un código de verificación: la sesión guardada ya no sirve.
+
+    Pasa cada vez que el TGT caduca (8 h) o que la caché de Actions se pierde.
+    Como XTB no ofrece TOTP —sus métodos son SMS, push y correo— no hay forma
+    de resolverlo sin una persona leyendo un código, así que el run tiene que
+    morir en rojo y decir exactamente qué hacer.
+
+    OJO: cuando esto se lanza, XTB YA ha enviado el correo con el código. Ese
+    es el que hay que pegar en el workflow "Renovar sesión XTB".
+    """
+
+    def __init__(self, detalle: str = ""):
+        super().__init__(
+            f"{MARCA_SESION_CADUCADA}: la sesión caducó. XTB acaba de enviarte "
+            f"un código de verificación por correo. Lánzalo desde la pestaña "
+            f"Actions -> 'Renovar sesión XTB' -> Run workflow, pegando ese "
+            f"código. No hace falta terminal."
+            + (f"\n  (detalle del cliente: {detalle})" if detalle else ""))
+
+
+#: Señales de que XTB está pidiendo el segundo factor. Se mira el texto porque
+#: el cliente no expone un tipo propio para esto: lanza `CASError` con un código
+#: dentro del mensaje.
+_SENALES_2FA = ("2FA is required", "AUTH_MANAGER_2FA_NO_SECRET",
+                "requires_2fa", "two_factor", "TWO_FACTOR")
+
+
+def _pide_codigo(exc: BaseException) -> bool:
+    texto = f"{type(exc).__name__}: {exc}"
+    return any(s.lower() in texto.lower() for s in _SENALES_2FA)
+
+
 # --------------------------------------------------------------------------- #
 # Credenciales — Llavero de macOS
 # --------------------------------------------------------------------------- #
@@ -264,7 +303,15 @@ class BrokerXTB:
                 "entorno.")
         if self._cliente is None:
             self._cliente = self._crear_cliente()
-        self._ejecutar(self._cliente.connect())
+        try:
+            self._ejecutar(self._cliente.connect())
+        except Exception as exc:
+            # El cliente lanza un CASError genérico cuando XTB pide el segundo
+            # factor. Traducirlo aquí es lo que convierte un traceback ilegible
+            # en una instrucción que se puede seguir desde el móvil.
+            if _pide_codigo(exc):
+                raise SesionCaducada(str(exc)) from exc
+            raise
         self._conectado = True
         self._verificar_demo()
 

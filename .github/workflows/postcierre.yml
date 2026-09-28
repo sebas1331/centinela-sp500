@@ -256,7 +256,10 @@ jobs:
       - name: Restaurar sesión de XTB
         uses: actions/cache@v4
         with:
-          path: ~/.centinela_xtb_session
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
           key: xtb-sesion-${{ github.run_id }}
           restore-keys: xtb-sesion-
 

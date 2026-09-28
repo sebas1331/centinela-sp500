@@ -42,7 +42,15 @@ VENTA_TIEMPO = "venta_tiempo"
 #: pendientes.json: nacen en el momento, de comparar el precio con el nivel.
 VENTA_STOP = "venta_stop"
 VENTA_OBJETIVO = "venta_objetivo"
-TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO)
+#: Plan B de la salida por tiempo. La ventana de ventas son 25 minutos justo
+#: antes del cierre y el cron de Actions se ha retrasado horas en este
+#: repositorio: cuando esa ventana se pierde, la posición debía haber salido y
+#: sigue viva. En vez de dejarla ahí, se cierra a la apertura siguiente con
+#: orden de mercado. Se registra con SU PROPIO NOMBRE para poder medir después
+#: cuánto cuesta el plan B frente a haber cerrado a tiempo.
+VENTA_TIEMPO_DIFERIDO = "tiempo_diferido"
+TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
+         VENTA_TIEMPO_DIFERIDO)
 
 #: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
 #: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente
@@ -195,6 +203,11 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
             and orden.precio_simulador > 0):
         # Positivo = el broker lo hizo PEOR que el simulador, en la dirección
         # que corresponde: comprar más caro o vender más barato.
+        #
+        # En una salida `tiempo_diferido`, `precio_simulador` es el CIERRE del
+        # día en que debía haber salido, así que esta columna mide exactamente
+        # lo que cuesta el plan B: cuánto se pierde (o se gana) por cerrar a la
+        # apertura siguiente en vez de a tiempo.
         bruto = ejecucion.precio / orden.precio_simulador - 1.0
         slippage = round(100.0 * (bruto if orden.tipo == COMPRA else -bruto), 4)
 
