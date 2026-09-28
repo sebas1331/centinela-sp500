@@ -19,6 +19,10 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 from centinela import config, ordenes as ords, broker_xtb as bx  # noqa: E402
+
+#: Fecha posterior al arranque del ejecutor. Las posiciones anteriores son
+#: herencia del paper trading: nunca existieron en el broker y no se exigen.
+HOY = "2026-10-15"
 import ejecutor_xtb as ej  # noqa: E402
 
 
@@ -157,7 +161,7 @@ def _reloj(fecha_iso):
 def _estado(tickers, tmp_path, monkeypatch):
     ruta = tmp_path / "estado.json"
     ruta.write_text(json.dumps({
-        "posiciones": {"A": [{"id": i, "ticker": t, "fecha_entrada": "2026-09-01"}
+        "posiciones": {"A": [{"id": i, "ticker": t, "fecha_entrada": HOY}
                              for i, t in enumerate(tickers, 1)], "B": []},
         "entradas_pendientes": [],
     }), encoding="utf-8")
@@ -326,7 +330,8 @@ def _pos_broker(ticker, precio_actual, acciones=3.0):
 def test_cierra_la_posicion_que_cruzo_el_STOP(aislado, tmp_path, monkeypatch):
     """El stop lo vigila el ejecutor porque XTB lo ignora al contado."""
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=91.5)])
     hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
 
@@ -336,7 +341,8 @@ def test_cierra_la_posicion_que_cruzo_el_STOP(aislado, tmp_path, monkeypatch):
 
 def test_cierra_la_posicion_que_cruzo_el_OBJETIVO(aislado, tmp_path, monkeypatch):
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=121.0)])
     hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
 
@@ -347,7 +353,8 @@ def test_cierra_la_posicion_que_cruzo_el_OBJETIVO(aislado, tmp_path, monkeypatch
 def test_no_toca_la_posicion_que_esta_entre_los_dos_niveles(aislado, tmp_path,
                                                             monkeypatch):
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=105.0)])
     assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
     assert broker.enviadas == []
@@ -356,7 +363,8 @@ def test_no_toca_la_posicion_que_esta_entre_los_dos_niveles(aislado, tmp_path,
 def test_si_se_cruzan_los_dos_gana_el_STOP(aislado, tmp_path, monkeypatch):
     """La regla conservadora del simulador, también aquí."""
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 120.0, "objetivo": 100.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 120.0, "objetivo": 100.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=110.0)])
     hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
     assert hechas[0][0].tipo == ords.VENTA_STOP
@@ -365,7 +373,8 @@ def test_si_se_cruzan_los_dos_gana_el_STOP(aislado, tmp_path, monkeypatch):
 def test_una_posicion_SIN_stop_solo_mira_el_objetivo(aislado, tmp_path, monkeypatch):
     """La Cartera B no tiene stop por diseño: no se le inventa uno."""
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": None, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": None, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=1.0)])
     assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
 
@@ -374,7 +383,8 @@ def test_sin_precio_actual_no_se_cierra_nada(aislado, tmp_path, monkeypatch):
     """Cerrar a ciegas sería peor que no cerrar: se avisa y se deja para la
     siguiente pasada."""
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=0.0)])
     assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
     assert broker.enviadas == []
@@ -383,7 +393,8 @@ def test_sin_precio_actual_no_se_cierra_nada(aislado, tmp_path, monkeypatch):
 def test_un_cierre_por_nivel_no_se_repite_en_la_misma_sesion(aislado, tmp_path,
                                                              monkeypatch):
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=91.5)])
     registro = {"enviadas": {}}
     ej.vigilar_niveles(broker, registro)
@@ -394,6 +405,55 @@ def test_un_cierre_por_nivel_no_se_repite_en_la_misma_sesion(aislado, tmp_path,
 def test_una_posicion_que_no_esta_en_XTB_no_se_vigila(aislado, tmp_path, monkeypatch):
     """Si falta en el broker, el problema es otro y lo denuncia la reconciliación."""
     _estado_con_niveles(tmp_path, monkeypatch, [
-        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": HOY}])
     broker = BrokerFalso(posiciones=[])
     assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
+
+
+# --------------------------------------------------------------------------- #
+# 7. El corte de arranque: lo que el simulador abrió antes del ejecutor
+# --------------------------------------------------------------------------- #
+def test_las_posiciones_HEREDADAS_no_se_exigen_en_XTB(tmp_path, monkeypatch):
+    """El simulador llevaba meses operando cuando el ejecutor empezó.
+
+    Sus posiciones abiertas nunca se compraron en el broker, porque no había
+    quien las comprara. Pasó de verdad la primera vez que la reconciliación
+    corrió en Actions: cinco rojos por algo que no era un fallo. Y un rojo que
+    sale todos los días enseña a ignorar los rojos, que es la peor avería
+    posible en este repositorio.
+    """
+    ruta = tmp_path / "estado.json"
+    ruta.write_text(json.dumps({"posiciones": {"A": [
+        {"id": 1, "ticker": "VIEJA", "fecha_entrada": "2026-09-01"},   # heredada
+        {"id": 2, "ticker": "NUEVA", "fecha_entrada": HOY},            # del ejecutor
+    ], "B": []}, "entradas_pendientes": []}), encoding="utf-8")
+    monkeypatch.setattr(config, "ARCHIVO_ESTADO", ruta)
+
+    # XTB solo tiene la nueva, que es lo correcto.
+    broker = BrokerFalso(posiciones=[_pos("NUEVA.US")])
+    assert ej.reconciliar(broker) == []
+
+    # Pero si falta la NUEVA, eso sí es un problema de verdad.
+    problemas = ej.reconciliar(BrokerFalso(posiciones=[]))
+    assert len(problemas) == 1 and "NUEVA" in problemas[0]
+
+
+def test_una_posicion_heredada_tampoco_se_vigila(aislado, tmp_path, monkeypatch):
+    """No hay nada que cerrar en el broker de algo que nunca se compró allí."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0,
+         "fecha_entrada": "2026-09-01"}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=1.0)])
+    assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
+    assert broker.enviadas == []
+
+
+def test_la_bitacora_del_broker_existe_desde_el_principio():
+    """`git add` de una ruta inexistente aborta el commit, y commit_y_push.sh no
+    silencia ese fallo a propósito. Pasó en el primer run del ejecutor:
+    "fatal: pathspec 'bitacora_broker.csv' did not match any files"."""
+    ruta = RAIZ / "bitacora_broker.csv"
+    assert ruta.exists(), "el fichero tiene que existir aunque esté vacío de filas"
+    cabecera = ruta.read_text(encoding="utf-8").splitlines()[0]
+    assert cabecera.split(",") == ords.COLUMNAS_BROKER

@@ -262,6 +262,17 @@ CUENTA_DEMO = 22770385
 #: variable no puede sacar órdenes a una cuenta con dinero.
 TIPO_CUENTA_BROKER = "demo"
 
+#: Primera sesión en la que el ejecutor pudo comprar de verdad. Las posiciones
+#: que el simulador abrió ANTES de esta fecha nunca existieron en el broker,
+#: porque no había ejecutor: son herencia del paper trading y se quedan solo en
+#: el simulador hasta que cierren por su cuenta.
+#:
+#: Sin este corte, la reconciliación denuncia esas posiciones cada día como
+#: "abierta en el simulador y NO en XTB" —lo hizo la primera vez que corrió, con
+#: cinco— y un rojo que sale todos los días por algo que no es un fallo enseña a
+#: ignorar los rojos, que es la peor avería posible en este repositorio.
+EJECUCION_DESDE = "2026-09-29"
+
 #: Ventanas del ejecutor, en minutos respecto de la apertura (09:30 ET) o del
 #: cierre (16:00 ET) del mercado. Los tres momentos del día:
 #:

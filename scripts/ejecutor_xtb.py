@@ -215,6 +215,8 @@ def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
     hechas = []
 
     for pos in posiciones:
+        if str(pos.get("fecha_entrada", "")) < config.EJECUCION_DESDE:
+            continue                      # heredada: no existe en el broker
         real = reales.get(pos["ticker"])
         if real is None:
             continue                      # lo verá la reconciliación
@@ -280,9 +282,21 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     """
     estado = est_mod.cargar()
     cartera = config.CARTERA_BROKER
-    simuladas = {p["ticker"] for p in estado.get("posiciones", {}).get(cartera, [])}
+    posiciones = estado.get("posiciones", {}).get(cartera, [])
+
+    # Las posiciones anteriores a que existiera el ejecutor nunca se compraron
+    # en XTB. Denunciarlas sería un rojo diario por algo que no es un fallo, y
+    # un rojo que sale siempre enseña a ignorar los rojos.
+    heredadas = {p["ticker"] for p in posiciones
+                 if str(p.get("fecha_entrada", "")) < config.EJECUCION_DESDE}
+    simuladas = {p["ticker"] for p in posiciones} - heredadas
     reales = {p["ticker"].replace(".US", "").replace("-", ".")
               for p in broker.posiciones() if p["lado"] == "buy"}
+
+    if heredadas:
+        log(f"posiciones heredadas del paper trading (anteriores a "
+            f"{config.EJECUCION_DESDE}, no se exigen en XTB): "
+            f"{', '.join(sorted(heredadas))}")
 
     problemas = []
     for t in sorted(simuladas - reales):
