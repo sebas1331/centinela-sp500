@@ -26,7 +26,16 @@ AHORA = datetime(2026, 10, 20, 18, 0, tzinfo=config.TZ_ET)   # martes, tras el c
 
 
 def _salud(**runs):
+    """Un sistema sano, con los cambios que pida cada test.
+
+    Parte de TODOS los componentes críticos reportando 'ok' hace un momento,
+    que es el estado normal, para que cada test solo tenga que describir lo que
+    quiere probar. Un salud vacío es otra cosa —nadie ha reportado nunca— y
+    tiene su propio test.
+    """
     base = {"runs": {}, "actualizado": AHORA.isoformat()}
+    for clave in go.CRITICOS:
+        base["runs"][clave] = {"cuando": AHORA.isoformat(), "resultado": "ok"}
     for k, v in runs.items():
         base["runs"][k] = {"cuando": AHORA.isoformat(), **v}
     return base
@@ -427,3 +436,17 @@ def test_un_run_anterior_no_cuenta_como_haber_hablado(tmp_path, monkeypatch):
     salud.registrar("ventas", "ok")
     monkeypatch.setenv("GITHUB_RUN_ID", "2")
     assert not salud.hablo_en_este_run("ventas")
+
+
+def test_ambar_si_un_componente_critico_no_reporto_nunca():
+    """Sin esta regla, un workflow mal cableado deja la página verde para
+    siempre: las demás reglas solo miran a los componentes que tienen fecha."""
+    s = _sem({"runs": {}})
+    assert s["color"] == "ambar"
+    assert s["n_ambares"] == len(go.CRITICOS)
+    assert all("no ha reportado nunca" in m for m in s["motivos"])
+
+
+def test_y_se_apaga_en_cuanto_cada_uno_corre_una_vez():
+    todos = {c: {"resultado": "ok"} for c in go.CRITICOS}
+    assert _sem(_salud(**todos))["color"] == "verde"

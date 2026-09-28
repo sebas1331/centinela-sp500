@@ -58,11 +58,19 @@ El Vigilante la republica **todos los días**, fines de semana incluidos: es el
 único que corre siempre, y sin él un puente largo dispararía el aviso de datos
 viejos sin que pasara nada malo.
 
-### Un ámbar nuevo que ya existía y no se veía
+### Dos ámbares que ya existían y no se veían
 
 Al pintarlo todo junto apareció que un rojo tapaba los ámbares. Ahora se recogen
 **todos** los motivos y el color es el del peor: quien entra a arreglar algo
 quiere ver todo lo que hay, no solo lo más grave.
+
+Y al mirar la página ya publicada, con datos reales, apareció el otro: decía
+«todo en orden» con seis de los siete componentes **sin haber reportado nunca**,
+porque las reglas de retraso solo miran a los que tienen fecha. Un workflow mal
+cableado habría dejado la página en verde para siempre. Ahora un componente
+crítico que nunca ha reportado pinta **ámbar** —no rojo, porque recién
+desplegado es indistinguible de «todavía no le ha tocado»— y se apaga solo en
+cuanto cada uno corre una vez.
 
 Tests: 57 nuevos (schema, cada regla del semáforo, enmascarado, fuga de
 secretos, traducción del `result` de un job, cableado de los cinco workflows).

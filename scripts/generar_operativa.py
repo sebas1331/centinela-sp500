@@ -446,6 +446,18 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             f"La sesión de XTB caduca en {horas:.1f} h. Renuévala antes de que "
             f"un escaneo se la encuentre cerrada.")
 
+    # --- ÁMBAR: algún componente crítico no ha reportado NUNCA ------------
+    # Sin esta regla un componente que nunca escribe es invisible: las reglas de
+    # abajo solo miran a los que tienen fecha, así que un workflow mal cableado
+    # dejaría la página en verde para siempre. No es rojo porque al desplegar
+    # esto es indistinguible de "todavía no le ha tocado correr", y se apaga
+    # solo en cuanto cada uno corre una vez.
+    for clave in CRITICOS:
+        if not runs.get(clave, {}).get("cuando"):
+            ambares.append(
+                f"{salud.COMPONENTES[clave][0]} no ha reportado nunca. O acaba "
+                f"de desplegarse, o nadie registra su resultado.")
+
     # --- ÁMBAR: algún componente lleva demasiado sin aparecer -------------
     for clave in CRITICOS:
         r = runs.get(clave)
