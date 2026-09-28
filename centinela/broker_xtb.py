@@ -26,11 +26,20 @@ LO QUE EL CLIENTE NO PUEDE HACER (medido, no supuesto)
 El protocolo reverse-engineered solo expone abrir órdenes y cancelar las que
 están en cola. NO existe modificar una posición abierta ni cerrarla por id:
 
-* **Modificar el take profit**: imposible. El objetivo del simulador se
-  recalcula a diario, así que el TP del broker se queda en el inicial. Medido
-  sobre la bitácora: con el TP fijo la Cartera A habría hecho +12,25% en vez de
-  +12,07% y la B +11,15% en vez de +11,73%. Media docena de décimas — se acepta
-  la divergencia y se registra en `bitacora_broker.csv` para poder seguirla.
+* **Poner take profit o stop loss: XTB LOS IGNORA en acciones al contado.**
+  Comprobado con una orden real el 2026-09-28, con el mercado abierto: se
+  compró 1 acción de F.US a 12,45 pasando `stop_loss=11.21` y
+  `take_profit=13.70`, y la posición apareció con `STOP=None OBJETIVO=None`.
+  La orden se aceptó y se ejecutó; los niveles simplemente no se aplicaron, sin
+  ningún error. Coincide con lo que documenta XTB: en acciones reales los
+  niveles no van sobre la posición, sino como órdenes pendientes
+  independientes (sell stop / sell limit) que este cliente no sabe crear.
+
+  Consecuencia directa: **la Cartera A no puede llevar su stop en el broker**
+  por esta vía, que es justo lo que la distingue de la B.
+
+* **Modificar el take profit**: imposible, y ya da igual, porque tampoco se
+  puede poner al abrir.
 
 * **Cerrar una posición**: se hace vendiendo el mismo volumen (`vender`). En
   acciones al contado eso netea la posición; si XTB la tratara como cobertura y
