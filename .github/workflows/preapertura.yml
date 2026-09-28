@@ -113,11 +113,20 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      # La clave lleva la fecha, no el id del run: así solo el PRIMER run del
+      # día guarda caché nueva. Con una por run, la escalera de la pre-apertura
+      # dejaba ~17 cachés de 135 MB al día, llenaba los 10 GB del repositorio en
+      # cinco días y GitHub empezaba a desalojar por orden de último uso — y lo
+      # que desalojaba era la sesión de XTB, que pesa 359 bytes.
+      - name: Fecha de hoy, para la clave de caché
+        id: dia
+        run: echo "fecha=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Restaurar caché de precios
         uses: actions/cache@v4
         with:
           path: .cache
-          key: precios-${{ github.run_id }}
+          key: precios-${{ steps.dia.outputs.fecha }}-pre
           restore-keys: precios-
 
       - name: Instalar dependencias
@@ -185,10 +194,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Restaurar caché de precios
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .cache
-          key: precios-${{ github.run_id }}
+          key: precios-
           restore-keys: precios-
 
       - name: Generar las órdenes del día
@@ -298,10 +307,18 @@ jobs:
       # Solo para saber CUÁNDO caduca la sesión y poder avisar antes. Se usa
       # `cache/restore` y no `cache` a propósito: un job que no habla con el
       # broker no debe poder sobrescribir la sesión al terminar.
+      # Las tres rutas, IDÉNTICAS a las de los jobs que sí hablan con el
+      # broker. GitHub calcula la versión de una caché a partir de la lista de
+      # rutas y una clave solo casa dentro de su versión: pedir aquí solo el
+      # fichero de sesión daba una versión distinta, así que este paso no
+      # habría acertado nunca y el aviso de caducidad se habría quedado mudo.
       - name: Leer la caducidad de la sesión de XTB
         uses: actions/cache/restore@v4
         with:
-          path: ~/.centinela_xtb_session
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
           key: xtb-sesion-
           restore-keys: xtb-sesion-
 

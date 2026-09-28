@@ -31,11 +31,20 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      # La clave lleva la fecha, no el id del run: así solo el PRIMER run del
+      # día guarda caché nueva. Con una por run, la escalera de la pre-apertura
+      # dejaba ~17 cachés de 135 MB al día, llenaba los 10 GB del repositorio en
+      # cinco días y GitHub empezaba a desalojar por orden de último uso — y lo
+      # que desalojaba era la sesión de XTB, que pesa 359 bytes.
+      - name: Fecha de hoy, para la clave de caché
+        id: dia
+        run: echo "fecha=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Restaurar caché de precios/histórico
         uses: actions/cache@v4
         with:
           path: .cache
-          key: precios-${{ github.run_id }}
+          key: precios-${{ steps.dia.outputs.fecha }}-reentreno
           restore-keys: precios-
 
       - name: Instalar dependencias

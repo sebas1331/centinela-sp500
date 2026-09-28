@@ -139,10 +139,18 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # Las tres rutas, IDÉNTICAS a las de los jobs que sí hablan con el
+      # broker. GitHub calcula la versión de una caché a partir de la lista de
+      # rutas y una clave solo casa dentro de su versión: pedir aquí solo el
+      # fichero de sesión daba una versión distinta, así que este paso no
+      # habría acertado nunca y el aviso de caducidad se habría quedado mudo.
       - name: Leer la caducidad de la sesión de XTB
         uses: actions/cache/restore@v4
         with:
-          path: ~/.centinela_xtb_session
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
           key: xtb-sesion-
           restore-keys: xtb-sesion-
 

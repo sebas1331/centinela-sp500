@@ -450,3 +450,108 @@ def test_ambar_si_un_componente_critico_no_reporto_nunca():
 def test_y_se_apaga_en_cuanto_cada_uno_corre_una_vez():
     todos = {c: {"resultado": "ok"} for c in go.CRITICOS}
     assert _sem(_salud(**todos))["color"] == "verde"
+
+
+# --------------------------------------------------------------------------- #
+# 8. Higiene de cachés
+#
+# Van aquí porque es la página de operativa la que se queda muda cuando esto se
+# rompe: sin caché de sesión no hay fecha de caducidad que avisar, y la caché de
+# sesión desaparece cuando la de precios se come los 10 GB del repositorio.
+# --------------------------------------------------------------------------- #
+def _pasos_de_cache_xtb():
+    """Todos los pasos de caché de sesión del repositorio, con sus rutas."""
+    encontrados = []
+    for fichero in sorted(WORKFLOWS.glob("*.yml")):
+        for nombre, job in (_wf(fichero.name).get("jobs") or {}).items():
+            for paso in job.get("steps", []):
+                if not str(paso.get("uses", "")).startswith("actions/cache"):
+                    continue
+                con = paso.get("with", {})
+                if not str(con.get("key", "")).startswith("xtb-sesion-"):
+                    continue
+                rutas = con.get("path", "")
+                rutas = tuple(sorted(r.strip() for r in str(rutas).split("\n")
+                                     if r.strip()))
+                encontrados.append((fichero.name, nombre, rutas))
+    return encontrados
+
+
+def test_todos_los_pasos_de_cache_piden_las_mismas_rutas():
+    """GitHub calcula la VERSIÓN de una caché a partir de su lista de rutas, y
+    una clave solo casa dentro de su versión. Dos listas distintas para la misma
+    clave = la caché nunca se restaura, y no hay ningún error que lo delate:
+    el paso sale en verde diciendo «Cache not found».
+
+    Pasó de verdad el 2026-09-28: el job que lee la caducidad de la sesión pedía
+    solo el fichero de sesión y los demás pedían tres ficheros.
+    """
+    pasos = _pasos_de_cache_xtb()
+    assert pasos, "nadie cachea la sesión de XTB"
+    rutas = {p[2] for p in pasos}
+    assert len(rutas) == 1, (
+        "listas de rutas distintas para la misma clave:\n  "
+        + "\n  ".join(f"{f}/{j}: {list(r)}" for f, j, r in pasos))
+    assert rutas.pop() == (
+        "~/.centinela_xtb_cookies.json",
+        "~/.centinela_xtb_session",
+        "~/.centinela_xtb_ticket.json",
+    )
+
+
+def test_solo_guardan_cache_los_que_hablan_con_el_broker():
+    """Quien solo lee la caducidad usa cache/restore: un job que no toca XTB no
+    puede sobrescribir la sesión al terminar."""
+    for fichero in sorted(WORKFLOWS.glob("*.yml")):
+        for nombre, job in (_wf(fichero.name).get("jobs") or {}).items():
+            for paso in job.get("steps", []):
+                usa = str(paso.get("uses", ""))
+                if not usa.startswith("actions/cache"):
+                    continue
+                if not str(paso.get("with", {}).get("key", "")).startswith("xtb-"):
+                    continue
+                guarda = not usa.startswith("actions/cache/restore@")
+                assert guarda == (nombre != "operativa"), \
+                    f"{fichero.name}/{nombre} usa {usa}"
+
+
+def _pasos_de_cache_precios():
+    hallados = []
+    for fichero in sorted(WORKFLOWS.glob("*.yml")):
+        for nombre, job in (_wf(fichero.name).get("jobs") or {}).items():
+            for paso in job.get("steps", []):
+                usa = str(paso.get("uses", ""))
+                clave = str(paso.get("with", {}).get("key", ""))
+                if usa.startswith("actions/cache") and clave.startswith("precios"):
+                    hallados.append((fichero.name, nombre, usa, clave))
+    return hallados
+
+
+def test_la_cache_de_precios_se_guarda_una_vez_al_dia_y_no_una_por_run():
+    """El 2026-09-28 el repositorio estaba al 99 % de sus 10 GB de caché: 74
+    cachés de precios de 135 MB, porque la clave llevaba el id del run y por
+    tanto NUNCA acertaba en la primaria, así que cada run guardaba una nueva.
+    La escalera de la pre-apertura sola dejaba ~17 al día.
+
+    Eso no es solo desperdicio: al pasar de 10 GB GitHub desaloja por orden de
+    último uso, y lo que desaloja es la sesión de XTB (359 bytes), que es lo que
+    evita tener que renovarla a mano.
+    """
+    for fichero, job, usa, clave in _pasos_de_cache_precios():
+        if usa.startswith("actions/cache/restore@"):
+            continue                       # solo lee: no guarda nada
+        assert "github.run_id" not in clave, (
+            f"{fichero}/{job}: la clave lleva el id del run, así que este job "
+            f"guardará una caché de 135 MB en CADA ejecución")
+        assert "steps.dia.outputs.fecha" in clave, \
+            f"{fichero}/{job}: la clave debería llevar la fecha"
+
+
+def test_solo_guardan_precios_los_jobs_que_amplian_la_cache():
+    """Los demás (dashboard, órdenes) solo leen: guardar desde ellos duplicaba
+    la misma caché dos y tres veces por run."""
+    guardan = {(f, j) for f, j, u, _ in _pasos_de_cache_precios()
+               if not u.startswith("actions/cache/restore@")}
+    assert guardan == {("preapertura.yml", "preapertura"),
+                       ("postcierre.yml", "postcierre"),
+                       ("reentrenamiento.yml", "reentrenar")}
