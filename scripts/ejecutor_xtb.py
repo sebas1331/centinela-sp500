@@ -173,6 +173,98 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
 
 
 # --------------------------------------------------------------------------- #
+# Vigilancia de niveles: el stop y el objetivo los lleva el ejecutor
+# --------------------------------------------------------------------------- #
+def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
+    """Cierra las posiciones cuyo precio cruzó el stop o el objetivo.
+
+    POR QUÉ ESTO EXISTE, Y LO QUE CUESTA
+    ------------------------------------
+    XTB ignora el stop loss y el take profit en acciones al contado: se
+    comprobó con una orden real el 2026-09-28 —se compró 1 acción de F.US
+    pasando stop y objetivo, y la posición apareció con los dos a None, sin
+    ningún error— así que los niveles tiene que vigilarlos alguien, y ese
+    alguien es este ejecutor.
+
+    El coste está MEDIDO sobre la bitácora, y no es pequeño. El ejecutor solo
+    puede vender con el mercado abierto, así que en la práctica tiene UNA
+    ventana al día (15:45 ET). Con esa frecuencia, la Cartera A pasa de
+    +12,07% con drawdown -10,44% a **+9,32% con drawdown -12,50%**: pierde
+    rentabilidad Y gana riesgo. De las 21 operaciones que el simulador cerró
+    por stop, 7 no se habrían cerrado ese día porque el precio tocó el nivel
+    intradía pero cerró por encima.
+
+    Para comparar: la Cartera B, que no tiene stop por diseño, hizo +11,73% con
+    drawdown -12,16%. Es decir, el stop vigilado una vez al día sale peor que
+    no tener stop en las dos dimensiones. Se implementa igualmente porque es
+    una decisión tomada a la vista de estos números, no a pesar de ellos.
+
+    La regla es la CONSERVADORA del simulador: si un mismo vistazo ve el precio
+    por debajo del stop y por encima del objetivo (no puede pasar, pero el
+    orden importa), gana el stop.
+    """
+    estado = est_mod.cargar()
+    cartera = config.CARTERA_BROKER
+    posiciones = estado.get("posiciones", {}).get(cartera, [])
+    if not posiciones:
+        return []
+
+    reales = {p["ticker"].replace(".US", "").replace("-", "."): p
+              for p in broker.posiciones() if p["lado"] == "buy"}
+    hoy = datetime.now(config.TZ_ET).date().isoformat()
+    hechas = []
+
+    for pos in posiciones:
+        real = reales.get(pos["ticker"])
+        if real is None:
+            continue                      # lo verá la reconciliación
+        precio = real.get("precio_actual") or 0.0
+        if precio <= 0:
+            log(f"  {pos['ticker']}: sin precio actual; no se puede vigilar su "
+                f"nivel en esta pasada.")
+            continue
+
+        stop = pos.get("stop")
+        objetivo = pos.get("objetivo")
+        if stop is not None and precio <= float(stop):
+            motivo, nivel = ords.VENTA_STOP, float(stop)
+        elif objetivo is not None and precio >= float(objetivo):
+            motivo, nivel = ords.VENTA_OBJETIVO, float(objetivo)
+        else:
+            continue
+
+        acciones = int(real["acciones"])
+        if acciones < 1:
+            continue
+        orden = ords.Orden(
+            id=ords.identificador(hoy, cartera, pos["ticker"], motivo),
+            tipo=motivo, cartera=cartera, ticker=pos["ticker"],
+            acciones=acciones, sesion=hoy, precio_simulador=nivel,
+            id_operacion=int(pos["id"]))
+        if ords.ya_enviada(registro, orden.id):
+            continue
+
+        log(f"  {pos['ticker']}: precio {precio:.2f} cruzó el "
+            f"{'STOP' if motivo == ords.VENTA_STOP else 'OBJETIVO'} "
+            f"{nivel:.2f} -> cerrando")
+        e = broker.vender(orden.simbolo, acciones)
+        log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
+            + (f" ERROR: {e.error}" if e.error else ""))
+        ords.registrar_ejecucion(orden, e)
+        if e.ok:
+            ords.marcar_enviada(registro, orden.id,
+                                {"estado": e.estado, "orden": e.orden})
+        hechas.append((orden, e))
+
+    fallidas = [(o, e) for o, e in hechas if not e.ok]
+    if fallidas:
+        raise RuntimeError(
+            "Cierres por nivel que NO llegaron al broker:\n" + "\n".join(
+                f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
+    return hechas
+
+
+# --------------------------------------------------------------------------- #
 # Reconciliación
 # --------------------------------------------------------------------------- #
 def reconciliar(broker: bx.BrokerXTB) -> list[str]:
@@ -240,6 +332,12 @@ def main() -> int:
 
             if args.momento in ("compras", "ventas"):
                 enviar(broker, pendientes, args.momento, registro)
+            # El stop y el objetivo los lleva el ejecutor porque XTB no los
+            # acepta en acciones al contado. Se miran en las dos ventanas con
+            # mercado abierto; la de después del cierre no sirve para vender.
+            if args.momento == "ventas":
+                log("vigilando stops y objetivos...")
+                vigilar_niveles(broker, registro)
             problemas = reconciliar(broker)
     finally:
         # El registro se guarda PASE LO QUE PASE: si la orden número tres

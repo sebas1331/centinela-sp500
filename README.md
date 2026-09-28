@@ -463,9 +463,16 @@ inversa de xStation5. Tres limitaciones, todas medidas:
 
 | Limitación | Impacto medido |
 |---|---|
-| No se puede modificar el take profit | Con el TP fijo: A +12,25 % (vs +12,07 %), B +11,15 % (vs +11,73 %) |
-| No se puede cerrar una posición por id | Se vende el mismo volumen; la reconciliación lo verifica |
-| Sin acciones fraccionadas por la API | Con $10.000 y 20 slots, 23 de 141 entradas no caben. Desde $50.000, ninguna |
+| **XTB ignora el stop y el take profit** en acciones al contado | La Cartera A pasa de +12,07 % / −10,44 % a **+9,32 % / −12,50 %** con el stop vigilado 1 vez al día |
+| No se puede cerrar una posición por id | Se vende el mismo volumen; en acciones al contado eso netea (comprobado) |
+| Sin acciones fraccionadas por la API | Con $30.000 y 20 slots, 4 de 141 entradas no caben. Desde $50.000, ninguna |
+
+La primera se comprobó con una orden real el 28/09/2026: XTB aceptó la compra
+pasando `stop_loss` y `take_profit`, la ejecutó, y la posición apareció con los
+dos a `None` sin ningún error. Los niveles los vigila ahora el ejecutor, que
+solo puede vender una vez al día con el mercado abierto — de ahí la pérdida de
+rentabilidad y el aumento de drawdown. Es una **divergencia conocida** entre lo
+que se ejecuta y lo que se simula, y el panel la dice.
 
 ## 🔍 Auditoría de fiabilidad
 

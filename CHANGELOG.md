@@ -5,6 +5,64 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-28 — XTB ignora el stop: lo vigila el ejecutor
+
+### Lo que se comprobó operando de verdad
+
+Orden real en la demo, con el mercado abierto:
+
+    COMPRANDO 1 x F.US | objetivo 13.70 | stop 11.21
+    RESULTADO: estado=en_cola orden=915782911 error=None
+    posiciones tras la compra: 1
+       F.US x1.0 @ 12.45 | STOP=None | OBJETIVO=None
+
+**XTB aceptó la orden, la ejecutó y descartó los niveles sin dar ningún
+error.** Coincide con lo que documenta para acciones al contado —los niveles
+van como órdenes pendientes independientes (sell stop / sell limit), que el
+cliente no sabe crear— pero había que comprobarlo contra la API en vez de
+fiarse de una página que describe la interfaz web.
+
+La posición se cerró vendiendo el mismo volumen, lo que confirma que en
+acciones al contado **vender netea** y no abre una posición corta. Cuenta
+verificada después: 0 posiciones, 0 órdenes, saldo 29.999,98 (los dos centavos
+son el spread de la ida y vuelta).
+
+### Lo que cuesta vigilar el stop desde el ejecutor, medido
+
+El ejecutor solo puede vender con el mercado abierto, así que tiene UNA ventana
+al día (15:45 ET). Re-simulando la Cartera A con esa regla:
+
+| | Rentabilidad | Drawdown máx. |
+|---|---|---|
+| A con stop en el mercado (lo publicado) | +12,07 % | −10,44 % |
+| **A con stop vigilado 1 vez al día** | **+9,32 %** | **−12,50 %** |
+| B (sin stop, por diseño) | +11,73 % | −12,16 % |
+
+Pierde rentabilidad **y** gana riesgo. De las 21 operaciones que el simulador
+cerró por stop, 7 no se habrían cerrado ese día porque el precio tocó el nivel
+intradía pero cerró por encima; el peor caso individual empeoró 9,88 pp.
+
+El dato incómodo: **el stop vigilado sale peor que no tener stop**, en las dos
+dimensiones. Asume el riesgo de la Cartera B y además corta posiciones que
+habrían recuperado.
+
+Se implementa igualmente, por decisión expresa tomada a la vista de estos
+números. La divergencia queda escrita en el panel, bajo la sección "XTB vs.
+simulador", para que nadie compare las dos cifras sin saber que miden cosas
+distintas.
+
+### Qué cambia
+
+- `ejecutor_xtb.vigilar_niveles`: en la ventana de las ventas, compara el
+  precio de cada posición con su stop y su objetivo y cierra a mercado la que
+  los cruce. Regla conservadora del simulador: si se cruzan los dos, gana el
+  stop. Sin precio actual no se cierra nada — cerrar a ciegas sería peor que
+  esperar a la siguiente pasada.
+- `ordenes.py`: dos tipos nuevos, `venta_stop` y `venta_objetivo`. No se
+  escriben en `pendientes.json` porque no se pueden decidir la víspera: nacen
+  de comparar el precio con el nivel en el momento.
+- 8 tests nuevos del vigilante de niveles.
+
 ## 2026-09-25 (2) — Fase beta (2/2): ejecutor para la demo de XTB
 
 **Nada de esto toca la lógica de decisión.** Los escaneos deciden exactamente

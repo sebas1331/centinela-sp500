@@ -36,7 +36,13 @@ from . import config
 #: él, en vez de colarse por un `else` silencioso.
 COMPRA = "compra"
 VENTA_TIEMPO = "venta_tiempo"
-TIPOS = (COMPRA, VENTA_TIEMPO)
+#: XTB IGNORA el stop loss y el take profit en acciones al contado —comprobado
+#: con una orden real el 2026-09-28— así que los vigila el ejecutor y cierra a
+#: mercado cuando el precio los cruza. Estas dos no se escriben en
+#: pendientes.json: nacen en el momento, de comparar el precio con el nivel.
+VENTA_STOP = "venta_stop"
+VENTA_OBJETIVO = "venta_objetivo"
+TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO)
 
 ARCHIVO_PENDIENTES = config.BASE_DIR / "ordenes" / "pendientes.json"
 ARCHIVO_ENVIADAS = config.ESTADO_DIR / "ordenes_enviadas.json"

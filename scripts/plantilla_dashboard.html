@@ -305,6 +305,14 @@ footer a{color:var(--acento)}
 
   <h2 id="h-broker" hidden>XTB vs. simulador</h2>
   <div class="carteras" id="broker" hidden></div>
+  <p class="nota" id="nota-broker" hidden>
+    <b>El broker no lleva el stop.</b> XTB lo ignora en acciones al contado
+    (comprobado con una orden real el 28/09/2026), así que lo vigila el
+    ejecutor, que solo vende una vez al día. Medido: eso lleva la Cartera A de
+    +12,07&nbsp;% con −10,44&nbsp;% de drawdown a <b>+9,32&nbsp;% con
+    −12,50&nbsp;%</b>. Menos rentabilidad y más riesgo: es la divergencia
+    conocida entre lo ejecutado y lo simulado.
+  </p>
 
   <h2>Actividad</h2>
   <div class="resumen" id="kpis"></div>
@@ -570,6 +578,7 @@ function iniciar(D){
        "no hay diferencia", y lo cierto sería "todavía no se ha operado". */
     if(!BROKER) return;
     document.getElementById("h-broker").hidden = false;
+    document.getElementById("nota-broker").hidden = false;
     var zona = document.getElementById("broker");
     zona.hidden = false;
     zona.textContent = "";

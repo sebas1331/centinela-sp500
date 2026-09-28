@@ -305,3 +305,95 @@ def test_los_identificadores_son_deterministas():
     b = ords.identificador("2026-09-25", "A", "MRNA", ords.COMPRA)
     assert a == b == "2026-09-25|A|MRNA|compra"
     assert a != ords.identificador("2026-09-25", "A", "MRNA", ords.VENTA_TIEMPO)
+
+
+# --------------------------------------------------------------------------- #
+# 6. Vigilancia de niveles (XTB no acepta stop ni take profit al contado)
+# --------------------------------------------------------------------------- #
+def _estado_con_niveles(tmp_path, monkeypatch, posiciones):
+    ruta = tmp_path / "estado.json"
+    ruta.write_text(json.dumps({"posiciones": {"A": posiciones, "B": []},
+                                "entradas_pendientes": []}), encoding="utf-8")
+    monkeypatch.setattr(config, "ARCHIVO_ESTADO", ruta)
+
+
+def _pos_broker(ticker, precio_actual, acciones=3.0):
+    return {"ticker": ticker, "acciones": acciones, "precio_entrada": 100.0,
+            "precio_actual": precio_actual, "stop": None, "objetivo": None,
+            "lado": "buy", "orden": "x", "pnl": 0.0}
+
+
+def test_cierra_la_posicion_que_cruzo_el_STOP(aislado, tmp_path, monkeypatch):
+    """El stop lo vigila el ejecutor porque XTB lo ignora al contado."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=91.5)])
+    hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
+
+    assert broker.enviadas == [("venta", "MRNA.US", 3)]
+    assert hechas[0][0].tipo == ords.VENTA_STOP
+
+
+def test_cierra_la_posicion_que_cruzo_el_OBJETIVO(aislado, tmp_path, monkeypatch):
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=121.0)])
+    hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
+
+    assert broker.enviadas == [("venta", "MRNA.US", 3)]
+    assert hechas[0][0].tipo == ords.VENTA_OBJETIVO
+
+
+def test_no_toca_la_posicion_que_esta_entre_los_dos_niveles(aislado, tmp_path,
+                                                            monkeypatch):
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=105.0)])
+    assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
+    assert broker.enviadas == []
+
+
+def test_si_se_cruzan_los_dos_gana_el_STOP(aislado, tmp_path, monkeypatch):
+    """La regla conservadora del simulador, también aquí."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 120.0, "objetivo": 100.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=110.0)])
+    hechas = ej.vigilar_niveles(broker, {"enviadas": {}})
+    assert hechas[0][0].tipo == ords.VENTA_STOP
+
+
+def test_una_posicion_SIN_stop_solo_mira_el_objetivo(aislado, tmp_path, monkeypatch):
+    """La Cartera B no tiene stop por diseño: no se le inventa uno."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": None, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=1.0)])
+    assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
+
+
+def test_sin_precio_actual_no_se_cierra_nada(aislado, tmp_path, monkeypatch):
+    """Cerrar a ciegas sería peor que no cerrar: se avisa y se deja para la
+    siguiente pasada."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=0.0)])
+    assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
+    assert broker.enviadas == []
+
+
+def test_un_cierre_por_nivel_no_se_repite_en_la_misma_sesion(aislado, tmp_path,
+                                                             monkeypatch):
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[_pos_broker("MRNA.US", precio_actual=91.5)])
+    registro = {"enviadas": {}}
+    ej.vigilar_niveles(broker, registro)
+    ej.vigilar_niveles(broker, registro)
+    assert broker.enviadas == [("venta", "MRNA.US", 3)]
+
+
+def test_una_posicion_que_no_esta_en_XTB_no_se_vigila(aislado, tmp_path, monkeypatch):
+    """Si falta en el broker, el problema es otro y lo denuncia la reconciliación."""
+    _estado_con_niveles(tmp_path, monkeypatch, [
+        {"id": 1, "ticker": "MRNA", "stop": 92.0, "objetivo": 120.0}])
+    broker = BrokerFalso(posiciones=[])
+    assert ej.vigilar_niveles(broker, {"enviadas": {}}) == []
