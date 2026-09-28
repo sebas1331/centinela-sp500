@@ -5,6 +5,46 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-28 (5) — La caché de precios dejaba sin sitio a la sesión de XTB
+
+Verificando la página de Operativa apareció esto: el repositorio estaba al
+**99 % de sus 10 GB de caché**, con 74 cachés de precios de 135 MB (9,75 GB).
+
+La causa es la clave, `precios-${{ github.run_id }}`: al llevar el id del run
+**nunca acierta** en la clave primaria, así que cada ejecución guarda una caché
+nueva. La escalera de la pre-apertura sola dejaba ~17 al día, y el post-cierre
+guardaba la misma caché tres veces, una por cada job que la lee.
+
+No es solo desperdicio. Al pasar de 10 GB, GitHub desaloja por orden de último
+uso, y lo que desaloja es la sesión de XTB, que pesa **359 bytes**. El Vigilante
+la toca a diario contra la regla de los 7 días sin uso, pero la restricción que
+mandaba no era esa: era la cuota, y esa desaloja en horas.
+
+| | antes | ahora |
+|---|---|---|
+| Cachés nuevas al día | ~17 | 2 |
+| Clave | id del run | fecha |
+| Jobs que guardan | 6 | 3 (los que amplían la caché) |
+| Uso del repositorio | 9,89 GB | 274 MB |
+
+### Y un fallo propio, del mismo tipo
+
+GitHub calcula la **versión** de una caché a partir de su lista de rutas, y una
+clave solo casa dentro de su versión. El paso que se añadió para leer la
+caducidad de la sesión pedía **una** ruta mientras los demás piden **tres**:
+acertó con las cachés antiguas por casualidad y no habría acertado nunca más. El
+aviso de «la sesión caduca en X h» se habría quedado mudo para siempre, sin
+ningún error que lo delatara — el paso sale en verde diciendo «Cache not found».
+
+Eso explica además el único run raro de la tarde: el Vigilante de las 21:01 no
+encontró la caché de las 16:38 porque fue el primero en correr con la lista de
+tres rutas. No era un fallo, era la transición.
+
+Cuatro tests fijan las dos invariantes: todos los pasos de la sesión piden la
+misma lista de rutas, y solo guardan caché los jobs que la amplían.
+
+---
+
 ## 2026-09-28 (4) — Página de Operativa: la salud del sistema en una pantalla
 
 El dashboard contesta "¿cuánto gana esto?". Faltaba quien contestara la otra

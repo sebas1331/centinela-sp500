@@ -310,6 +310,14 @@ También mantiene viva la caché donde vive la sesión — GitHub borra las cach
 que nadie usa en 7 días, y el Vigilante es el único que corre también los fines
 de semana.
 
+> Esa regla de los 7 días **no era la que mandaba**. El 2026-09-28 el
+> repositorio estaba al 99 % de sus 10 GB de caché, con 74 cachés de precios de
+> 135 MB, porque su clave llevaba el id del run y por tanto guardaba una nueva
+> en cada ejecución. Al pasar de 10 GB, GitHub desaloja por orden de último uso
+> — y lo que desalojaba era la sesión de XTB, que pesa 359 bytes. Ahora la clave
+> de precios lleva la fecha (una al día, no ~17) y los jobs que solo leen la
+> caché no la guardan.
+
 ## 🚨 Antes de pasar a dinero real
 
 **Este sistema opera una cuenta DEMO y no está preparado para otra cosa.** Lo
