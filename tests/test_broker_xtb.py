@@ -15,7 +15,13 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from centinela import broker_xtb as bx  # noqa: E402
+from centinela import broker_xtb as bx, config  # noqa: E402
+
+
+#: La cuenta demo que el sistema tiene permitido operar. Los dobles usan ESTE
+#: número, no uno inventado: el candado compara contra la configuración
+#: versionada y un número cualquiera lo haría saltar (que es justo su trabajo).
+CUENTA = config.CUENTA_DEMO
 
 
 # --------------------------------------------------------------------------- #
@@ -50,7 +56,7 @@ class _ClienteFalso:
     """Imita lo justo de XTBClient: lo que nuestra capa toca, y nada más."""
 
     def __init__(self, *, url="wss://api5demoa.x-station.eu/v1/xstation",
-                 cuenta=12345678, resultado=None):
+                 cuenta=CUENTA, resultado=None):
         self.ws = _WS(url)
         self.account_number = cuenta
         self.conectado = False
@@ -67,7 +73,7 @@ class _ClienteFalso:
     async def get_balance(self):
         class B:
             balance, equity, free_margin = 50000.0, 50250.0, 44000.0
-            currency, account_number = "USD", 12345678
+            currency, account_number = "USD", CUENTA
         return B()
 
     async def get_positions(self):
@@ -93,7 +99,7 @@ class _ClienteFalso:
         return _Resultado("CANCELLED")
 
 
-CRED = bx.Credenciales(email="x@y.z", cuenta=12345678, password="secreta")
+CRED = bx.Credenciales(email="x@y.z", cuenta=CUENTA, password="secreta")
 
 
 def _broker(**kw):
@@ -106,7 +112,7 @@ def _broker(**kw):
 def test_conecta_contra_el_endpoint_de_demo():
     b = _broker()
     b.conectar()
-    assert b.saldo()["cuenta"] == 12345678
+    assert b.saldo()["cuenta"] == CUENTA
     b.desconectar()
 
 
@@ -285,7 +291,7 @@ def test_el_secreto_totp_llega_al_cliente(monkeypatch):
                         type(sys)("xtb_api"))
     sys.modules["xtb_api"].XTBClient = _Falso
 
-    cred = bx.Credenciales(email="x@y.z", cuenta=12345678,
+    cred = bx.Credenciales(email="x@y.z", cuenta=CUENTA,
                            password="secreta", totp="BASE32SECRET")
     b = bx.BrokerXTB(cred, demo=True)
     b.conectar()
@@ -306,7 +312,7 @@ def test_sin_2fa_el_secreto_va_vacio_y_no_estorba(monkeypatch):
     monkeypatch.setitem(sys.modules, "xtb_api", type(sys)("xtb_api"))
     sys.modules["xtb_api"].XTBClient = _Falso
 
-    bx.BrokerXTB(bx.Credenciales(email="x@y.z", cuenta=12345678,
+    bx.BrokerXTB(bx.Credenciales(email="x@y.z", cuenta=CUENTA,
                                  password="p"), demo=True).conectar()
     assert creado["totp_secret"] == ""
 
@@ -368,3 +374,52 @@ def test_desconectar_cierra_el_loop_y_se_puede_reconectar():
     b.conectar()          # una reconexión estrena loop, no reusa el cerrado
     assert not b._loop.is_closed() and b._loop is not primero
     b.desconectar()
+
+
+# --------------------------------------------------------------------------- #
+# 8. El candado se ancla a la CONFIGURACIÓN, no a las credenciales
+# --------------------------------------------------------------------------- #
+def test_una_cuenta_DISTINTA_se_rechaza_aunque_las_credenciales_cuadren():
+    """El escenario que de verdad importa desde que las credenciales viven en
+    secrets de GitHub.
+
+    Un secret se cambia desde una página web, sin diff, sin revisión y sin
+    dejar rastro en la historia del repositorio. Si el candado comparase la
+    sesión solo contra lo que dicen las credenciales, apuntar el sistema a otra
+    cuenta —la real, la de otra persona— sería editar un campo y nada más.
+
+    Compara contra `config.CUENTA_DEMO`, que está versionada: cambiarla exige
+    un commit.
+    """
+    otra = 99887766
+    cred = bx.Credenciales(email="x@y.z", cuenta=otra, password="p")
+    b = bx.BrokerXTB(cred, cliente=_ClienteFalso(cuenta=otra))
+
+    with pytest.raises(bx.CuentaNoDemo) as exc:
+        b.conectar()
+    assert str(config.CUENTA_DEMO) in str(exc.value)
+    assert "solo opera" in str(exc.value)
+
+
+def test_el_candado_tambien_ve_la_incoherencia_al_reves():
+    """Credenciales de la cuenta buena, sesión conectada a otra."""
+    cred = bx.Credenciales(email="x@y.z", cuenta=CUENTA, password="p")
+    b = bx.BrokerXTB(cred, cliente=_ClienteFalso(cuenta=99887766))
+    with pytest.raises(bx.CuentaNoDemo):
+        b.conectar()
+
+
+def test_pasar_a_real_exige_cambiar_DOS_cosas_versionadas():
+    """Ni un despiste con una sola variable saca órdenes a una cuenta con dinero.
+
+    `TIPO_CUENTA_BROKER` decide demo o real y `CUENTA_DEMO` fija cuál. Las dos
+    están en el código, no en secrets, así que las dos exigen commit.
+    """
+    assert config.TIPO_CUENTA_BROKER == "demo"
+    assert isinstance(config.CUENTA_DEMO, int)
+
+    # Con el interruptor en "demo", pedir una conexión real se rechaza.
+    b = bx.BrokerXTB(bx.Credenciales(email="x@y.z", cuenta=CUENTA, password="p"),
+                     demo=False, cliente=_ClienteFalso())
+    with pytest.raises(bx.CuentaNoDemo, match="solo opera en DEMO"):
+        b.conectar()

@@ -321,7 +321,7 @@ def main() -> int:
 
     pendientes = ords.cargar_pendientes()
     registro = ords.cargar_enviadas()
-    credenciales = bx.Credenciales.del_llavero()
+    credenciales = bx.credenciales_del_entorno_o_llavero()
 
     problemas: list[str] = []
     try:

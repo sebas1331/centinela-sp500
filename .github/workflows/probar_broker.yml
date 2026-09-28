@@ -1,0 +1,65 @@
+name: Probar broker XTB
+
+# ---------------------------------------------------------------------------
+# Prueba MANUAL de si el ejecutor puede operar la demo de XTB desde la nube.
+#
+# El ejecutor vivía en un Mac porque las credenciales de XTB abren también las
+# cuentas reales del titular. Con esas cuentas vacías, ese motivo desaparece y
+# queda por comprobar lo otro: si el login de xStation5 funciona desde una IP
+# de datacenter. Su WAF existe precisamente para frenar eso, y el cliente
+# necesita además un Chromium para autenticarse.
+#
+# Solo se dispara a mano, y abrir una posición exige marcar la casilla: una
+# prueba que opera por defecto acaba operando cuando alguien solo quería mirar.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      operar:
+        description: "Abrir y cerrar 1 acción de prueba (si no, solo lee)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      # El login de xStation5 pasa por un WAF que bloquea el camino REST, así
+      # que la librería cae a un navegador de verdad. Sin este paso, el primer
+      # intento muere con CASError("BROWSER_CHROMIUM_MISSING").
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      # La sesión de XTB dura 8 h y un runner es una máquina nueva cada vez.
+      # Guardarla en la caché es lo que puede evitar que XTB pida el código por
+      # correo en cada ejecución, que es lo que decidiría si esto es viable.
+      - name: Restaurar sesión de XTB
+        id: sesion
+        uses: actions/cache@v4
+        with:
+          path: ~/.centinela_xtb_session
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Probar el broker
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          python scripts/probar_broker_en_actions.py \
+            ${{ inputs.operar && '--operar' || '' }}

@@ -165,6 +165,19 @@ class Credenciales:
                    totp=os.environ.get("XTB_TOTP", ""))
 
 
+def credenciales_del_entorno_o_llavero() -> "Credenciales":
+    """Las credenciales, vengan de donde vengan.
+
+    En GitHub Actions llegan por variables de entorno desde los secrets; en un
+    Mac, del Llavero. Se prueba primero el entorno porque es lo que distingue a
+    un runner, y así el mismo ejecutor sirve en los dos sitios sin ramas de
+    código repartidas por ahí.
+    """
+    if os.environ.get("XTB_EMAIL"):
+        return Credenciales.del_entorno()
+    return Credenciales.del_llavero()
+
+
 # --------------------------------------------------------------------------- #
 # Resultado de una operación, en el vocabulario de ESTE repositorio
 # --------------------------------------------------------------------------- #
@@ -220,10 +233,12 @@ class BrokerXTB:
             saldo = b.saldo()
     """
 
-    def __init__(self, credenciales: Credenciales, *, demo: bool = True,
+    def __init__(self, credenciales: Credenciales, *, demo: bool | None = None,
                  cliente=None):
         self._cred = credenciales
-        self._demo = demo
+        # El tipo sale de la configuración versionada, no de un argumento con
+        # valor por defecto: así operar en real exige tocar el repositorio.
+        self._demo = (config.TIPO_CUENTA_BROKER == "demo") if demo is None else demo
         # `cliente` inyectable: los tests pasan un doble y no tocan la red ni
         # necesitan tener instalada la librería.
         self._cliente = cliente
@@ -340,10 +355,19 @@ class BrokerXTB:
             raise CuentaNoDemo(
                 "No se pudo leer el número de cuenta conectado; sin esa "
                 "confirmación no se opera.") from exc
+        # Contra la CONFIGURACIÓN, no contra las credenciales. Las credenciales
+        # viven en secrets que se pueden cambiar desde una web sin dejar diff;
+        # `config.CUENTA_DEMO` exige un commit. Si alguien apunta los secrets a
+        # otra cuenta —aunque esté vacía, aunque sea suya— aquí se para.
+        esperada = int(config.CUENTA_DEMO)
+        if numero != esperada:
+            raise CuentaNoDemo(
+                f"Conectado a la cuenta {numero}, pero el sistema solo opera la "
+                f"{esperada} (config.CUENTA_DEMO). No se envía ninguna orden.")
         if numero != self._cred.cuenta:
             raise CuentaNoDemo(
-                f"Conectado a la cuenta {numero}, pero se esperaba "
-                f"{self._cred.cuenta}. No se envía ninguna orden.")
+                f"Las credenciales dicen cuenta {self._cred.cuenta} y la sesión "
+                f"conectó a la {numero}. No se envía ninguna orden.")
 
     def _url_del_socket(self) -> str:
         """La URL del WebSocket al que el cliente se ha conectado de verdad.

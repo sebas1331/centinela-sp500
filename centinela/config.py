@@ -243,6 +243,25 @@ EJECUCION_BROKER = True
 #: está acotado por nada (ver centinela/riesgo.py).
 CARTERA_BROKER = "A"
 
+#: NÚMERO DE LA CUENTA DEMO QUE SE OPERA. El candado exige que la sesión
+#: conectada sea EXACTAMENTE esta, y vive aquí —en el código versionado— y no
+#: solo en las credenciales a propósito.
+#:
+#: La diferencia importa: las credenciales están en secrets que se pueden
+#: cambiar desde la web de GitHub sin dejar rastro en ningún diff. Si el número
+#: viviera solo ahí, apuntar el sistema a otra cuenta sería cuestión de editar
+#: un campo. Estando aquí, hace falta un commit, con su revisión y su historia.
+#:
+#: PARA PASAR A DINERO REAL NO BASTA CON CAMBIAR ESTO. Ver el apartado "Antes de
+#: pasar a dinero real" del README: son varios pasos deliberados y ninguno de
+#: ellos debe poder hacerse por accidente.
+CUENTA_DEMO = 22770385
+
+#: Interruptor separado del número. Que el sistema opere en real exige cambiar
+#: LAS DOS cosas, en el mismo commit y a conciencia: un despiste con una sola
+#: variable no puede sacar órdenes a una cuenta con dinero.
+TIPO_CUENTA_BROKER = "demo"
+
 #: Ventanas del ejecutor, en minutos respecto de la apertura (09:30 ET) o del
 #: cierre (16:00 ET) del mercado. Los tres momentos del día:
 #:
