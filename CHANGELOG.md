@@ -98,6 +98,21 @@ El Vigilante la republica **todos los días**, fines de semana incluidos: es el
 único que corre siempre, y sin él un puente largo dispararía el aviso de datos
 viejos sin que pasara nada malo.
 
+### «No corrió» no es «salió mal»
+
+Primer rojo en producción, y era falso. El segundo post-cierre del día fue
+idempotente (`omitido:ya-procesado`), así que su ejecutor no llegó a correr y el
+job quedó saltado. Dos errores encadenados:
+
+1. El registro del job saltado **pisó** el `ok` real de la reconciliación de
+   tres horas antes. Ahora un job saltado no registra nada: si un componente
+   deja de correr de verdad, quien lo denuncia es la regla de «lleva X h sin
+   aparecer», que para eso está.
+2. El semáforo leía «cualquier cosa distinta de ok» como discrepancia, y pintó
+   «la reconciliación encontró diferencias: ver el run» cuando no había
+   encontrado nada porque no había mirado. Ahora solo es rojo si la
+   reconciliación **corrió** y no cuadró.
+
 ### El turno de escritura no era para esto
 
 El job de la página del Vigilante entró primero en `centinela-escritura`, el

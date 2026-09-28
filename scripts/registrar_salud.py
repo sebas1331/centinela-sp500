@@ -77,6 +77,16 @@ def main() -> int:
                          "este run: él sabe más que el result del job.")
     args = ap.parse_args()
 
+    # Un job SALTADO no es una noticia: pasa cada vez que un escaneo es
+    # idempotente y su ejecutor no llega a correr. Registrarlo pisaría el
+    # resultado real de hace unas horas con un "no corrí", que dice menos y
+    # además confunde a quien lo lea. Si un componente deja de correr de verdad,
+    # quien lo denuncia es la regla de "lleva X h sin aparecer".
+    if args.job == "skipped" and not args.salida.strip():
+        print(f"[salud] {args.componente}: el job se saltó; no hay nada que "
+              f"registrar.", flush=True)
+        return 0
+
     if args.solo_si_falta and salud.hablo_en_este_run(args.componente):
         actual = salud.cargar()["runs"][args.componente]
         print(f"[salud] {args.componente} ya se registró en este run "

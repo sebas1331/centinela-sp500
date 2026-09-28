@@ -412,8 +412,14 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             "porque la sesión no apuntaba a la cuenta permitida.")
 
     # --- ROJO: la reconciliación encontró diferencias ---------------------
+    # Solo cuando la reconciliación CORRIÓ y no cuadró. Un "omitido:" significa
+    # que no llegó a correr —el escaneo era idempotente y su ejecutor se
+    # saltó—, y leerlo como discrepancia pintaba un rojo falso con un motivo
+    # que no se sostenía: "encontró diferencias: ver el run".
     rec = runs.get("reconcilia", {})
-    if rec.get("resultado") and rec.get("resultado") != "ok":
+    resultado_rec = str(rec.get("resultado", ""))
+    if resultado_rec and not resultado_rec.startswith("omitido") \
+            and resultado_rec != "ok":
         # El detalle viene con las diferencias separadas por "|", que es cómo
         # las junta el ejecutor. Aquí se leen, así que se separan con puntos.
         detalle = "; ".join(d.strip() for d in

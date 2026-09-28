@@ -591,3 +591,52 @@ def test_el_vigilante_revisa_la_sesion_antes_de_la_ventana_de_compras():
     # Y alguno tiene que seguir corriendo TODOS los días: es el que mantiene
     # viva la caché de la sesión los fines de semana.
     assert any(c.split()[-1] == "*" for c in crons)
+
+
+# --------------------------------------------------------------------------- #
+# 9. "No corrió" no es "salió mal"
+# --------------------------------------------------------------------------- #
+def test_una_reconciliacion_que_no_corrio_no_es_una_discrepancia():
+    """El 2026-09-28 el segundo post-cierre del día fue idempotente, su ejecutor
+    se saltó, y la página lo pintó de rojo diciendo «la reconciliación encontró
+    diferencias: ver el run». No había encontrado nada: no había corrido.
+    """
+    s = _sem(_salud(reconcilia={"resultado": "omitido:job-saltado"}))
+    assert s["color"] == "verde", s["motivos"]
+
+
+def test_pero_una_reconciliacion_que_si_corrio_y_no_cuadro_sigue_siendo_roja():
+    s = _sem(_salud(reconcilia={"resultado": "diferencias",
+                                "detalle": "MRNA: en el simulador y no en XTB"}))
+    assert s["color"] == "rojo"
+    assert any("MRNA" in m for m in s["motivos"])
+
+
+def test_un_job_saltado_no_pisa_el_resultado_real_de_antes(tmp_path, monkeypatch):
+    """Registrar «no corrí» por encima del «ok» de hace tres horas cuenta menos
+    y confunde más. Si un componente deja de correr de verdad, lo denuncia la
+    regla de «lleva X h sin aparecer»."""
+    monkeypatch.setattr(salud, "ARCHIVO", tmp_path / "salud.json")
+    monkeypatch.setenv("GITHUB_RUN_ID", "1")
+    salud.registrar("reconcilia", "ok", "todo cuadra")
+
+    monkeypatch.setenv("GITHUB_RUN_ID", "2")
+    monkeypatch.setattr(sys, "argv",
+                        ["registrar_salud.py", "reconcilia", "--job", "skipped",
+                         "--solo-si-falta"])
+    assert rs.main() == 0
+    guardado = salud.cargar()["runs"]["reconcilia"]
+    assert guardado["resultado"] == "ok" and guardado["run"] == "1"
+
+
+def test_pero_un_omitido_que_publica_el_propio_componente_si_se_guarda(
+        tmp_path, monkeypatch):
+    """`omitido:ya-procesado` lo dice el escaneo, no el job: es información real
+    sobre una idempotencia que funcionó."""
+    monkeypatch.setattr(salud, "ARCHIVO", tmp_path / "salud.json")
+    monkeypatch.setenv("GITHUB_RUN_ID", "7")
+    monkeypatch.setattr(sys, "argv",
+                        ["registrar_salud.py", "postcierre",
+                         "--salida", "omitido:ya-procesado", "--job", "success"])
+    assert rs.main() == 0
+    assert salud.cargar()["runs"]["postcierre"]["resultado"] == "omitido:ya-procesado"
