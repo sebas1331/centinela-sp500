@@ -1,6 +1,13 @@
 {
-  "actualizado": "2026-09-28T18:01:55.743773-04:00",
+  "actualizado": "2026-09-28T18:02:37.937013-04:00",
   "runs": {
+    "postcierre": {
+      "cuando": "2026-09-28T18:02:37.937013-04:00",
+      "detalle": "",
+      "resultado": "procesado",
+      "run": "36484384779",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36484384779"
+    },
     "reconcilia": {
       "cuando": "2026-09-28T18:01:55.743773-04:00",
       "detalle": "",
