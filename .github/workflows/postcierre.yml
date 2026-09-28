@@ -281,3 +281,60 @@ jobs:
             "ejecutor XTB: reconcilia [skip ci]" \
             "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
             estado bitacora_broker.csv ordenes
+
+  # LA PÁGINA DE OPERATIVA. Mismo razonamiento que en la pre-apertura: job
+  # aparte, el último de todos, con `needs` para no poder tocar nada de lo ya
+  # persistido y con `always()` para que los días malos también se publiquen.
+  #
+  # Depende también del `dashboard` porque los dos escriben en docs/: así se
+  # empujan en fila y no se pelean por la punta de la rama.
+  operativa:
+    needs: [postcierre, dashboard, ejecutor]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.centinela_xtb_session
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Registrar el estado del escaneo
+        run: |
+          python scripts/registrar_salud.py postcierre \
+            --salida "${{ needs.postcierre.outputs.resultado }}" \
+            --job "${{ needs.postcierre.result }}"
+
+      # La reconciliación es la que dice si XTB y el simulador siguen contando
+      # lo mismo. Se registra a sí misma con el detalle de las diferencias;
+      # aquí solo se cubre el caso de que el job muriera antes.
+      - name: Registrar el estado de la reconciliación
+        run: |
+          python scripts/registrar_salud.py reconcilia \
+            --job "${{ needs.ejecutor.result }}" --solo-si-falta
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: republicada tras el post-cierre [skip ci]" \
+            "procesado" \
+            docs estado

@@ -56,3 +56,43 @@ jobs:
             "reentrenamiento mensual del modelo [skip ci]" \
             "procesado" \
             modelos datos CHANGELOG.md reportes
+
+  # LA PÁGINA DE OPERATIVA. El reentrenamiento no está entre los componentes
+  # críticos —que un mes no se reajusten los pesos no rompe el trading del día—,
+  # pero sí aparece en la lista de la página, y un componente que no reporta
+  # nunca se queda con un «nunca» perpetuo que no distingue «no tocaba» de
+  # «lleva medio año roto».
+  operativa:
+    needs: reentrenar
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Registrar el estado del reentrenamiento
+        run: |
+          python scripts/registrar_salud.py reentrenamiento \
+            --job "${{ needs.reentrenar.result }}"
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: republicada tras el reentrenamiento [skip ci]" \
+            "procesado" \
+            docs estado

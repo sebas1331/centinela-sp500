@@ -463,6 +463,20 @@ def revisar_sesion_xtb() -> list[str]:
     return problemas
 
 
+def _publicar(resultado: str, detalle: str = "") -> None:
+    """Deja el veredicto donde el job de operativa pueda recogerlo.
+
+    El Vigilante corre en un job de solo lectura, así que no escribe salud.json
+    él mismo: se lo cuenta al job que sí publica, por la salida del step.
+    """
+    salida = os.environ.get("GITHUB_OUTPUT")
+    if not salida:
+        return
+    with open(salida, "a", encoding="utf-8") as fh:
+        fh.write(f"resultado={resultado}\n")
+        fh.write(f"detalle={detalle[:200]}\n")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Vigilante de silencios de Centinela")
     ap.add_argument("--sesiones", type=int, default=1,
@@ -502,10 +516,12 @@ def main() -> int:
                 f"curso, no un fallo suelto)" if emergencias else "")
              + ". Revisa los runs de 'Escaneo pre-apertura' y 'Escaneo "
                "post-cierre' de las fechas y los IDs señalados.")
+        _publicar(f"fallo:{len(problemas)}-problemas", problemas[0])
         return 1
 
     _log("✅ Sin silencios: todas las sesiones exigibles están procesadas y "
          "commiteadas.")
+    _publicar("ok")
     return 0
 
 

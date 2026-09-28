@@ -53,6 +53,9 @@ permissions:
 jobs:
   vigilar:
     runs-on: ubuntu-latest
+    outputs:
+      resultado: ${{ steps.vigilar.outputs.resultado }}
+      detalle: ${{ steps.vigilar.outputs.detalle }}
     # Un Vigilante sano tarda 30-45 s (solo lee ficheros del repo y `git log`; no
     # descarga precios ni llama a ninguna API). Si pasa de 5 minutos está roto por
     # definición, y morir pronto y en rojo es preferible a colgarse.
@@ -91,7 +94,73 @@ jobs:
       # GITHUB_TOKEN es necesario para la consulta de rachas de rojos contra la
       # API de Actions; sin él esa comprobación se anuncia como no aplicable.
       - name: Revisar que no falte ninguna sesión ni haya rachas de rojos
+        id: vigilar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/vigilante.py --sesiones "${{ inputs.sesiones || '1' }}"
 
+
+  # LA PÁGINA DE OPERATIVA, el pulso diario.
+  #
+  # Este es el ÚNICO de los cuatro que corre TODOS los días, fines de semana
+  # incluidos, y por eso es el que mantiene fresca la fecha de generación de la
+  # página. Sin él, un puente largo dejaría la página con tres días de antigüedad
+  # y el detector del navegador la pintaría de ámbar sin que pasara nada malo.
+  #
+  # El job de arriba es de SOLO LECTURA a propósito; los permisos de escritura
+  # viven aquí y solo aquí.
+  operativa:
+    needs: vigilar
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # El único job del repositorio que escribe fuera del grupo de escritura
+    # sería este, así que se mete en el grupo A MANO, a nivel de job: el
+    # workflow entero no puede entrar, porque la espera en cola cuenta contra
+    # `timeout-minutes` (lección del run 31119690487) y ahogaría al vigilante,
+    # que muere a los 5 minutos por diseño.
+    concurrency:
+      group: centinela-escritura
+      cancel-in-progress: false
+    # Generoso porque puede pasar un rato en la cola del grupo. El trabajo real
+    # son menos de 30 s.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.centinela_xtb_session
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Registrar el estado del Vigilante
+        run: |
+          python scripts/registrar_salud.py vigilante \
+            --salida "${{ needs.vigilar.outputs.resultado }}" \
+            --job "${{ needs.vigilar.result }}" \
+            --detalle "${{ needs.vigilar.outputs.detalle }}"
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: pulso diario del vigilante [skip ci]" \
+            "procesado" \
+            docs estado

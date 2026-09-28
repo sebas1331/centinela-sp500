@@ -80,6 +80,64 @@ python -m http.server 8000 --directory docs   # y abrir http://localhost:8000
 
 ---
 
+## 🩺 Operativa: ¿está funcionando ahora mismo?
+
+**→ [sebas1331.github.io/centinela-sp500/operativa.html](https://sebas1331.github.io/centinela-sp500/operativa.html)**
+
+Segunda página, enlazada con el dashboard. Contestan preguntas distintas y por
+eso están separadas: el dashboard dice **cuánto gana la estrategia**; esta dice
+**si el sistema está vivo y si XTB y el simulador cuentan lo mismo**. Es la que
+hay que abrir cuando algo huele mal, y la que resume en un vistazo lo que antes
+obligaba a rebuscar en la pestaña Actions.
+
+Arriba de todo hay un **semáforo** con los motivos escritos:
+
+| Color | Cuándo |
+|---|---|
+| 🔴 **Problema** | un componente crítico terminó en rojo · la sesión de XTB caducó · saltó el candado de demo · la reconciliación encontró diferencias · una posición pasó de su fecha de salida y sigue abierta |
+| 🟠 **Atención** | una salida por tiempo se cerró con el plan B · la sesión de XTB caduca en menos de 3 h · un componente lleva más de 30 h sin correr · una orden se rechazó en los últimos 3 días |
+| 🟢 **Todo en orden** | ninguna de las anteriores |
+
+Un rojo **no esconde los ámbares**: se listan todos los motivos, porque quien
+entra a arreglar algo quiere ver todo lo que hay, no solo lo más grave.
+
+Debajo, en este orden: los **siete componentes** con su última ejecución y
+enlace a su run; la **cuenta en XTB** (saldo, equity, invertido, P&L abierto y
+el candado); las **posiciones abiertas**, cruzando lo que sabe el broker
+(acciones, precio) con lo que sabe el simulador (objetivo, stop, fecha de
+salida), destacadas si salen mañana o si están a menos de un 2 % del stop; el
+**historial de órdenes** con buscador y filtros, el precio pedido frente al
+ejecutado y el slippage; el **historial de objetivos y stops**; la
+**reconciliación**; y las **alertas recientes** del Vigilante.
+
+**Lo que esta página no hace:** no llama a la API de GitHub —eso exigiría un
+token en una página pública—, así que cada workflow deja escrito cómo le fue en
+`estado/salud.json` y la página solo lee un JSON estático.
+
+**Privacidad.** Es pública, así que el número de cuenta sale enmascarado
+(`•••385`) y no se escribe **nada** de la sesión: ni TGT, ni cookies, ni
+credenciales. Hay un test que busca cada secreto conocido dentro del JSON
+publicado y falla si aparece alguno.
+
+**Datos viejos.** Un verde pintado con información de hace tres días es peor que
+no tener página: da tranquilidad sin haberla comprobado. Por eso el navegador
+compara la hora de generación con la actual y, pasadas 30 h, avisa; pasadas 72,
+lo pinta en rojo. Esa comprobación **solo puede empeorar** el color, nunca
+mejorarlo. El Vigilante republica la página **todos los días**, fines de semana
+incluidos, justo para que ese reloj no salte sin motivo en un puente largo.
+
+Se regenera y se publica al final de cada ejecución que toca XTB (compras,
+ventas, post-cierre), del Vigilante y del reentrenamiento, siempre **en un job
+aparte con `needs`**: si la página falla, la bitácora y el estado ya están
+persistidos y verificados, y nadie depende de ella.
+
+```bash
+python scripts/generar_operativa.py
+python -m http.server 8000 --directory docs   # /operativa.html
+```
+
+---
+
 ## 📱 Cómo consultar la bitácora desde el celular
 
 Todo el registro vive en el propio repositorio. Desde el navegador del teléfono:
@@ -414,8 +472,12 @@ de retrasos en verano e invierno y avisa si se reabre el agujero.
 
 ## ✅ Cómo verificar desde el celular que el sistema está vivo
 
-Abre el repo en el navegador o la app de GitHub y mira **la fecha del último
-commit** en la portada. No hace falta nada más.
+Abre **[la página de Operativa](https://sebas1331.github.io/centinela-sp500/operativa.html)**
+y mira el semáforo. Si está verde, no hay nada que hacer.
+
+Si prefieres no depender de la página (por ejemplo, porque sospechas justo de
+ella), el método de siempre sigue valiendo: abre el repo en el navegador o la
+app de GitHub y mira **la fecha del último commit** en la portada.
 
 ### Qué esperar cada día de mercado (lunes a viernes, salvo festivos)
 

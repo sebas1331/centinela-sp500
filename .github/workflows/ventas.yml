@@ -95,3 +95,48 @@ jobs:
             "ejecutor XTB: ventas [skip ci]" \
             "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
             estado bitacora_broker.csv ordenes
+
+  # LA PÁGINA DE OPERATIVA. Aquí importa especialmente: este es el workflow de
+  # la ventana estrecha, el que puede perderse el cierre por tiempo y disparar
+  # el plan B. La página es donde eso se ve sin abrir Actions.
+  operativa:
+    needs: ventas
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.centinela_xtb_session
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Registrar el estado del ejecutor
+        run: |
+          python scripts/registrar_salud.py ventas \
+            --job "${{ needs.ventas.result }}" --solo-si-falta
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: republicada tras las ventas [skip ci]" \
+            "procesado" \
+            docs estado

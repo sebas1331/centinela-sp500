@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="es" data-tema="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Centinela SP500 — Operativa</title>
+<meta name="description" content="Salud del sistema y órdenes en el broker de Centinela SP500.">
+<script>
+/* Resuelve el tema ANTES de aplicar el CSS. Con data-tema siempre puesto, la
+   paleta oscura se declara UNA vez en vez de dos (media query + override
+   manual): medio kilobyte repetido letra por letra, y este fichero tiene un
+   techo de 50 KB. De paso, no hay destello claro al abrir en oscuro. */
+(function(){
+  var r = document.documentElement, g = null;
+  try{ g = localStorage.getItem("centinela-tema"); }catch(e){}
+  r.dataset.tema = (g === "dark" || g === "light") ? g
+    : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+})();
+</script>
+<style>
+/* --------------------------------------------------------------------------
+   Tema. Claro por defecto; oscuro si el sistema lo pide; y el toggle manda
+   sobre ambos escribiendo data-tema en <html>.
+   -------------------------------------------------------------------------- */
+:root{
+  --fondo:#f6f7f9; --superficie:#ffffff; --superficie-2:#f0f2f5;
+  --borde:#dfe3e8; --texto:#1c2024; --tenue:#606a76; --muy-tenue:#8b95a1;
+  --verde:#0a7d3b; --rojo:#c2410c; --azul:#0369a1;
+  --verde-fondo:#e6f4ec; --rojo-fondo:#fdeee6; --azul-fondo:#e4f1f9;
+  --acento:#0369a1; --sombra:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.04);
+  /* Identidad de cartera para la curva de equity. Ahí el color dice QUÉ CARTERA
+     es, no si va bien o mal, así que no puede reutilizar el verde/rojo sin
+     mentir. La Cartera A toma el azul que el sistema ya usa para "posición
+     abierta" (mismo registro: informativo, no valorativo) y la B necesita un
+     tono nuevo: el violeta es el único frío que no colisiona con verde, rojo ni
+     azul. Aun así las dos series se distinguen TAMBIÉN por trazo (A continua,
+     B discontinua), para que la lectura no dependa de percibir bien el color. */
+  --serie-b:#7c3aed;
+  /* Ámbar de aviso: ni error (rojo, que aquí ya significa pérdida) ni
+     informativo (azul, que significa posición abierta). Registro propio. */
+  --aviso:#92400e; --aviso-fondo:#fef6e0; --aviso-borde:#f0c775;
+}
+:root[data-tema="dark"]{
+  --fondo:#101418; --superficie:#181d23; --superficie-2:#212831;
+  --borde:#2c343d; --texto:#e7ebef; --tenue:#9aa5b1; --muy-tenue:#6e7a87;
+  --verde:#4ade80; --rojo:#f87171; --azul:#60a5fa;
+  --verde-fondo:#123021; --rojo-fondo:#3a1d1a; --azul-fondo:#12293f;
+  --acento:#60a5fa; --sombra:0 1px 2px rgba(0,0,0,.4);
+  --serie-b:#a78bfa;
+  --aviso:#fbbf24; --aviso-fondo:#33280f; --aviso-borde:#6b5119;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--fondo); color:var(--texto);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",ui-sans-serif,system-ui,
+    Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.pos{color:var(--verde)} .neg{color:var(--rojo)} .neu{color:var(--tenue)}
+/* Un acumulado exactamente en cero no es ni ganancia ni pérdida: azul, el mismo
+   registro neutro-informativo que el badge de "Abierta". */
+.cero{color:var(--azul)}
+
+/* ---------------------------------- Cabecera fija ---------------------- */
+header{
+  position:sticky; top:0; z-index:20;
+  background:var(--superficie); border-bottom:1px solid var(--borde);
+  padding:.6rem max(.85rem,env(safe-area-inset-left));
+  display:flex; align-items:center; gap:.75rem;
+}
+header h1{font-size:1.02rem; margin:0; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+#sello{font-size:.72rem; color:var(--tenue); margin-left:auto; text-align:right; line-height:1.25}
+#sello b{display:block; font-weight:600; color:var(--texto); font-variant-numeric:tabular-nums}
+#tema{
+  flex:0 0 auto; background:var(--superficie-2); color:var(--texto);
+  border:1px solid var(--borde); border-radius:8px; padding:.36rem .5rem;
+  font:inherit; font-size:.78rem; cursor:pointer; line-height:1;
+}
+#tema:hover{border-color:var(--muy-tenue)}
+/* En un móvil estrecho la fecha se partía en cuatro líneas y empujaba al
+   título. El rótulo sobra: lo que hace falta es la hora. */
+@media (max-width:430px){
+  header{gap:.45rem}
+  header h1{font-size:.92rem}
+  #sello{font-size:.68rem}
+  #sello .rotulo{display:none}
+}
+
+main{max-width:1180px; margin:0 auto; padding:1rem max(.85rem,env(safe-area-inset-left)) 3rem}
+h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
+   color:var(--tenue); font-weight:650; margin:1.6rem 0 .6rem}
+
+/* ---------------------------------- Tarjetas --------------------------- */
+.resumen{display:grid; grid-template-columns:repeat(2,1fr); gap:.6rem}
+@media (min-width:720px){.resumen{grid-template-columns:repeat(4,1fr)}}
+.kpi{
+  background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
+  padding:.85rem .9rem; box-shadow:var(--sombra);
+}
+.kpi .v{font-size:1.75rem; font-weight:660; letter-spacing:-.02em; line-height:1.1;
+        font-variant-numeric:tabular-nums}
+.kpi .e{font-size:.72rem; color:var(--tenue); margin-top:.28rem; letter-spacing:.01em}
+
+/* ------------------------- P&L acumulado por cartera ------------------------ */
+/* Dos columnas SIEMPRE (A izquierda, B derecha) para que la comparación sea
+   inmediata también en el móvil. Lo que cambia con el ancho es cómo se colocan
+   las dos tarjetas de cada columna: apiladas en móvil, en fila en escritorio. */
+.pnlgrid{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.pnlcol h3{margin:0 0 .4rem; font-size:.8rem; font-weight:650; color:var(--tenue)}
+.pnlpar{display:grid; grid-template-columns:1fr; gap:.5rem}
+@media (min-width:720px){.pnlpar{grid-template-columns:1fr 1fr}}
+.kpi-sm{padding:.6rem .7rem}
+.kpi-sm .v{font-size:1.28rem}
+.nota{
+  margin:.7rem 0 0; font-size:.72rem; line-height:1.5; color:var(--tenue); max-width:74ch;
+}
+/* Cuenta simulada: la cifra principal. Rejilla de métricas dentro de cada
+   tarjeta de cartera, que reaprovecha .cartera/.kpi-sm en vez de estrenar una
+   familia de estilos nueva (el index.html tiene un techo de 50 KB). */
+.metricas{display:grid; grid-template-columns:repeat(2,1fr); gap:.45rem}
+@media (min-width:520px){.metricas{grid-template-columns:repeat(3,1fr)}}
+.metricas .kpi{padding:.5rem .6rem}
+.metricas .v{font-size:1.05rem}
+.metricas .e{font-size:.66rem; margin-top:.15rem}
+.destacado .v{font-size:1.35rem}
+/* Aviso de orden que vence: mismo registro ámbar que el resto de avisos. */
+.urge{color:var(--aviso); font-weight:600}
+tr.urge-fila td{background:var(--aviso-fondo)}
+.nota a{color:inherit; text-decoration:underline}
+
+/* ---------------------------------- Controles -------------------------- */
+.controles{display:flex; flex-direction:column; gap:.55rem; margin-bottom:.7rem}
+#buscar{
+  width:100%; padding:.55rem .7rem; font:inherit; font-size:.9rem;
+  background:var(--superficie); color:var(--texto);
+  border:1px solid var(--borde); border-radius:9px;
+}
+#buscar:focus{outline:2px solid var(--acento); outline-offset:-1px; border-color:var(--acento)}
+.chips{display:flex; flex-wrap:wrap; gap:.35rem}
+.chip{
+  background:var(--superficie); color:var(--tenue); border:1px solid var(--borde);
+  border-radius:999px; padding:.32rem .68rem; font:inherit; font-size:.78rem;
+  cursor:pointer; white-space:nowrap; line-height:1.2;
+}
+.chip:hover{border-color:var(--muy-tenue); color:var(--texto)}
+.chip[aria-pressed="true"]{
+  background:var(--azul-fondo); border-color:var(--azul); color:var(--azul); font-weight:600;
+}
+#cuenta{font-size:.75rem; color:var(--tenue); font-variant-numeric:tabular-nums}
+
+/* La tarjeta de la cuenta del broker. Mismas reglas que las carteras del
+   dashboard: las dos pintan pares etiqueta/valor y no tiene sentido que se
+   vean distinto en dos páginas que se enlazan una a la otra. */
+.cartera{background:var(--superficie); border:1px solid var(--borde);
+         border-radius:12px; padding:.85rem .9rem; box-shadow:var(--sombra)}
+.cartera h3{margin:0 0 .55rem; font-size:.95rem; font-weight:650;
+            display:flex; align-items:baseline; gap:.45rem}
+.cartera h3 span{font-size:.72rem; color:var(--tenue); font-weight:400}
+.cartera dl{margin:0; display:grid; grid-template-columns:1fr auto;
+            gap:.35rem .8rem; font-size:.84rem}
+.cartera dt{color:var(--tenue)}
+.cartera dd{margin:0; text-align:right; font-variant-numeric:tabular-nums;
+            font-weight:560}
+
+/* ---------------------------------- Tablas ----------------------------- */
+.caja{background:var(--superficie); border:1px solid var(--borde);
+      border-radius:12px; box-shadow:var(--sombra); overflow:hidden}
+table{width:100%; border-collapse:collapse; font-size:.86rem}
+thead th{
+  position:sticky; top:0; background:var(--superficie-2); color:var(--tenue);
+  font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:650;
+  text-align:left; padding:.5rem .6rem; white-space:nowrap; cursor:pointer;
+  border-bottom:1px solid var(--borde); user-select:none;
+}
+thead th:hover{color:var(--texto)}
+thead th .dir{color:var(--acento); font-size:.62rem; margin-left:.15rem}
+tbody td{padding:.5rem .6rem; border-top:1px solid var(--borde); vertical-align:middle}
+tbody tr:hover{background:var(--superficie-2)}
+td.n{text-align:right; font-variant-numeric:tabular-nums}
+th.n{text-align:right}
+.tk{font-weight:660; letter-spacing:-.01em}
+.pnl{font-weight:660; font-size:.95rem; font-variant-numeric:tabular-nums}
+.badge{
+  display:inline-block; padding:.13rem .45rem; border-radius:999px;
+  font-size:.7rem; font-weight:620; white-space:nowrap; border:1px solid transparent;
+}
+.b-g{background:var(--verde-fondo); color:var(--verde); border-color:var(--verde)}
+.b-p{background:var(--rojo-fondo); color:var(--rojo); border-color:var(--rojo)}
+.b-a{background:var(--azul-fondo); color:var(--azul); border-color:var(--azul)}
+.vacio{padding:2rem .9rem; text-align:center; color:var(--tenue); font-size:.85rem}
+
+details{background:var(--superficie); border:1px solid var(--borde);
+        border-radius:12px; box-shadow:var(--sombra); overflow:hidden}
+summary{padding:.75rem .9rem; cursor:pointer; font-weight:600; font-size:.88rem;
+        list-style:none; display:flex; align-items:center; gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+"; color:var(--acento); font-weight:700; width:.8rem}
+details[open] summary::before{content:"−"}
+summary small{color:var(--tenue); font-weight:400; margin-left:auto; font-size:.75rem}
+details .envoltorio{border-top:1px solid var(--borde)}
+
+footer{margin-top:2.2rem; padding-top:1rem; border-top:1px solid var(--borde);
+       color:var(--tenue); font-size:.75rem; display:flex; flex-wrap:wrap; gap:.35rem 1rem}
+footer a{color:var(--acento)}
+
+/* --------------------------------------------------------------------------
+   MÓVIL: cada fila deja de ser fila y se convierte en tarjeta. Las etiquetas de
+   columna se recuperan desde data-col con ::before, así que nunca hay scroll
+   horizontal ni una cabecera que se pierde de vista.
+   -------------------------------------------------------------------------- */
+@media (max-width:719px){
+  main{padding-left:.7rem; padding-right:.7rem}
+  .caja{background:transparent; border:0; box-shadow:none; overflow:visible}
+  table, tbody, tr, td{display:block; width:100%}
+  thead{display:none}
+  tbody tr{
+    background:var(--superficie); border:1px solid var(--borde); border-radius:12px;
+    padding:.65rem .8rem; margin-bottom:.5rem; box-shadow:var(--sombra);
+    display:grid; grid-template-columns:1fr auto; gap:.05rem .6rem;
+  }
+  tbody tr:hover{background:var(--superficie)}
+  /* Todo baja en una sola columna salvo el P&L, que se ancla arriba a la
+     derecha para quedar en la misma línea que el ticker. Colocación explícita:
+     dejarlo al autoflow del grid daría un orden distinto según qué celdas
+     existan en cada tabla. */
+  tbody td{border:0; padding:.09rem 0; font-size:.8rem; color:var(--tenue); grid-column:1}
+  tbody td::before{content:attr(data-col) ": "; color:var(--muy-tenue)}
+  tbody td.n{text-align:left}
+  /* Ticker y P&L mandan: primera línea de la tarjeta, grandes y sin rótulo. */
+  tbody td.c-ticker,tbody td.c-pnl{
+    font-size:1.12rem; padding-bottom:.3rem; color:var(--texto); align-self:center;
+  }
+  tbody td.c-ticker::before,tbody td.c-pnl::before,tbody td.c-estado::before{content:""}
+  tbody td.c-pnl{grid-column:2; grid-row:1; text-align:right}
+  tbody td.c-estado{padding-bottom:.35rem}
+  details .caja{padding:.6rem .7rem 0}
+}
+
+/* ------------------------------- Operativa -------------------------------- */
+/* Semáforo: lo primero que se ve y lo único que debería hacer falta mirar
+   cuando todo va bien. */
+.semaforo{
+  border-radius:14px; padding:1rem 1.1rem; margin-bottom:.9rem;
+  border:1px solid var(--borde); background:var(--superficie); box-shadow:var(--sombra);
+}
+.semaforo .luz{
+  display:flex; align-items:center; gap:.7rem;
+  font-size:1.45rem; font-weight:680; letter-spacing:-.02em;
+}
+.semaforo .luz::before{
+  content:""; width:1.1rem; height:1.1rem; border-radius:50%; flex:none;
+}
+.sem-verde{border-color:var(--verde)} .sem-verde .luz{color:var(--verde)}
+.sem-verde .luz::before{background:var(--verde)}
+.sem-ambar{border-color:var(--aviso-borde); background:var(--aviso-fondo)}
+.sem-ambar .luz{color:var(--aviso)} .sem-ambar .luz::before{background:var(--aviso)}
+.sem-rojo{border-color:var(--rojo); background:var(--rojo-fondo)}
+.sem-rojo .luz{color:var(--rojo)} .sem-rojo .luz::before{background:var(--rojo)}
+.semaforo ul{margin:.7rem 0 0; padding-left:1.1rem; font-size:.82rem; line-height:1.55}
+.semaforo li{margin:.25rem 0}
+.semaforo .ok{margin:.5rem 0 0; font-size:.8rem; color:var(--tenue)}
+
+/* Filas de componentes */
+.comp{display:grid; gap:.4rem}
+.comp-fila{
+  display:grid; grid-template-columns:1fr auto; gap:.15rem .7rem;
+  padding:.55rem .7rem; background:var(--superficie);
+  border:1px solid var(--borde); border-radius:10px;
+}
+.comp-fila b{font-size:.86rem; font-weight:600}
+.comp-fila .meta{font-size:.72rem; color:var(--tenue); grid-column:1}
+.comp-fila .est{font-size:.76rem; font-weight:600; text-align:right}
+.comp-fila .prox{font-size:.72rem; color:var(--tenue); text-align:right}
+/* Con un detalle largo (la reconciliación lista sus diferencias), las dos
+   columnas se trenzaban y no se sabía qué línea seguía a cuál. En móvil la
+   fila pasa a una sola columna y cada cosa ocupa la suya. */
+@media (max-width:560px){
+  .comp-fila{grid-template-columns:1fr}
+  .comp-fila .est{text-align:left; grid-row:2}
+  .comp-fila .meta{grid-row:3}
+  .comp-fila .prox{text-align:left; grid-row:4}
+}
+.est-ok{color:var(--verde)} .est-mal{color:var(--rojo)}
+.est-nd{color:var(--muy-tenue)}
+
+/* Tarjetas de posición en móvil, tabla en escritorio */
+.pos-fila.alerta td{background:var(--aviso-fondo)}
+.tk{font-weight:650}
+.enl{color:var(--acento); text-decoration:none; font-size:.74rem}
+.enl:hover{text-decoration:underline}
+.navpag{display:flex; gap:.6rem; align-items:center; font-size:.78rem;
+        margin:-.3rem 0 .9rem}
+.navpag a{color:var(--acento)}
+.vacio-sec{
+  padding:.9rem; text-align:center; color:var(--tenue); font-size:.8rem;
+  background:var(--superficie); border:1px dashed var(--borde); border-radius:10px;
+}
+.cambio{font-size:.78rem; padding:.2rem 0; border-bottom:1px solid var(--borde)}
+.cambio:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Centinela SP500 · Operativa</h1>
+  <div id="sello"><b>—</b><span class="rotulo">última actualización</span></div>
+  <button id="tema" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>
+</header>
+
+<main>
+  <p class="navpag">
+    <a href="index.html">← Estrategia y resultados</a>
+    <span class="nota" style="margin:0">·</span>
+    <span>Estás en Operativa</span>
+  </p>
+
+  <div id="semaforo" class="semaforo"></div>
+
+  <h2>Componentes</h2>
+  <div class="comp" id="componentes"></div>
+
+  <h2>Cuenta en XTB</h2>
+  <div class="carteras" id="broker"></div>
+
+  <h2>Posiciones abiertas en XTB</h2>
+  <div class="caja"><table id="t-pos">
+    <thead><tr>
+      <th>Ticker</th><th class="n">Acc.</th><th class="n">Entrada</th>
+      <th class="n">Actual</th><th class="n">Objetivo</th><th class="n">Stop</th>
+      <th class="n">Al stop</th><th class="n">Días</th><th>Sale</th>
+      <th class="n">P&amp;L</th>
+    </tr></thead>
+    <tbody id="cuerpo-pos"></tbody>
+  </table></div>
+  <div class="vacio-sec" id="sin-pos" hidden>No hay posiciones abiertas en XTB.</div>
+
+  <h2>Historial de órdenes</h2>
+  <div class="controles">
+    <input id="buscar" type="search" placeholder="Buscar ticker…" autocomplete="off"
+           spellcheck="false" aria-label="Buscar por ticker">
+    <div class="chips" id="chips-ord"></div>
+    <div id="cuenta"></div>
+  </div>
+  <div class="caja"><table>
+    <thead><tr>
+      <th>Cuándo</th><th>Ticker</th><th>Tipo</th><th class="n">Acc.</th>
+      <th class="n">Pedido</th><th class="n">Ejecutado</th><th class="n">Slippage</th>
+      <th>Estado</th><th>Orden</th>
+    </tr></thead>
+    <tbody id="cuerpo-ord"></tbody>
+  </table></div>
+  <div class="vacio-sec" id="sin-ord" hidden>Ninguna orden coincide.</div>
+
+  <h2>Objetivos y stops</h2>
+  <div id="niveles"></div>
+
+  <h2>Reconciliación</h2>
+  <div id="reconcilia"></div>
+
+  <h2>Alertas recientes</h2>
+  <div id="alertas"></div>
+
+  <footer>
+    <a id="repo" href="https://github.com/sebas1331/centinela-sp500">Repositorio en GitHub</a>
+    <a href="index.html">Dashboard de estrategia</a>
+    <span id="generado"></span>
+    <span>Paper trading — cuenta demo.</span>
+  </footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* data-tema ya viene resuelto del <head>: aquí solo se lee y se alterna. */
+var raiz = document.documentElement, btnTema = document.getElementById("tema");
+function guardado(){
+  try{ return localStorage.getItem("centinela-tema"); }catch(e){ return null; }
+}
+function pintarBoton(){
+  btnTema.textContent = raiz.dataset.tema === "dark" ? "Claro" : "Oscuro";
+}
+btnTema.addEventListener("click", function(){
+  raiz.dataset.tema = raiz.dataset.tema === "dark" ? "light" : "dark";
+  try{ localStorage.setItem("centinela-tema", raiz.dataset.tema); }catch(e){}
+  pintarBoton();
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(e){
+  if(guardado()) return;
+  raiz.dataset.tema = e.matches ? "dark" : "light";
+  pintarBoton();
+});
+pintarBoton();
+
+/* ------------------------------------------------------------- Formato ---- */
+var MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+/* Las fechas de sesión son YYYY-MM-DD y se parten a mano: new Date() las lee
+   como medianoche UTC y al oeste de Greenwich pintaría el día anterior. */
+function fecha(iso){
+  if(!iso) return "—";
+  var p = String(iso).slice(0,10).split("-");
+  if(p.length !== 3) return "—";
+  var m = MESES[parseInt(p[1],10)-1];
+  return m ? (parseInt(p[2],10) + " " + m) : "—";
+}
+/* Hora de Ecuador (UTC-5 todo el año, sin horario de verano). El JSON trae la
+   hora con su zona; convertirla allí obligaría al generador a saber dónde se
+   va a leer. */
+function horaEc(iso){
+  if(!iso) return "—";
+  var d = new Date(iso);
+  if(isNaN(d)) return "—";
+  return d.toLocaleString("es-EC", {timeZone:"America/Guayaquil",
+    day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"});
+}
+function precio(v){
+  if(v === null || v === undefined) return "—";
+  return (v < 0 ? "-$" : "$") + Math.abs(v).toLocaleString("en-US",
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function pct(v, dec){
+  if(v === null || v === undefined) return "—";
+  var d = dec === undefined ? 2 : dec;
+  return (v > 0 ? "+" : "") + v.toFixed(d) + "%";
+}
+function signo(v){
+  return v === null || v === undefined ? "neu" : (v > 0 ? "pos" : (v < 0 ? "neg" : "neu"));
+}
+function el(tag, clase, texto){
+  var n = document.createElement(tag);
+  if(clase) n.className = clase;
+  if(texto !== undefined && texto !== null) n.textContent = texto;
+  return n;
+}
+function enlace(url, texto){
+  var a = el("a","enl",texto);
+  a.href = url; a.target = "_blank"; a.rel = "noopener";
+  return a;
+}
+
+/* ------------------------------------------------------------ Arranque ---- */
+fetch("operativa.json", {cache:"no-cache"})
+  .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(iniciar)
+  .catch(function(err){
+    /* También por consola: un fallo que solo se ve en pantalla no aparece en
+       ninguna comprobación automática, y este es el fallo que deja la página
+       entera en blanco. */
+    console.error("operativa: no se pudo cargar operativa.json:", err);
+    document.getElementById("semaforo").className = "semaforo sem-rojo";
+    document.getElementById("semaforo").appendChild(
+      el("div","luz","No se pudo cargar operativa.json"));
+    document.getElementById("semaforo").appendChild(el("p","ok", err.message));
+  });
+
+function iniciar(D){
+  var meta = D.meta || {};
+  if(meta.repo) document.getElementById("repo").href = meta.repo;
+  document.getElementById("generado").textContent =
+    "Generado " + horaEc(D.generado) + " (hora de Ecuador)";
+  var s = document.getElementById("sello");
+  s.textContent = "";
+  s.appendChild(el("b","",horaEc(D.generado)));
+  s.appendChild(el("span","rotulo","última actualización"));
+
+  pintarSemaforo(D);
+  pintarComponentes(D.componentes || []);
+  pintarBroker(D.broker || {});
+  pintarPosiciones(D.posiciones || []);
+  montarOrdenes(D.ordenes || []);
+  pintarNiveles(D.niveles || []);
+  pintarReconciliacion(D.reconciliacion || {});
+  pintarAlertas(D.alertas || []);
+}
+
+/* --------------------------------------------------------- 1. Semáforo ---- */
+/* Los datos viejos son el peligro que un semáforo no puede tener: un verde
+   pintado con información de hace tres días es peor que no tener página,
+   porque da tranquilidad sin haberla comprobado. Aquí se compara la hora de
+   generación con lo que DEBERÍA haber pasado ya. */
+var HORAS_AMBAR = 30, HORAS_ROJO = 72;
+
+function frescura(generado, hoyEsSesion){
+  if(!generado) return {nivel:"rojo", motivo:"El fichero de datos no dice cuándo se generó."};
+  var d = new Date(generado);
+  if(isNaN(d)) return {nivel:"rojo", motivo:"La fecha de generación no se entiende."};
+  var horas = (Date.now() - d.getTime()) / 36e5;
+  if(horas >= HORAS_ROJO)
+    return {nivel:"rojo", horas:horas,
+            motivo:"Los datos no se actualizan desde hace " + Math.round(horas) +
+                   " h. El sistema puede llevar días sin correr."};
+  if(horas >= HORAS_AMBAR)
+    return {nivel:"ambar", horas:horas,
+            motivo:"Los datos no se actualizan desde hace " + Math.round(horas) +
+                   " h. Debería haberse refrescado en la última sesión."};
+  return {nivel:"verde", horas:horas};
+}
+
+function pintarSemaforo(D){
+  var sem = D.semaforo || {color:"verde", titulo:"Todo en orden", motivos:[]};
+  var motivos = (sem.motivos || []).slice();
+  var color = sem.color;
+
+  /* La comprobación del navegador puede EMPEORAR el color, nunca mejorarlo. */
+  var f = frescura(D.generado, D.hoy_es_sesion);
+  if(f.nivel !== "verde"){
+    motivos.unshift(f.motivo);
+    if(f.nivel === "rojo" || color === "verde") color = f.nivel;
+  }
+  var titulo = color === "rojo" ? "Problema"
+             : (color === "ambar" ? "Atención" : "Todo en orden");
+
+  var caja = document.getElementById("semaforo");
+  caja.className = "semaforo sem-" + color;
+  caja.textContent = "";
+  caja.appendChild(el("div","luz",titulo));
+  if(motivos.length){
+    var ul = el("ul");
+    motivos.forEach(function(m){ ul.appendChild(el("li","",m)); });
+    caja.appendChild(ul);
+  } else {
+    caja.appendChild(el("p","ok",
+      "Todos los componentes corrieron cuando tocaba, XTB y el simulador " +
+      "coinciden y la sesión sigue viva."));
+  }
+}
+
+/* ----------------------------------------------------- 2. Componentes ---- */
+function pintarComponentes(comps){
+  var zona = document.getElementById("componentes");
+  zona.textContent = "";
+  comps.forEach(function(c){
+    var fila = el("div","comp-fila");
+    fila.appendChild(el("b","",c.nombre));
+
+    var malo = c.resultado && (/^fallo|failure|error|diferencias|candado/i.test(c.resultado)
+                               || c.resultado.indexOf("XTB_REQUIERE_CODIGO") === 0);
+    var est = el("div","est " + (!c.resultado ? "est-nd" : (malo ? "est-mal" : "est-ok")),
+                 c.resultado || "sin datos");
+    fila.appendChild(est);
+
+    var meta = el("div","meta");
+    meta.appendChild(document.createTextNode(
+      c.cuando ? horaEc(c.cuando) : "nunca ha corrido"));
+    if(c.detalle) meta.appendChild(document.createTextNode(" · " + c.detalle.slice(0,90)));
+    if(c.url){
+      meta.appendChild(document.createTextNode(" · "));
+      meta.appendChild(enlace(c.url, "ver run"));
+    }
+    fila.appendChild(meta);
+    fila.appendChild(el("div","prox", c.cadencia));
+    zona.appendChild(fila);
+  });
+}
+
+/* --------------------------------------------------------- 3. La cuenta ---- */
+function pintarBroker(b){
+  var zona = document.getElementById("broker");
+  zona.textContent = "";
+  var caja = el("div","cartera");
+  var h3 = el("h3","", "Cuenta " + (b.cuenta || "—") + " ");
+  h3.appendChild(el("span","", b.tipo === "demo" ? "demo" : "REAL"));
+  caja.appendChild(h3);
+
+  var dl = el("dl");
+  function fila(k, v, clase){
+    dl.appendChild(el("dt","",k));
+    dl.appendChild(el("dd",clase || "",v));
+  }
+  fila("Saldo", precio(b.saldo));
+  fila("Equity", precio(b.equity));
+  fila("Capital invertido", precio(b.invertido));
+  fila("Efectivo disponible", precio(b.efectivo));
+  fila("P&L abierto", precio(b.pnl_abierto) + "  (" + pct(b.pnl_abierto_pct) + ")",
+       signo(b.pnl_abierto));
+  fila("Candado de demo",
+       b.candado_ok === null ? "sin comprobar" : (b.candado_ok ? "verificado" : "ACTIVADO"),
+       b.candado_ok === false ? "neg" : (b.candado_ok ? "pos" : ""));
+  fila("Leído", b.leido ? horaEc(b.leido) : "—");
+  caja.appendChild(dl);
+  zona.appendChild(caja);
+}
+
+/* ---------------------------------------------------- 4. Posiciones ---- */
+var ETIQ_POS = {ticker:"Ticker", acc:"Acciones", entrada:"Entrada",
+  actual:"Actual", objetivo:"Objetivo", stop:"Stop", alstop:"Al stop",
+  dias:"Días", sale:"Sale", pnl:"P&L"};
+
+function pintarPosiciones(pos){
+  var cuerpo = document.getElementById("cuerpo-pos");
+  cuerpo.textContent = "";
+  document.getElementById("sin-pos").hidden = pos.length > 0;
+  document.getElementById("t-pos").hidden = pos.length === 0;
+
+  pos.forEach(function(p){
+    var tr = el("tr","pos-fila" + ((p.sale_manana || p.cerca_del_stop) ? " alerta" : ""));
+    function c(col, nodo, clase){
+      var td = el("td",(clase||"") + " c-" + col);
+      td.dataset.col = ETIQ_POS[col];
+      if(typeof nodo === "string") td.textContent = nodo; else if(nodo) td.appendChild(nodo);
+      tr.appendChild(td);
+    }
+    c("ticker", el("span","tk",p.ticker));
+    c("acc", p.acciones === null ? "—" : String(p.acciones), "n");
+    c("entrada", precio(p.precio_entrada), "n");
+    c("actual", precio(p.precio_actual), "n");
+    c("objetivo", precio(p.objetivo), "n");
+    c("stop", p.stop === null ? "sin stop" : precio(p.stop), "n");
+    c("alstop", el("span","num" + (p.cerca_del_stop ? " neg" : ""),
+                   pct(p.dist_stop_pct, 1)), "n");
+    c("dias", p.dias_en_posicion === null ? "—" : String(p.dias_en_posicion), "n");
+    c("sale", p.sale_manana ? "próxima sesión" : fecha(p.fecha_limite));
+    c("pnl", el("span","num " + signo(p.pnl), precio(p.pnl) + " (" + pct(p.pnl_pct,1) + ")"), "n");
+    cuerpo.appendChild(tr);
+  });
+}
+
+/* ------------------------------------------------------ 5. Órdenes ---- */
+var CHIPS_ORD = [
+  {id:"todas",     txt:"Todas"},
+  {id:"compras",   txt:"Compras"},
+  {id:"ventas",    txt:"Ventas"},
+  {id:"rechazadas",txt:"Rechazadas"}
+];
+var ETIQ_ORD = {cuando:"Cuándo", ticker:"Ticker", tipo:"Tipo", acc:"Acciones",
+  pedido:"Pedido", ejec:"Ejecutado", slip:"Slippage", estado:"Estado", orden:"Orden"};
+
+function montarOrdenes(ordenes){
+  var activo = "todas", texto = "";
+  var zona = document.getElementById("chips-ord");
+  CHIPS_ORD.forEach(function(c){
+    var b = el("button","chip",c.txt);
+    b.type = "button"; b.dataset.id = c.id;
+    b.setAttribute("aria-pressed", c.id === "todas" ? "true" : "false");
+    b.addEventListener("click", function(){
+      activo = c.id;
+      zona.querySelectorAll(".chip").forEach(function(x){
+        x.setAttribute("aria-pressed", x.dataset.id === activo ? "true" : "false");
+      });
+      pintar();
+    });
+    zona.appendChild(b);
+  });
+  document.getElementById("buscar").addEventListener("input", function(e){
+    texto = e.target.value.trim().toUpperCase(); pintar();
+  });
+
+  function coincide(o){
+    if(texto && String(o.ticker||"").toUpperCase().indexOf(texto) === -1) return false;
+    if(activo === "todas") return true;
+    if(activo === "rechazadas") return o.estado === "rechazada";
+    return o.grupo === activo;
+  }
+
+  function pintar(){
+    var lista = ordenes.filter(coincide);
+    var cuerpo = document.getElementById("cuerpo-ord");
+    cuerpo.textContent = "";
+    var frag = document.createDocumentFragment();
+    lista.forEach(function(o){
+      var tr = el("tr");
+      function c(col, nodo, clase){
+        var td = el("td",(clase||"") + " c-" + col);
+        td.dataset.col = ETIQ_ORD[col];
+        if(typeof nodo === "string") td.textContent = nodo; else if(nodo) td.appendChild(nodo);
+        tr.appendChild(td);
+      }
+      c("cuando", horaEc(o.cuando));
+      c("ticker", el("span","tk",o.ticker));
+      c("tipo", o.tipo_nombre || o.tipo);
+      c("acc", String(o.acciones), "n");
+      c("pedido", precio(o.precio_pedido), "n");
+      c("ejec", precio(o.precio_ejecutado), "n");
+      /* El slippage positivo es PEOR: se compró más caro o se vendió más
+         barato de lo que decía el simulador. Por eso el color va invertido. */
+      c("slip", el("span","num " + signo(-(o.slippage_pct||0)),
+                   o.slippage_pct === null ? "—"
+                     : pct(o.slippage_pct,2) + " (" + precio(o.slippage) + ")"), "n");
+      var est = el("span","badge " + (o.estado === "ejecutada" ? "b-g"
+                 : (o.estado === "rechazada" ? "b-p" : "b-a")), o.estado || "—");
+      var celda = document.createDocumentFragment();
+      celda.appendChild(est);
+      if(o.error) celda.appendChild(el("div","meta", o.error.slice(0,80)));
+      c("estado", celda);
+      c("orden", o.orden_xtb || "—");
+      frag.appendChild(tr);
+    });
+    cuerpo.appendChild(frag);
+    document.getElementById("sin-ord").hidden = lista.length > 0;
+    document.getElementById("cuenta").textContent =
+      lista.length + " de " + ordenes.length + " órdenes";
+  }
+  pintar();
+}
+
+/* ------------------------------------------------- 6. Objetivos y stops ---- */
+function pintarNiveles(niveles){
+  var zona = document.getElementById("niveles");
+  zona.textContent = "";
+  if(!niveles.length){
+    zona.appendChild(el("div","vacio-sec","Ninguna posición abierta con historial."));
+    return;
+  }
+  niveles.forEach(function(n){
+    var caja = el("div","cartera");
+    var h3 = el("h3","", n.ticker + " ");
+    h3.appendChild(el("span","", "objetivo " + precio(n.objetivo_vigente) +
+      " · stop " + (n.stop === null ? "ninguno" : precio(n.stop))));
+    caja.appendChild(h3);
+    n.cambios.forEach(function(c){
+      var d = el("div","cambio");
+      d.appendChild(el("span","", fecha(c.fecha) + ": "));
+      /* El primero no tiene "desde": es el objetivo con el que se compró. Poner
+         ahí un "inicial →" repetía la palabra que ya dice el motivo. */
+      d.appendChild(el("span","num", c.anterior === null
+        ? precio(c.nuevo) : precio(c.anterior) + " → " + precio(c.nuevo)));
+      if(c.motivo) d.appendChild(el("div","meta", c.motivo));
+      caja.appendChild(d);
+    });
+    zona.appendChild(caja);
+  });
+}
+
+/* ------------------------------------------------- 7. Reconciliación ---- */
+function pintarReconciliacion(r){
+  var zona = document.getElementById("reconcilia");
+  zona.textContent = "";
+  if(r.coincide === null || r.coincide === undefined){
+    zona.appendChild(el("div","vacio-sec","Todavía no se ha reconciliado nada."));
+    return;
+  }
+  var caja = el("div","cartera");
+  var h3 = el("h3","", r.coincide ? "XTB y el simulador coinciden " : "Hay diferencias ");
+  h3.appendChild(el("span","", horaEc(r.cuando)));
+  caja.appendChild(h3);
+  if(!r.coincide && r.diferencias.length){
+    var ul = el("ul");
+    r.diferencias.forEach(function(d){ ul.appendChild(el("li","",d.trim())); });
+    ul.style.fontSize = ".8rem";
+    caja.appendChild(ul);
+  }
+  if(r.url) caja.appendChild(enlace(r.url, "ver el run"));
+  zona.appendChild(caja);
+}
+
+/* ---------------------------------------------------- 8. Alertas ---- */
+function pintarAlertas(alertas){
+  var zona = document.getElementById("alertas");
+  zona.textContent = "";
+  if(!alertas.length){
+    zona.appendChild(el("div","vacio-sec","Ningún aviso reciente."));
+    return;
+  }
+  var caja = el("div","cartera");
+  alertas.forEach(function(a){
+    var d = el("div","cambio");
+    d.appendChild(el("b","", fecha(a.fecha) + " "));
+    d.appendChild(document.createTextNode(a.texto));
+    caja.appendChild(d);
+  });
+  zona.appendChild(caja);
+}
+})();
+</script>
+</body>
+</html>

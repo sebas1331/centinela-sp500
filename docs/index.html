@@ -122,6 +122,9 @@ h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
 .destacado .v{font-size:1.35rem}
 /* Aviso de orden que vence: mismo registro ámbar que el resto de avisos. */
 .urge{color:var(--aviso); font-weight:600}
+.navpag{display:flex; gap:.6rem; align-items:center; font-size:.78rem;
+        margin:-.3rem 0 .9rem}
+.navpag a{color:var(--acento)}
 tr.urge-fila td{background:var(--aviso-fondo)}
 .nota a{color:inherit; text-decoration:underline}
 
@@ -280,6 +283,12 @@ footer a{color:var(--acento)}
 </header>
 
 <main>
+  <p class="navpag">
+    <span>Estás en Estrategia</span>
+    <span class="nota" style="margin:0">·</span>
+    <a href="operativa.html">Operativa y salud del sistema →</a>
+  </p>
+
   <h2>Cuenta simulada</h2>
   <div class="carteras" id="cuenta-sim"></div>
   <p class="nota">
@@ -306,12 +315,10 @@ footer a{color:var(--acento)}
   <h2 id="h-broker" hidden>XTB vs. simulador</h2>
   <div class="carteras" id="broker" hidden></div>
   <p class="nota" id="nota-broker" hidden>
-    <b>El broker no lleva el stop.</b> XTB lo ignora en acciones al contado
-    (comprobado con una orden real el 28/09/2026), así que lo vigila el
-    ejecutor, que solo vende una vez al día. Medido: eso lleva la Cartera A de
-    +12,07&nbsp;% con −10,44&nbsp;% de drawdown a <b>+9,32&nbsp;% con
-    −12,50&nbsp;%</b>. Menos rentabilidad y más riesgo: es la divergencia
-    conocida entre lo ejecutado y lo simulado.
+    <b>El broker no lleva el stop</b>: XTB lo ignora en acciones al contado, así
+    que lo vigila el ejecutor una vez al día. Medido, eso lleva la Cartera A de
+    +12,07&nbsp;% / −10,44&nbsp;% a <b>+9,32&nbsp;% / −12,50&nbsp;%</b>. El
+    detalle y el estado en vivo, en <a href="operativa.html">Operativa</a>.
   </p>
 
   <h2>Actividad</h2>
@@ -371,6 +378,7 @@ footer a{color:var(--acento)}
 
   <footer>
     <a id="repo" href="https://github.com/sebas1331/centinela-sp500">Repositorio en GitHub</a>
+    <a href="operativa.html">Operativa</a>
     <span id="ult-cerrada"></span>
     <span>Paper trading — sin dinero real.</span>
   </footer>
@@ -507,9 +515,8 @@ function iniciar(D){
       caja.appendChild(h3);
 
       var rej = el("div","metricas");
-      /* Capital y rentabilidad primero y más grandes: son la respuesta a
-         "¿cuánto vale mi dinero?". El resto es el contexto de riesgo sin el
-         cual esa cifra no significa nada. */
+      /* Capital y rentabilidad primero: son la respuesta a "¿cuánto vale mi
+         dinero?". El resto es el riesgo sin el cual esa cifra no dice nada. */
       [["Capital actual", precio(c.capital_actual), null, true],
        ["Rentabilidad", pct(c.rentabilidad), signoCero(c.rentabilidad), true],
        ["Drawdown máx.", pct(c.drawdown_max), c.drawdown_max ? "neg" : null, true],
@@ -574,8 +581,8 @@ function iniciar(D){
 
   /* --- XTB vs. simulador ------------------------------------------------ */
   function pintarBroker(){
-    /* Sin ni una ejecución no se pinta NADA. Una sección a cero se leería como
-       "no hay diferencia", y lo cierto sería "todavía no se ha operado". */
+    /* Sin ejecuciones no se pinta nada: un cero se leería como "no hay
+       diferencia" cuando la verdad es "aún no se ha operado". */
     if(!BROKER) return;
     document.getElementById("h-broker").hidden = false;
     document.getElementById("nota-broker").hidden = false;
@@ -742,9 +749,8 @@ function iniciar(D){
         : M.l + (marca(CURVA[i].fecha) - t0) / spanT * ancho;
     }
 
-    /* En dólares el eje NO se ancla al cero: la cuenta arranca en $10.000 y
-       forzar el origen aplastaría la curva contra el borde. En retornos sí:
-       ahí el cero es "ni gano ni pierdo" y da sentido al resto. */
+    /* El eje NO se ancla al cero: la cuenta arranca en $30.000 y forzar el
+       origen aplastaría la curva contra el borde. */
     /* El eje NO se ancla al cero: la cuenta arranca en $10.000 y forzar el
        origen aplastaría la curva contra el borde. */
     var vals = [];
@@ -1044,9 +1050,8 @@ function iniciar(D){
       var texto = o.pnl_pct === null || o.pnl_pct === undefined ? "—"
         : (o.no_realizado ? "~" : "") + pct(o.pnl_pct);
       celda("pnl", el("span","pnl num " + signo(o.pnl_pct), texto), "n");
-      /* Las mismas cifras en dinero: un +19% no dice si fueron ocho dólares o
-         doscientos, y con acciones enteras y precios de $13 a $1.500 la
-         diferencia entre una posición y otra es enorme. */
+      /* Las mismas cifras en dinero: un +19% no dice si fueron ocho dólares
+         o doscientos. */
       var td = o.pnl_dinero === null || o.pnl_dinero === undefined ? "—"
         : (o.no_realizado ? "~" : "") + precio(o.pnl_dinero);
       celda("pnl_dinero", el("span","num " + signo(o.pnl_dinero), td), "n");

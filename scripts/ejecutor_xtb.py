@@ -33,6 +33,7 @@ segunda vez no se manda nada.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 
@@ -42,10 +43,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (config, calendario, broker_xtb as bx,  # noqa: E402
-                       ordenes as ords, estado as est_mod)
+from centinela import (config, calendario, broker_xtb as bx, cuenta,  # noqa: E402
+                       ordenes as ords, estado as est_mod, salud)
 
 MOMENTOS = ("compras", "ventas", "reconcilia")
+
+#: Cada momento del ejecutor deja su huella en el componente que le toca de
+#: `salud.COMPONENTES`, que es lo que la página de operativa pinta.
+_COMPONENTE = {"compras": "compras", "ventas": "ventas",
+               "reconcilia": "reconcilia"}
 
 
 def log(msg: str) -> None:
@@ -172,6 +178,50 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             "Órdenes que NO llegaron al broker:\n" + "\n".join(
                 f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
     return hechas
+
+
+def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> None:
+    """Deja en estado/broker.json lo que XTB dice de la cuenta ahora mismo.
+
+    Lo consume la página de operativa, que es estática y no puede preguntarle
+    nada a nadie. Se escribe SIN un solo dato de sesión: ni TGT, ni cookies, ni
+    credenciales — ese fichero acaba en una página pública.
+
+    El coste de las posiciones sale de la cuenta simulada, porque XTB no lo
+    devuelve: el broker da precio de entrada y volumen, y multiplicar los dos
+    ignoraría las fricciones que la cuenta sí modela.
+    """
+    try:
+        saldo = broker.saldo()
+        posiciones = broker.posiciones()
+    except Exception as exc:  # noqa: BLE001
+        log(f"no se pudo volcar el estado del broker: {exc!r}")
+        return
+
+    bit = pd.read_csv(config.BASE_DIR / "bitacora.csv")
+    bit["duplicada"] = cuenta.marcar_duplicadas(bit)
+    limpias = bit[~bit["duplicada"]]
+    cta = cuenta.simular(limpias[limpias["portafolio"] == config.CARTERA_BROKER],
+                         fricciones=True)
+    coste = {t["ticker"]: t["coste"] for t in cta["abiertas"]}
+
+    datos = {
+        "leido": datetime.now(config.TZ_ET).isoformat(),
+        "candado_ok": bool(candado_ok),
+        "saldo": saldo["saldo"], "equity": saldo["equity"],
+        "divisa": saldo["divisa"],
+        "posiciones": [
+            {"ticker": p["ticker"], "acciones": p["acciones"],
+             "precio_entrada": p["precio_entrada"],
+             "precio_actual": p["precio_actual"], "pnl": p["pnl"],
+             "coste": coste.get(p["ticker"].replace(".US", "").replace("-", "."))}
+            for p in posiciones if p["lado"] == "buy"
+        ],
+    }
+    ruta = config.ESTADO_DIR / "broker.json"
+    ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2,
+                               sort_keys=True) + "\n", encoding="utf-8")
+    log(f"estado del broker volcado: {len(datos['posiciones'])} posiciones")
 
 
 # --------------------------------------------------------------------------- #
@@ -452,6 +502,15 @@ def main() -> int:
                 log("vigilando stops y objetivos...")
                 vigilar_niveles(broker, registro)
             problemas = reconciliar(broker)
+            volcar_estado_broker(broker, candado_ok=True)
+    except bx.CuentaNoDemo as exc:
+        # El candado saltó: queda anotado para que la página lo pinte en rojo.
+        salud.registrar(_COMPONENTE[args.momento], "candado", str(exc)[:200])
+        raise
+    except bx.SesionCaducada as exc:
+        salud.registrar(_COMPONENTE[args.momento], bx.MARCA_SESION_CADUCADA,
+                        str(exc)[:200])
+        raise
     finally:
         # El registro se guarda PASE LO QUE PASE: si la orden número tres
         # revienta, las dos que sí salieron tienen que quedar marcadas o el
@@ -464,9 +523,12 @@ def main() -> int:
     if problemas:
         for p in problemas:
             print(f"::error::{p}", flush=True)
+        salud.registrar(_COMPONENTE[args.momento], "diferencias",
+                        " | ".join(problemas)[:400])
         log(f"❌ {len(problemas)} diferencia(s) entre XTB y el simulador.")
         return 1
 
+    salud.registrar(_COMPONENTE[args.momento], "ok")
     log("✅ sin diferencias entre XTB y el simulador.")
     return 0
 

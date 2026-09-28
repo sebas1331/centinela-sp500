@@ -5,6 +5,97 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-28 (4) — Página de Operativa: la salud del sistema en una pantalla
+
+El dashboard contesta "¿cuánto gana esto?". Faltaba quien contestara la otra
+pregunta, la que se hace cuando algo huele mal: **"¿está funcionando ahora
+mismo?"**. Hasta hoy eso obligaba a rebuscar en la pestaña Actions run por run.
+
+[`docs/operativa.html`](docs/operativa.html) (31 KB, sin frameworks ni CDNs,
+móvil primero) lo resume en un semáforo con los motivos escritos, más siete
+secciones: componentes, cuenta en XTB, posiciones abiertas cruzando broker y
+simulador, historial de órdenes con buscador y slippage, historial de objetivos
+y stops, reconciliación y alertas del Vigilante.
+
+### Por qué un fichero y no la API de GitHub
+
+La página podría preguntarle a Actions qué runs hubo, pero eso exigiría un token
+en una página pública. En vez de eso cada workflow escribe cómo le fue en
+`estado/salud.json` y la página lee un JSON estático.
+
+Quien registra es **un job posterior con `needs` e `if: always()`**, no el propio
+script: un `salud.registrar()` al final del escaneo solo se ejecuta si el escaneo
+llega al final, y los fallos que más importan son justo los otros —el runner sin
+tiempo, el job cancelado, el `pip install` que revienta antes de empezar—. El job
+ve el `result` aunque el componente muriera sin decir nada. Cuando el componente
+**sí** habló (el ejecutor distingue candado, sesión caducada y diferencias), su
+versión manda: `--solo-si-falta`.
+
+### Las tres reglas que no podían salir mal
+
+**No se filtra nada.** La página es pública: el número de cuenta sale enmascarado
+(`•••385`) y de la sesión no se escribe nada, ni siquiera en un cálculo
+intermedio (el aviso de caducidad lee la fecha, no el TGT). El test busca cada
+secreto conocido en el texto entero del JSON, no campo a campo, para que un campo
+nuevo no se cuele.
+
+**Un verde viejo es peor que no tener página**, porque da tranquilidad sin
+haberla comprobado. El navegador compara la hora de generación con la actual:
+a las 30 h avisa, a las 72 lo pinta en rojo. Esa comprobación **solo puede
+empeorar** el color, nunca mejorarlo. Verificado en un Chromium de verdad
+adelantando el reloj: +20 h verde, +31 h ámbar, +73 h rojo.
+
+**Publicar no puede romper el trading.** La regeneración va siempre en un job
+aparte con `needs`, el último: cuando corre, la bitácora, el estado y la bitácora
+del broker ya están persistidos y verificados contra el remoto. Y nadie depende
+de ese job, así que si la página revienta, revienta sola. En el Vigilante eso
+obligó además a separar permisos: `vigilar` sigue siendo de solo lectura y el
+`contents: write` vive únicamente en el job de la página, que entra a mano en el
+grupo de concurrencia (el workflow entero no puede, porque la espera en cola
+cuenta contra su timeout de 5 minutos — lección del run 31119690487).
+
+El Vigilante la republica **todos los días**, fines de semana incluidos: es el
+único que corre siempre, y sin él un puente largo dispararía el aviso de datos
+viejos sin que pasara nada malo.
+
+### Un ámbar nuevo que ya existía y no se veía
+
+Al pintarlo todo junto apareció que un rojo tapaba los ámbares. Ahora se recogen
+**todos** los motivos y el color es el del peor: quien entra a arreglar algo
+quiere ver todo lo que hay, no solo lo más grave.
+
+Tests: 57 nuevos (schema, cada regla del semáforo, enmascarado, fuga de
+secretos, traducción del `result` de un job, cableado de los cinco workflows).
+314 en total, todos en verde.
+
+---
+
+## 2026-09-28 (3) — Sesión de XTB renovable desde el móvil y plan B para la salida por tiempo
+
+Dos agujeros del ejecutor, los dos del mismo tipo: el sistema sabía que algo iba
+mal y no tenía forma de arreglarlo sin un humano delante de un terminal.
+
+**La sesión caduca cada 8 h** y XTB no ofrece códigos de app: SMS, push o correo,
+los tres con una persona leyendo. Eso no se puede automatizar, pero sí se puede
+quitar el terminal de en medio. Ahora el run muere con `XTB_REQUIERE_CODIGO` y un
+mensaje que dice qué hacer, en vez del `CASError` ilegible de antes; el workflow
+«Renovar sesión XTB» se lanza desde la web del móvil con el código pegado en un
+campo. Va en dos fases porque no se puede pegar un código antes de tenerlo.
+
+El Vigilante avisa **con 3 h de margen** —avisar cuando ya caducó llega tarde,
+porque para entonces un escaneo ya murió— y toca la caché a diario para que
+GitHub no la borre por inactividad.
+
+**La ventana de ventas dura 25 minutos** y el cron de Actions se ha retrasado
+horas en este repositorio más de una vez. Si se pierde, la posición ya no se
+puede cerrar ese día. El plan B la cierra en la apertura siguiente con motivo
+`tiempo-diferido`, registra la diferencia de precio contra el cierre que se
+pretendía, y el Vigilante denuncia cada salida diferida. Lo que **no** puede
+pasar es que una posición pasada de fecha siga abierta un día más sin que nadie
+lo diga: eso ahora pinta el semáforo de rojo.
+
+---
+
 ## 2026-09-28 (2) — El ejecutor sale del Mac: 100 % en GitHub Actions
 
 El ejecutor vivía en un Mac porque las credenciales de XTB abren también las
