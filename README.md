@@ -304,8 +304,12 @@ Se arregla en tres pasos, sin terminal:
 **¿Y si el código ya no vale?** Lanza el mismo workflow **con el campo vacío**:
 eso pide uno nuevo y te llega otro correo. Luego repite el paso 2 con ese.
 
-El Vigilante avisa **antes** de que ocurra: revisa la sesión cada día y da la
-voz cuando le quedan menos de 3 horas, para que puedas renovarla sin prisas.
+El Vigilante avisa **antes** de que ocurra: revisa la sesión y da la voz cuando
+le quedan menos de 3 horas, para que puedas renovarla sin prisas. Lo hace en un
+disparo de las **07:07 UTC (02:07 Ecuador)**, y esa hora no es casual: el TGT
+dura 8 h y se refresca con el último login del día —el post-cierre, sobre las
+21:00 UTC—, así que caduca de madrugada. Con el único disparo que había antes,
+a las 14:37, el aviso llegaba **siempre después** de la ventana de compras.
 También mantiene viva la caché donde vive la sesión — GitHub borra las cachés
 que nadie usa en 7 días, y el Vigilante es el único que corre también los fines
 de semana.

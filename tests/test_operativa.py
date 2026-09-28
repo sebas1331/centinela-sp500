@@ -569,3 +569,25 @@ def test_publicar_la_pagina_no_compite_con_los_escaneos():
                  .get("concurrency", {}).get("group", ""))
         assert "centinela-escritura" not in grupo, (
             f"{fichero}: la página compite por el turno de los escaneos")
+
+
+def test_el_vigilante_revisa_la_sesion_antes_de_la_ventana_de_compras():
+    """La sesión de XTB caduca de madrugada (8 h desde el último login, que es
+    el post-cierre de la tarde anterior). Un único disparo a las 14:37 UTC
+    avisaba SIEMPRE tarde: la ventana de compras es 09:30-13:10 UTC en verano y
+    10:30-14:10 en invierno, así que para cuando avisaba el run de compras ya se
+    había encontrado la sesión cerrada.
+    """
+    crons = [c["cron"] for c in _wf("vigilante.yml")[True]["schedule"]]
+    minutos = []
+    for c in crons:
+        m, h = c.split()[0], c.split()[1]
+        if "," in m or "," in h or "*" in h:
+            continue
+        minutos.append(int(h) * 60 + int(m))
+    APERTURA_VENTANA_VERANO = 9 * 60 + 30
+    assert any(m < APERTURA_VENTANA_VERANO for m in minutos), (
+        f"ningún disparo cae antes de la ventana de compras: {crons}")
+    # Y alguno tiene que seguir corriendo TODOS los días: es el que mantiene
+    # viva la caché de la sesión los fines de semana.
+    assert any(c.split()[-1] == "*" for c in crons)

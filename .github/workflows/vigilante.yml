@@ -33,9 +33,28 @@ name: Vigilante
 # o no hay máquina, y en ambos casos la respuesta correcta es morir en rojo ya en
 # vez de tener el run colgado un cuarto de hora fingiendo que trabaja.
 # ---------------------------------------------------------------------------
+#
+# ---------------------------------------------------------------------------
+# POR QUÉ HAY DOS DISPAROS Y NO UNO
+#
+# El de las 14:37 UTC vigila SILENCIOS: que no falte ninguna sesión ya exigible.
+# Para eso da igual la hora, mientras el post-cierre anterior lleve horas hecho.
+#
+# El de las 07:07 UTC vigila la SESIÓN DE XTB, y ahí la hora lo es todo. El TGT
+# dura 8 h y se refresca con el último login del día —el post-cierre, sobre las
+# 21:00 UTC—, así que caduca de madrugada, sobre las 05:00. La ventana de
+# compras es 09:30-13:10 UTC (10:30-14:10 en invierno). Con un solo disparo a
+# las 14:37 el aviso llegaba SIEMPRE después de la ventana: para cuando avisaba,
+# el run de compras ya se había encontrado la sesión cerrada.
+#
+# Las 07:07 caen en el único hueco que sirve: después de la caducidad y con
+# 2,4 h de margen antes de que se abra la ventana. Solo días laborables, porque
+# el sábado no hay ventana que proteger.
+# ---------------------------------------------------------------------------
 on:
   schedule:
     - cron: "37 14 * * *"
+    - cron: "7 7 * * 1-5"
   workflow_dispatch:
     inputs:
       sesiones:
