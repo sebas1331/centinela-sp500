@@ -222,6 +222,51 @@ acaban a menos de un punto de distancia.
    anualizar 47 sesiones, todas en mercado alcista. Sin un tramo bajista no hay
    forma de separar el alfa de la beta (que es 1.72).
 
+## 🚨 Antes de pasar a dinero real
+
+**Este sistema opera una cuenta DEMO y no está preparado para otra cosa.** Lo
+que sigue no es una lista de buenas prácticas: son los pasos que faltan, y
+ninguno de ellos debe poder darse por accidente.
+
+El candado está deliberadamente repartido en **dos constantes versionadas** de
+`centinela/config.py`:
+
+```python
+TIPO_CUENTA_BROKER = "demo"   # interruptor
+CUENTA_DEMO = 22770385        # qué cuenta concreta
+```
+
+Las dos viven en el código y no en los secrets, así que cambiarlas exige un
+commit —con su diff y su historia— y no editar un campo en una página web.
+Cambiar solo una no sirve de nada: el ejecutor comprueba las dos en cada
+conexión y se para si no cuadran.
+
+### Los pasos, en orden
+
+1. **Reactivar el segundo factor, y que sea TOTP.** Hoy la cuenta va sin 2FA
+   para que el ejecutor pueda entrar solo. Con dinero delante eso no es
+   aceptable. XTB no ofrecía TOTP cuando se montó esto (solo SMS, push y
+   correo); si lo ofrece, se activa, se guarda el secreto en
+   `centinela-xtb-totp` y el cliente lo usa solo. Si sigue sin ofrecerlo,
+   **hay que replantear la automatización entera**, no seguir sin 2FA.
+
+2. **Revisar dónde están las credenciales y quién las ve.** Están como secrets
+   del repositorio, legibles por cualquier workflow y por quien tenga acceso de
+   escritura. Para una demo vacía es asumible; para dinero real hay que decidir
+   a conciencia si ese es el sitio.
+
+3. **Apuntar el candado a la cuenta real concreta**, cambiando las dos
+   constantes en el mismo commit y revisándolo como se revisa un cambio que
+   mueve dinero.
+
+4. **Y antes de nada: leer la auditoría.** Está en
+   [`reportes/auditoria_fiabilidad.md`](reportes/auditoria_fiabilidad.md). El
+   85 % del P&L viene de la cadena del silicio, el histórico son dos meses de
+   mercado alcista, y el stop que la Cartera A lleva en el simulador **no
+   existe en el broker** (XTB lo ignora en acciones al contado): lo vigila el
+   ejecutor una vez al día, lo que medido lleva la cartera de +12,07 % con
+   −10,44 % de drawdown a +9,32 % con −12,50 %.
+
 ## ⚠️ Limitaciones (sin maquillar)
 
 - **Sesgo de supervivencia:** se usan los constituyentes **actuales** del S&P 500

@@ -5,6 +5,64 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-28 (2) — El ejecutor sale del Mac: 100 % en GitHub Actions
+
+El ejecutor vivía en un Mac porque las credenciales de XTB abren también las
+cuentas reales del titular. Confirmado que esas cuentas están vacías, ese
+motivo desaparece y las credenciales pasan a ser secrets del repositorio.
+
+### Lo que se comprobó antes de mover nada
+
+Quedaba la otra duda: si el login de xStation5 funciona desde una IP de
+datacenter, que es exactamente lo que su WAF existe para frenar.
+`probar_broker.yml` (manual, y con la operación detrás de una casilla) lo
+respondió:
+
+| Prueba | Resultado |
+|---|---|
+| Solo lectura | login en 11,5 s, candado superado, saldo leído |
+| Compra y cierre reales | **2,1 s**, orden 915795796, cuenta sin residuos |
+
+Los 2,1 segundos son lo importante: la sesión guardada en `actions/cache` evita
+que XTB pida el código por correo en cada ejecución, que era lo único que podía
+hacer inviable la automatización. El TGT dura 8 h y cada runner es una máquina
+nueva; sin esa caché, cada run sería un dispositivo nuevo para XTB.
+
+### El candado cambia de ancla
+
+Lo más importante de este cambio no es dónde corre el ejecutor, sino contra qué
+compara el candado. Antes miraba las credenciales; ahora `config.CUENTA_DEMO`,
+que está **versionada**. Un secret se cambia desde una página web, sin diff, sin
+revisión y sin dejar rastro; la configuración exige un commit.
+
+Y pasar a real exige cambiar DOS constantes —`TIPO_CUENTA_BROKER` y
+`CUENTA_DEMO`— en el mismo commit, para que un despiste con una sola variable
+no pueda sacar órdenes a una cuenta con dinero. El README estrena un apartado
+**"Antes de pasar a dinero real"** con los pasos obligatorios, empezando por
+reactivar el segundo factor.
+
+### Qué cambia
+
+- `ejecutor` como JOB APARTE con `needs` en preapertura (compras) y postcierre
+  (reconciliación): cuando corre, la bitácora ya está persistida y verificada.
+  Un XTB caído se ve en rojo y no revierte nada.
+- `ventas.yml`, workflow propio para el tercer momento —cerrar por tiempo y
+  vigilar stops— porque tiene que caer con el mercado abierto y a punto de
+  cerrar, y eso no cuelga de ningún escaneo. **Su ventana son 25 minutos y eso
+  es un riesgo conocido**: el cron de Actions se ha retrasado horas en este
+  repositorio, y contra eso una ventana estrecha no tiene defensa. Se
+  densifican los disparos y el Vigilante denuncia lo que no se reportó.
+- 19 tests nuevos (`test_ejecutor_en_actions.py`) que atan lo que no puede
+  romperse: el aislamiento del broker, los secretos, las dos franjas horarias y
+  que lo ya ejecutado se commitea aunque el job muera a medias.
+
+### El Mac queda limpio
+
+Agentes de `launchd` descargados y borrados, credenciales fuera del Llavero,
+sesión de XTB borrada. El despertar programado necesita contraseña de
+administrador, así que va en `mac/Desinstalar-Centinela.command`: doble clic,
+sin terminal.
+
 ## 2026-09-28 — XTB ignora el stop: lo vigila el ejecutor
 
 ### Lo que se comprobó operando de verdad

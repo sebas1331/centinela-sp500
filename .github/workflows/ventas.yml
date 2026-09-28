@@ -1,0 +1,94 @@
+name: Ejecutor de ventas
+
+# ---------------------------------------------------------------------------
+# El tercer momento del día del ejecutor: cerrar, JUSTO ANTES DEL CIERRE, las
+# posiciones que cumplen su décima sesión y las que han cruzado su stop o su
+# objetivo (XTB no acepta esos niveles en acciones al contado, así que los
+# vigila el ejecutor).
+#
+# POR QUÉ UN WORKFLOW PROPIO: los otros dos cuelgan de un escaneo —uno antes de
+# la apertura, otro después del cierre— y este momento no es ninguno de los
+# dos. Tiene que caer con el mercado ABIERTO y a punto de cerrar.
+#
+# LA VENTANA ES ESTRECHA Y ESO ES UN RIESGO CONOCIDO. El ejecutor solo trabaja
+# entre 30 y 5 minutos antes del cierre (25 minutos), porque cerrar antes se
+# come sesión de mercado y cerrar después ya no entra. El cron de Actions se ha
+# retrasado HORAS en este repositorio más de una vez, y contra eso una ventana
+# de 25 minutos no tiene defensa posible: si todos los disparos llegan tarde,
+# ese día no se cierra nada y las posiciones siguen vivas un día más.
+#
+# Lo que sí se puede hacer, y se hace: densificar los disparos dentro de la
+# ventana y que el Vigilante denuncie las órdenes que el ejecutor no reportó.
+# La idempotencia por id de orden impide que dos disparos vendan dos veces.
+#
+#   verano  (EDT, cierre 20:00 UTC) -> ventana 19:30-19:55 UTC
+#   invierno (EST, cierre 21:00 UTC) -> ventana 20:30-20:55 UTC
+#
+# Se disparan las dos franjas todos los días; la que caiga fuera de ventana
+# termina en verde sin hacer nada, igual que la escalera de los escaneos.
+# ---------------------------------------------------------------------------
+on:
+  schedule:
+    - cron: "32,38,44,50 19 * * 1-5"
+    - cron: "32,38,44,50 20 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Forzar (ignora la comprobación de ventana)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  ventas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: ~/.centinela_xtb_session
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Cerrar por tiempo y vigilar stops y objetivos
+        id: ejecutor
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS="--sin-git"
+          if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
+          python scripts/ejecutor_xtb.py ventas $ARGS
+
+      # `always()`: si vendió tres y falló en la cuarta, las tres tienen que
+      # quedar registradas o el siguiente disparo las repetiría.
+      - name: Commit y push de lo ejecutado
+        if: always()
+        run: |
+          scripts/commit_y_push.sh \
+            "ejecutor XTB: ventas [skip ci]" \
+            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
+            estado bitacora_broker.csv ordenes

@@ -30,11 +30,18 @@ OMITIDO_SIN_MERCADO = "omitido:sin-mercado"            # hoy la bolsa no abre
 OMITIDO_YA_PROCESADO = "omitido:ya-procesado"          # otro disparo de hoy ya lo hizo
 OMITIDO_ANTES_DE_VENTANA = "omitido:antes-de-ventana"  # aún no toca; vendrá otro disparo
 
+# El ejecutor del broker no tenía nada que mandar: ni compras decididas hoy,
+# ni salidas por tiempo, ni ningún nivel cruzado. Terminar sin tocar el
+# repositorio es lo correcto. NO cubre "el broker falló" —eso sale en rojo por
+# su cuenta— solo "no había nada que ejecutar".
+OMITIDO_SIN_EJECUCION = "omitido:sin-notificaciones"
+
 #: Únicos resultados que permiten terminar en verde sin commit.
 LEGITIMOS_SIN_COMMIT = (
     OMITIDO_SIN_MERCADO,
     OMITIDO_YA_PROCESADO,
     OMITIDO_ANTES_DE_VENTANA,
+    OMITIDO_SIN_EJECUCION,
 )
 
 # Fallos. El escaneo sale con código 1 y el workflow se ve ROJO.

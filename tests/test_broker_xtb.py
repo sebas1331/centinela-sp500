@@ -423,3 +423,17 @@ def test_pasar_a_real_exige_cambiar_DOS_cosas_versionadas():
                      demo=False, cliente=_ClienteFalso())
     with pytest.raises(bx.CuentaNoDemo, match="solo opera en DEMO"):
         b.conectar()
+
+
+def test_el_README_documenta_como_pasar_a_dinero_real():
+    """El apartado no es decorativo: es la única red entre una demo y una
+    cuenta con dinero, y tiene que nombrar las DOS constantes del candado.
+
+    Si alguien renombra una y no actualiza el README, la próxima persona
+    cambiará la que conoce, verá que el ejecutor se para y no sabrá por qué.
+    """
+    readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+    assert "Antes de pasar a dinero real" in readme
+    assert "TIPO_CUENTA_BROKER" in readme and "CUENTA_DEMO" in readme
+    for paso in ("TOTP", "credenciales", "auditoria_fiabilidad"):
+        assert paso in readme, f"el apartado no menciona {paso}"
