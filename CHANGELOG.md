@@ -98,6 +98,20 @@ El Vigilante la republica **todos los días**, fines de semana incluidos: es el
 único que corre siempre, y sin él un puente largo dispararía el aviso de datos
 viejos sin que pasara nada malo.
 
+### El turno de escritura no era para esto
+
+El job de la página del Vigilante entró primero en `centinela-escritura`, el
+grupo de concurrencia de los escaneos. Duró una tarde: el post-cierre de las
+21:11 tomó el turno, el job se puso en cola a las 21:22, a las 21:53 llegó un
+segundo post-cierre y GitHub —que solo guarda **un** run en cola por grupo—
+canceló el más viejo. La página se habría quedado vieja justo el día que hay que
+mirarla.
+
+Publicar una página no puede depender de un turno que un escaneo retiene hasta
+160 minutos. Ahora tiene grupo propio. Los ficheros que toca no los toca ningún
+escaneo, así que el `fetch`+`rebase` de `commit_y_push.sh` basta para el caso
+raro de dos publicaciones a la vez.
+
 ### Dos ámbares que ya existían y no se veían
 
 Al pintarlo todo junto apareció que un rojo tapaba los ámbares. Ahora se recogen

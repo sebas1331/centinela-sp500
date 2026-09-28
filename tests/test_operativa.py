@@ -371,9 +371,6 @@ def test_el_job_que_escribe_del_vigilante_es_el_unico_con_permiso():
     assert wf["permissions"]["contents"] == "read"
     assert wf["jobs"]["operativa"]["permissions"]["contents"] == "write"
     assert "vigilar" not in wf["jobs"]["operativa"].get("permissions", {})
-    # Y entra a mano en el grupo de escritura, porque el workflow entero no
-    # puede (la espera en cola cuenta contra su timeout de 5 minutos).
-    assert wf["jobs"]["operativa"]["concurrency"]["group"] == "centinela-escritura"
     assert "concurrency" not in wf
 
 
@@ -555,3 +552,20 @@ def test_solo_guardan_precios_los_jobs_que_amplian_la_cache():
     assert guardan == {("preapertura.yml", "preapertura"),
                        ("postcierre.yml", "postcierre"),
                        ("reentrenamiento.yml", "reentrenar")}
+
+
+def test_publicar_la_pagina_no_compite_con_los_escaneos():
+    """El 2026-09-28 el job de la página del Vigilante estaba en el grupo de
+    escritura de los escaneos. El post-cierre tomó el turno, este se puso en
+    cola, llegó un segundo post-cierre y GitHub canceló el más viejo: solo
+    guarda UN run en cola por grupo.
+
+    Publicar una página no puede depender de un turno que un escaneo puede
+    retener 160 minutos. Los ficheros que toca no los toca ningún escaneo, así
+    que el rebase de commit_y_push.sh basta.
+    """
+    for fichero in PUBLICAN:
+        grupo = (_wf(fichero)["jobs"]["operativa"]
+                 .get("concurrency", {}).get("group", ""))
+        assert "centinela-escritura" not in grupo, (
+            f"{fichero}: la página compite por el turno de los escaneos")

@@ -115,17 +115,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # El único job del repositorio que escribe fuera del grupo de escritura
-    # sería este, así que se mete en el grupo A MANO, a nivel de job: el
-    # workflow entero no puede entrar, porque la espera en cola cuenta contra
-    # `timeout-minutes` (lección del run 31119690487) y ahogaría al vigilante,
-    # que muere a los 5 minutos por diseño.
+    # GRUPO PROPIO, NO el de escritura de los escaneos. El primer intento fue
+    # meterlo en `centinela-escritura` y duró una tarde: el 2026-09-28 el
+    # post-cierre de las 21:11 tomó el turno, este job se puso en cola a las
+    # 21:22, a las 21:53 llegó un segundo post-cierre y GitHub —que solo guarda
+    # UN run en cola por grupo— canceló el más viejo, o sea este.
+    #
+    # Publicar una página no puede competir con escaneos que retienen el turno
+    # hasta 160 minutos. Si dos publicaciones coinciden, commit_y_push.sh las
+    # resuelve con fetch+rebase, que es para lo que tiene reintentos: los
+    # ficheros que toca este job no los toca ningún escaneo.
     concurrency:
-      group: centinela-escritura
+      group: operativa-${{ github.workflow }}
       cancel-in-progress: false
-    # Generoso porque puede pasar un rato en la cola del grupo. El trabajo real
-    # son menos de 30 s.
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
