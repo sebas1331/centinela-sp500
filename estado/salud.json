@@ -1,33 +1,33 @@
 {
- "actualizado": "2026-09-28T18:03:57.345039-04:00",
- "runs": {
-  "postcierre": {
-   "cuando": "2026-09-28T18:03:57.286353-04:00",
-   "detalle": "",
-   "resultado": "omitido:ya-procesado",
-   "run": "36489015441",
-   "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36489015441"
-  },
-  "reconcilia": {
-   "cuando": "2026-09-28T18:02:00-04:00",
-   "detalle": "",
-   "resultado": "ok",
-   "run": "36484384779",
-   "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36484384779"
-  },
-  "ventas": {
-   "cuando": "2026-09-28T17:04:07.021863-04:00",
-   "detalle": "",
-   "resultado": "ok",
-   "run": "36483439305",
-   "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36483439305"
-  },
-  "vigilante": {
-   "cuando": "2026-09-28T18:00:09.992834-04:00",
-   "detalle": "",
-   "resultado": "ok",
-   "run": "36489597844",
-   "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36489597844"
+  "actualizado": "2026-09-28T18:31:03.404285-04:00",
+  "runs": {
+    "postcierre": {
+      "cuando": "2026-09-28T18:31:03.404285-04:00",
+      "detalle": "",
+      "resultado": "omitido:ya-procesado",
+      "run": "36492734886",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36492734886"
+    },
+    "reconcilia": {
+      "cuando": "2026-09-28T18:02:00-04:00",
+      "detalle": "",
+      "resultado": "ok",
+      "run": "36484384779",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36484384779"
+    },
+    "ventas": {
+      "cuando": "2026-09-28T17:04:07.021863-04:00",
+      "detalle": "",
+      "resultado": "ok",
+      "run": "36483439305",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36483439305"
+    },
+    "vigilante": {
+      "cuando": "2026-09-28T18:00:09.992834-04:00",
+      "detalle": "",
+      "resultado": "ok",
+      "run": "36489597844",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36489597844"
+    }
   }
- }
 }
