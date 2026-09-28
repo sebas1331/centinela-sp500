@@ -56,6 +56,22 @@ reactivar el segundo factor.
   romperse: el aislamiento del broker, los secretos, las dos franjas horarias y
   que lo ya ejecutado se commitea aunque el job muera a medias.
 
+### Dos fallos que solo aparecieron ejecutando de verdad
+
+**La reconciliación denunció cinco posiciones el primer día, y tenía razón.**
+"APH, CIEN, COHR, GLW, VRT: abiertas en el simulador y NO en XTB" — cierto: el
+simulador llevaba meses operando en papel y el ejecutor acababa de nacer, así
+que esas posiciones nunca se compraron en el broker. No es un fallo, es
+herencia; pero denunciarla cada día sería un rojo diario por algo correcto, y
+un rojo que sale siempre enseña a ignorar los rojos. `config.EJECUCION_DESDE`
+marca la primera sesión en que el ejecutor pudo comprar; lo anterior se queda
+solo en el simulador hasta que cierre, y se dice en voz alta en cada pasada.
+
+**Y `git add` de rutas que no existían.** `bitacora_broker.csv` y
+`ordenes/pendientes.json` se creaban al primer uso, pero el paso de commit los
+nombra siempre y `commit_y_push.sh` no silencia ese fallo a propósito. Ahora
+existen en el repositorio desde el principio, vacíos.
+
 ### El Mac queda limpio
 
 Agentes de `launchd` descargados y borrados, credenciales fuera del Llavero,
