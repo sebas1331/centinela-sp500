@@ -44,6 +44,11 @@ VENTA_STOP = "venta_stop"
 VENTA_OBJETIVO = "venta_objetivo"
 TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO)
 
+#: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
+#: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente
+#: aborta el commit, y `commit_y_push.sh` no silencia esos fallos a propósito.
+#: Pasó dos veces en los primeros runs del ejecutor, con este fichero y con
+#: bitacora_broker.csv.
 ARCHIVO_PENDIENTES = config.BASE_DIR / "ordenes" / "pendientes.json"
 ARCHIVO_ENVIADAS = config.ESTADO_DIR / "ordenes_enviadas.json"
 ARCHIVO_BITACORA_BROKER = config.BASE_DIR / "bitacora_broker.csv"

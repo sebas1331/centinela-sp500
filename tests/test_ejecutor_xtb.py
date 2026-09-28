@@ -457,3 +457,13 @@ def test_la_bitacora_del_broker_existe_desde_el_principio():
     assert ruta.exists(), "el fichero tiene que existir aunque esté vacío de filas"
     cabecera = ruta.read_text(encoding="utf-8").splitlines()[0]
     assert cabecera.split(",") == ords.COLUMNAS_BROKER
+
+
+def test_el_fichero_de_ordenes_existe_desde_el_principio():
+    """Igual que bitacora_broker.csv: `git add` de una ruta que no existe
+    aborta el commit del ejecutor. Pasó en el segundo run:
+    "fatal: pathspec 'ordenes' did not match any files"."""
+    ruta = RAIZ / "ordenes" / "pendientes.json"
+    assert ruta.exists()
+    datos = json.loads(ruta.read_text(encoding="utf-8"))
+    assert "ordenes" in datos and isinstance(datos["ordenes"], list)
