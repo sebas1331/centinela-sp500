@@ -683,7 +683,8 @@ function mostrarLatido(caja, det, V, L){
                 : "sin actividad (fuera de sesión).");
     caja.className = "vigia" + (importa ? " mal" : "");
     if(importa) empeorarSemaforo("El vigilante de precios no está activo y hay "
-      + V.posiciones_a_vigilar + " posición(es) con nivel: nadie está mirando "
+      + V.posiciones_a_vigilar + (V.posiciones_a_vigilar === 1 ? " posición con nivel: nadie está mirando "
+      : " posiciones con nivel: nadie está mirando ")
       + "los objetivos ni los stops en vivo.");
     return;
   }
@@ -711,7 +712,8 @@ function mostrarLatido(caja, det, V, L){
   }
   if(L.arrancado) partes.push("activo desde " + horaEc(L.arrancado).split(", ").pop());
   partes.push("último latido hace " + (min < 1 ? "menos de 1" : Math.round(min)) + " min");
-  partes.push(n + " posición" + (n === 1 ? "" : "es") + " vigilada" + (n === 1 ? "" : "s"));
+  /* "posición" pierde la tilde en plural: concatenar "es" daba "posiciónes". */
+  partes.push(n + (n === 1 ? " posición vigilada" : " posiciones vigiladas"));
   if(L.estado && L.estado !== "vivo") partes.push(L.estado);
   det.textContent = partes.join(" · ");
 
