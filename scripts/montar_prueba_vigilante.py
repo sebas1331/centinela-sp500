@@ -41,6 +41,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ticker", default="F")
     ap.add_argument("--disparo", choices=["objetivo", "stop"], default="objetivo")
+    ap.add_argument("--sin-cotizacion", action="store_true",
+                    help="no pedir cotización antes de comprar (diagnóstico)")
     ap.add_argument("--limpiar", action="store_true",
                     help="cierra la posición de prueba si sigue abierta")
     args = ap.parse_args()
@@ -87,8 +89,16 @@ def main() -> int:
                 f"prueba no se monta encima de algo que no puso ella: ciérrala "
                 f"antes, o usa otro ticker.")
 
-        q = b.cotizacion(simbolo)
-        log(f"{simbolo}: bid {q['bid']} / ask {q['ask']}")
+        # ORDEN DELIBERADO. `cotizacion()` usa `get_quote` del cliente, que por
+        # dentro se SUSCRIBE y se DESUSCRIBE del símbolo. La compra que sí
+        # entró el 28/09 nunca hacía eso, porque ese método no existía. Con
+        # `--sin-cotizacion` se compra primero y se pregunta el precio después,
+        # que es lo único que distingue "XTB no deja operar" de "lo rompí yo".
+        if not args.sin_cotizacion:
+            q = b.cotizacion(simbolo)
+            log(f"{simbolo}: bid {q['bid']} / ask {q['ask']}")
+        else:
+            log("sin pedir cotización antes de comprar (a propósito).")
         log("comprando 1 acción...")
         e = b.comprar(simbolo, 1)
         log(f"  -> {e.estado}" + (f" a {e.precio}" if e.precio else "")

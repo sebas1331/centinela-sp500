@@ -40,6 +40,10 @@ on:
         description: "Login en frío (sin reutilizar la sesión cacheada)"
         type: boolean
         default: false
+      sin_cotizacion:
+        description: "No pedir cotización antes de comprar (diagnóstico)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -89,8 +93,10 @@ jobs:
           XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
         run: |
+          ARGS=""
+          if [ "${{ inputs.sin_cotizacion }}" = "true" ]; then ARGS="--sin-cotizacion"; fi
           python scripts/montar_prueba_vigilante.py \
-            --ticker "${{ inputs.ticker }}" --disparo "${{ inputs.disparo }}"
+            --ticker "${{ inputs.ticker }}" --disparo "${{ inputs.disparo }}" $ARGS
 
       - name: Dejar al vigilante trabajar
         if: inputs.operar
