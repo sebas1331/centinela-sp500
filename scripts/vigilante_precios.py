@@ -440,6 +440,7 @@ def main() -> int:
         respaldo_por_peticion(broker, vigiladas, precios)   # foto inicial
         lat.publicar(lat.construir(arrancado, vigiladas), trabajo)
 
+        ultimo_latido_ok = time.monotonic()
         proximo_latido = time.monotonic() + lat.CADA_SEGUNDOS
         proximo_respaldo = time.monotonic() + RESPALDO_SEGUNDOS
         n_inicial = len(vigiladas)
@@ -461,7 +462,9 @@ def main() -> int:
                     precios.ultimo_tick = ahora_mono
 
             if ahora_mono >= proximo_latido:
-                lat.publicar(lat.construir(arrancado, vigiladas), trabajo)
+                ultimo_latido_ok = lat.publicar_tolerante(
+                    lat.construir(arrancado, vigiladas), trabajo,
+                    ultimo_latido_ok, ahora_mono)
                 proximo_latido = ahora_mono + lat.CADA_SEGUNDOS
 
             if ahora_mono >= relevo_a_las:

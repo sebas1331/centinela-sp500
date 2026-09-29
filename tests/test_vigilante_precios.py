@@ -407,3 +407,36 @@ def test_y_sí_se_apunta_la_que_hace(aislado):
     vp.VENDIDAS["n"] = 0
     vp.evaluar(broker, {"enviadas": {}}, [_vigilada()], precios)
     assert vp.VENDIDAS["n"] == 1
+
+
+def test_un_hipo_de_red_no_mata_a_un_vigilante_sano(tmp_path, monkeypatch):
+    """Matar a un vigilante que funciona porque un push falló una vez sería
+    cambiar un problema pequeño por uno grande: deja de mirar precios."""
+    def revienta(*_a, **_k):
+        raise RuntimeError("push rechazado")
+    monkeypatch.setattr(lat, "publicar", revienta)
+    ahora = 1000.0
+    assert lat.publicar_tolerante({}, tmp_path, ultimo_ok=ahora - 60,
+                                  ahora=ahora) == ahora - 60
+
+
+def test_pero_si_lleva_demasiado_sin_latir_se_retira(tmp_path, monkeypatch):
+    """Porque el Vigilante general va a levantar otro de todas formas, y dos
+    vigilantes a la vez es ruido."""
+    monkeypatch.setattr(lat, "publicar",
+                        lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("no")))
+    ahora = 1000.0
+    viejo = ahora - (lat.MUERTO_MINUTOS + 1) * 60
+    with pytest.raises(RuntimeError, match="sin poder publicar el latido"):
+        lat.publicar_tolerante({}, tmp_path, ultimo_ok=viejo, ahora=ahora)
+
+
+def test_el_latido_se_empuja_con_credenciales_propias(monkeypatch):
+    """actions/checkout deja el token en el repositorio que clona; el latido
+    trabaja en otro aparte y ahí no existe. Sin esto el push muere con "could
+    not read Username" — pasó en el primer intento real."""
+    monkeypatch.setenv("GITHUB_TOKEN", "elsecreto")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "sebas1331/centinela-sp500")
+    url = lat.remoto_autenticado()
+    assert url.startswith("https://x-access-token:")
+    assert url.endswith("/sebas1331/centinela-sp500.git")

@@ -64,12 +64,9 @@ def main() -> int:
     # Un repositorio mínimo solo para poder leer la rama del latido.
     if not (trabajo / ".git").exists():
         import subprocess
-        origen = subprocess.run(["git", "remote", "get-url", "origin"],
-                                cwd=str(config.BASE_DIR), capture_output=True,
-                                text=True).stdout.strip()
-        subprocess.run(["git", "init", "-q", trabajo], check=True)
-        subprocess.run(["git", "remote", "add", "origin", origen],
-                       cwd=str(trabajo), check=True)
+        subprocess.run(["git", "init", "-q", str(trabajo)], check=True)
+        subprocess.run(["git", "remote", "add", "origin",
+                        lat.remoto_autenticado()], cwd=str(trabajo), check=True)
 
     forzado = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
     arrancar, motivo = decidir(lat.leer(trabajo),
