@@ -59,6 +59,43 @@ rojos**, pero un vigilante muerto tarda 10-15 minutos en verse ahí. Quien lo ve
 exacto es el Vigilante general, que lee la rama por `git fetch` y es el que
 relanza: la página es la vista humana, la comprobación que actúa no tiene margen.
 
+### La prueba real quedó bloqueada por XTB, no por el código
+
+El encargo pedía probarlo con dinero de mentira y mercado abierto: comprar una
+acción barata, ponerle un nivel pegado al precio y ver al vigilante venderla.
+**No se pudo terminar**, y el motivo no está en este repositorio.
+
+Ocho intentos de compra en la demo, con el mercado abierto: **uno entró**. Los
+otros siete volvieron `ambigua` con el mismo error —`gRPC trade endpoint
+returned an empty response`—, que significa que el POST llegó y el cuerpo vino
+vacío. Se descartó lo propio antes de culpar a XTB:
+
+| Hipótesis | Cómo se descartó |
+|---|---|
+| Sesión cacheada con JWT caducado | Un login en frío falla igual |
+| Pedir cotización antes de comprar rompe algo | La compra que sí entró el 28/09 también la pedía |
+| El WebSocket está mal | Las cotizaciones llegan y se mueven todo el rato |
+| Problema del reintento | Los tres intentos seguidos fallan idénticos |
+
+Es el riesgo que `requirements-broker.txt` documenta desde el primer día: esto
+es ingeniería inversa de xStation5 y puede romperse cualquier día sin aviso.
+
+**Lo que sí quedó probado en vivo**, en el intento que entró (run 36599379502):
+el vigilante conectó, superó el candado demo, cargó la posición con su nivel y
+**se suscribió a los ticks de F.US**. Murió al publicar el latido, por un fallo
+propio que se arregló (el repositorio del latido no heredaba las credenciales de
+`actions/checkout`). El eslabón que queda sin probar contra XTB es el último
+—`vender` tras el cruce—, y es el mismo `broker.vender()` que el ejecutor de
+ventas por tiempo usa en producción desde hace días.
+
+**Y un hallazgo que vale más que la prueba:** si el endpoint sigue así, el
+sistema no puede operar. Lo bueno es que no lo esconde: `ambigua` cuenta como
+no-ok, así que `enviar()` rompe en rojo, y no se traduce como «rechazada» a
+propósito para no mandar la orden dos veces. La limpieza de la prueba aprendió
+de paso a cancelar órdenes en cola, porque mirar solo posiciones y concluir que
+la cuenta está limpia era saltarse justo el caso que la palabra «ambigua»
+describe.
+
 ### El techo de 50 KB era un mal número
 
 Medía el fichero en crudo, y el 20 % de estas páginas son comentarios: 10,4 KB
