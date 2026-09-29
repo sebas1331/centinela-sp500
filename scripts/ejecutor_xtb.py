@@ -45,7 +45,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (config, calendario, broker_xtb as bx, cuenta, niveles as niv,  # noqa: E402
+from centinela import (ambiguas as amb, config, calendario, broker_xtb as bx,
+                       cuenta, niveles as niv,  # noqa: E402
                        ordenes as ords, estado as est_mod, salud)
 
 MOMENTOS = ("compras", "ventas", "apertura", "reconcilia")
@@ -322,11 +323,18 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             continue
 
         log(f"  enviando {o.tipo} {o.ticker} x{o.acciones}...")
+        # Si XTB responde vacío, `enviar_resolviendo` le pregunta si la orden
+        # entró antes de decidir nada, y solo reintenta si confirma que no. El
+        # identificador no cambia entre intentos: es la misma orden, no dos.
         if o.tipo == ords.COMPRA:
-            e = broker.comprar(o.simbolo, o.acciones,
-                               objetivo=o.objetivo, stop=o.stop)
+            e = amb.enviar_resolviendo(
+                broker, o.simbolo, o.tipo,
+                lambda: broker.comprar(o.simbolo, o.acciones,
+                                       objetivo=o.objetivo, stop=o.stop))
         else:
-            e = broker.vender(o.simbolo, o.acciones)
+            e = amb.enviar_resolviendo(
+                broker, o.simbolo, o.tipo,
+                lambda: broker.vender(o.simbolo, o.acciones))
         log(f"    -> {e.estado}"
             + (f" a {e.precio}" if e.precio else "")
             + (f" (orden {e.orden})" if e.orden else "")

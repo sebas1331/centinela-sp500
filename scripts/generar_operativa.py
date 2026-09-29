@@ -32,8 +32,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (calendario, config, cuenta, latido as lat,  # noqa: E402
-                       presupuesto,
+from centinela import (calendario, config, cuenta, fiabilidad,  # noqa: E402
+                       latido as lat, presupuesto,
                        ordenes as ords, salud, broker_xtb as bx)
 
 DOCS = config.BASE_DIR / "docs"
@@ -46,6 +46,14 @@ MAX_ALERTAS = 20
 MAX_ORDENES = 400
 #: A menos de esto del stop, la posición se pinta en ámbar.
 CERCA_DEL_STOP_PCT = 2.0
+#: Sobre cuántos días se mide la fiabilidad del broker. Siete: suficiente para
+#: que una racha mala se vea y corto para que una semana buena la borre.
+DIAS_FIABILIDAD = 7
+#: Por debajo de esta tasa de confirmación, el broker deja de ser de fiar.
+FIABILIDAD_MINIMA_PCT = 90.0
+#: Con menos intentos que esto, el porcentaje no dice nada: una sola ambigua
+#: sobre dos órdenes daría un 50 % que no significa que el broker esté roto.
+MINIMO_PARA_JUZGAR = 4
 
 
 def _r(x, dec=2):
@@ -452,6 +460,7 @@ def construir(ahora: datetime | None = None) -> dict:
         "generado": ahora.isoformat(),
         "hoy": bloque_hoy(ordenes, ahora),
         "vigilante_precios": bloque_vigilante_precios(ahora),
+        "fiabilidad": fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
         "componentes": bloque_componentes(datos_salud, ahora),
@@ -545,6 +554,25 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             f"La reconciliación con XTB encontró diferencias: "
             f"{detalle or 'ver el run'}.")
 
+    # --- ROJO: una venta del vigilante de precios que no llegó al broker --
+    # Es el peor fallo posible de todo el sistema y por eso va aparte. Una
+    # compra que no entra cuesta una oportunidad; una VENTA por nivel que no
+    # entra deja una posición con su stop cruzado y a merced del mercado, que
+    # es exactamente lo que el stop existe para impedir.
+    for o in ordenes:
+        if o.get("tipo") not in (ords.VENTA_STOP_INTRADIA,
+                                 ords.VENTA_OBJETIVO_INTRADIA):
+            continue
+        if o.get("estado") in ("ejecutada", "en_cola"):
+            continue
+        if not _reciente(o.get("sesion"), ahora, dias=DIAS_FIABILIDAD):
+            continue
+        rojos.append(
+            f"{o.get('ticker')}: la venta por {o.get('tipo_nombre')} NO llegó "
+            f"al broker el {o.get('sesion')} ({o.get('estado')}"
+            + (f" — {o.get('error')}" if o.get("error") else "")
+            + "). La posición sigue abierta con su nivel cruzado.")
+
     # --- ROJO: una posición pasada de su fecha de salida ------------------
     hoy = ahora.date().isoformat()
     for p in posiciones:
@@ -595,6 +623,18 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             ambares.append(
                 f"{salud.COMPONENTES[clave][0]} no corre desde hace "
                 f"{retraso:.0f} h.")
+
+    # --- ÁMBAR: el broker no está aceptando órdenes -----------------------
+    # El 2026-09-29 el endpoint de trading devolvió cuerpo vacío en 7 de 8
+    # compras y el sistema no lo midió: se supo porque alguien estaba mirando.
+    fia = fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora)
+    if fia["enviadas"] >= MINIMO_PARA_JUZGAR and \
+            fia["fiabilidad_pct"] is not None and \
+            fia["fiabilidad_pct"] < FIABILIDAD_MINIMA_PCT:
+        ambares.append(
+            f"XTB solo confirmó {fia['confirmadas']} de {fia['enviadas']} "
+            f"órdenes en {DIAS_FIABILIDAD} días ({fia['fiabilidad_pct']:.0f} %): "
+            f"{fia['ambiguas']} ambiguas y {fia['fallidas']} fallidas.")
 
     # --- ÁMBAR: órdenes rechazadas hace poco ------------------------------
     rechazos = [o for o in ordenes

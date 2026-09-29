@@ -1,0 +1,106 @@
+name: Auditar y diagnosticar XTB
+
+# ---------------------------------------------------------------------------
+# Dos trabajos distintos que comparten credenciales y por eso viven juntos:
+#
+#   auditar      Qué tiene la cuenta demo de verdad: posiciones, órdenes en
+#                cola y saldo. Con `cerrar` marcado, cierra lo que no debería
+#                estar. Sirve para responder si alguna orden "ambigua" llegó a
+#                ejecutarse, que es lo único que podría haber movido dinero sin
+#                dejar constancia.
+#
+#   diagnosticar Por qué el endpoint de trading devuelve "respuesta vacía".
+#                Envuelve la llamada gRPC e imprime lo que el cliente descarta:
+#                en gRPC-web los errores viajan con HTTP 200 y el motivo en los
+#                trailers, así que un cuerpo vacío casi siempre ES un error con
+#                nombre que nadie está leyendo.
+#
+# Los dos son manuales. El diagnóstico solo manda una orden si se marca la
+# casilla, y si entra la cierra en el acto.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      cerrar:
+        description: "Cerrar las posiciones que no deberían estar"
+        type: boolean
+        default: false
+      saldo_esperado:
+        description: "Saldo que debería haber (vacío = no se comprueba)"
+        type: string
+        default: ""
+      diagnosticar:
+        description: "Diagnosticar el endpoint de trading"
+        type: boolean
+        default: false
+      comprar_en_diagnostico:
+        description: "El diagnóstico manda una orden de 1 acción (y la cierra)"
+        type: boolean
+        default: false
+      ticker:
+        description: "Ticker para el diagnóstico"
+        type: string
+        default: "F"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Auditar la cuenta
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.cerrar }}" = "true" ]; then ARGS="$ARGS --cerrar"; fi
+          if [ -n "${{ inputs.saldo_esperado }}" ]; then
+            ARGS="$ARGS --saldo-esperado ${{ inputs.saldo_esperado }}"
+          fi
+          python scripts/auditar_cuenta_xtb.py $ARGS
+
+      # Va después de la auditoría y con `always()`: si la cuenta tenía algo
+      # raro, el diagnóstico sigue siendo útil —de hecho, más—.
+      - name: Diagnosticar el endpoint de trading
+        if: always() && inputs.diagnosticar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS="--ticker ${{ inputs.ticker }}"
+          if [ "${{ inputs.comprar_en_diagnostico }}" = "true" ]; then
+            ARGS="$ARGS --comprar"
+          fi
+          python scripts/diagnosticar_trading_xtb.py $ARGS

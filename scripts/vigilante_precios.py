@@ -42,7 +42,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (calendario, config, broker_xtb as bx, latido as lat,  # noqa: E402
+from centinela import (ambiguas as amb, calendario, config,  # noqa: E402
+                       broker_xtb as bx, latido as lat,
                        niveles as niv, ordenes as ords, estado as est_mod,
                        salud)
 
@@ -164,7 +165,9 @@ def vender_por_nivel(broker, registro: dict, v: dict, disparo: str,
     log(f"  {v['ticker']}: bid {bid} cruzó {disparo} {nivel} -> vendiendo "
         f"{v['acciones']} acciones a mercado...")
     t0 = time.monotonic()
-    e = broker.vender(v["simbolo"], v["acciones"])
+    e = amb.enviar_resolviendo(
+        broker, v["simbolo"], tipo,
+        lambda: broker.vender(v["simbolo"], v["acciones"]))
     latencia = time.monotonic() - t0
     log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
         + (f" (orden {e.orden})" if e.orden else "")

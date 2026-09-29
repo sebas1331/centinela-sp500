@@ -282,6 +282,9 @@ footer a{color:var(--acento)}
 .vigia b{font-weight:600}
 .vigia .det{color:var(--tenue); font-variant-numeric:tabular-nums}
 .vigia .tick{font-variant-numeric:tabular-nums}
+.vigia .cifra{font-variant-numeric:tabular-nums; font-weight:600}
+.vigia .cifra.mala{color:var(--rojo)}
+.vigia .cifra.floja{color:var(--aviso)}
 
 .huecos{margin:0 0 .9rem; padding:.55rem .7rem; font-size:.8rem;
         line-height:1.5; background:var(--aviso-fondo);
@@ -373,6 +376,7 @@ footer a{color:var(--acento)}
   <div id="hoy" class="hoy"></div>
   <div id="huecos" class="huecos" hidden></div>
   <div id="vigia" class="vigia" hidden></div>
+  <div id="fiab" class="vigia" hidden></div>
   <div id="semaforo" class="semaforo"></div>
 
   <h2>Componentes</h2>
@@ -530,6 +534,7 @@ function iniciar(D){
      la página, y la regla de los 10 minutos no se podría cumplir.
      Va después del semáforo porque puede empeorarlo. */
   pintarVigilante(D);
+  pintarFiabilidad(D.fiabilidad || {});
   pintarComponentes(D.componentes || []);
   pintarBroker(D.broker || {});
   pintarPosiciones(D.posiciones || []);
@@ -714,6 +719,50 @@ function empeorarSemaforo(motivo){
     caja.appendChild(ul);
   }
   ul.insertBefore(el("li","",motivo), ul.firstChild);
+}
+
+/* ------------------------------------------- 1c. Fiabilidad de XTB ---- */
+/* El 2026-09-29 el endpoint de trading devolvió cuerpo vacío en 7 de 8 compras
+   y el sistema no lo medía: se supo porque alguien estaba mirando. Esto es para
+   que la próxima vez se vea sin que nadie mire. */
+function pintarFiabilidad(F){
+  var caja = document.getElementById("fiab");
+  if(!F || !F.enviadas){
+    /* Sin órdenes no se pinta: un "100 %" sobre cero intentos se leería como
+       "el broker va bien" cuando lo cierto es "no se ha pedido nada". */
+    caja.hidden = true;
+    return;
+  }
+  caja.hidden = false;
+  caja.textContent = "";
+
+  var malo = F.fiabilidad_pct !== null && F.fiabilidad_pct < 90;
+  caja.className = "vigia" + (malo ? " mal" : "");
+  caja.appendChild(el("span","luzp"));
+  caja.appendChild(el("b","","Fiabilidad de XTB"));
+  caja.appendChild(el("span","det","últimos " + F.dias + " días:"));
+
+  [["enviadas", F.enviadas, ""],
+   ["confirmadas", F.confirmadas, ""],
+   ["ambiguas", F.ambiguas, F.ambiguas ? "floja" : ""],
+   ["fallidas", F.fallidas, F.fallidas ? "mala" : ""]
+  ].forEach(function(par){
+    var s = el("span","det", par[0] + " ");
+    s.appendChild(el("span","cifra " + par[2], String(par[1])));
+    caja.appendChild(s);
+  });
+
+  if(F.fiabilidad_pct !== null)
+    caja.appendChild(el("span","cifra" + (malo ? " mala" : ""),
+                        F.fiabilidad_pct.toFixed(0) + " %"));
+
+  if(F.ultimo_problema){
+    var u = F.ultimo_problema;
+    var d = el("span","det", "último: " + u.simbolo + " " + u.tipo
+                             + " — " + (u.detalle || u.estado));
+    d.title = u.cuando || "";
+    caja.appendChild(d);
+  }
 }
 
 /* ----------------------------------------------------- 2. Componentes ---- */

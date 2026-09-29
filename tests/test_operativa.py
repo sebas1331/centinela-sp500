@@ -130,7 +130,7 @@ def test_schema_de_operativa_json(datos):
     assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
                           "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
-                          "vigilante_precios"}
+                          "vigilante_precios", "fiabilidad"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
