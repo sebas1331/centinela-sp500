@@ -363,6 +363,83 @@ def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str
     return problemas
 
 
+def revisar_vigilante_precios(ahora: datetime | None = None) -> list[str]:
+    """Que alguien esté mirando los niveles mientras la sesión está abierta.
+
+    El vigilante de precios es lo único que ejecuta objetivos y stops en el
+    momento en que se cruzan. Si se muere a media sesión, las posiciones se
+    quedan sin red hasta el vistazo de las 15:45 ET, que es justo el escenario
+    medido como peor que no tener stop. Así que se comprueba, y si hace falta se
+    vuelve a levantar.
+
+    Fuera de sesión no se exige nada: que no haya latido a las once de la noche
+    es lo normal, no un fallo.
+    """
+    problemas: list[str] = []
+    if not getattr(config, "EJECUCION_BROKER", False):
+        return problemas
+
+    from centinela import latido as lat
+    ahora = ahora or datetime.now(config.TZ_ET)
+    if not calendario.es_dia_de_mercado(ahora.date()):
+        _log("Vigilante de precios: hoy no hay mercado.")
+        return problemas
+    ac = calendario.apertura_cierre_et(ahora.date().isoformat())
+    if ac is None or not (ac[0] <= ahora <= ac[1]):
+        _log("Vigilante de precios: fuera de la sesión, no se exige latido.")
+        return problemas
+
+    trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
+    trabajo.mkdir(parents=True, exist_ok=True)
+    if not (trabajo / ".git").exists():
+        origen = subprocess.run(["git", "remote", "get-url", "origin"],
+                                cwd=str(config.BASE_DIR), capture_output=True,
+                                text=True).stdout.strip()
+        subprocess.run(["git", "init", "-q", str(trabajo)], check=True)
+        subprocess.run(["git", "remote", "add", "origin", origen],
+                       cwd=str(trabajo), check=True)
+
+    minutos = lat.minutos_desde(lat.leer(trabajo), ahora)
+    if minutos is None:
+        problemas.append(
+            "La sesión está abierta y no hay ningún latido del vigilante de "
+            "precios: nadie está ejecutando objetivos ni stops en vivo.")
+    elif minutos > lat.MUERTO_MINUTOS:
+        problemas.append(
+            f"El vigilante de precios lleva {minutos:.0f} min sin latir (más de "
+            f"{lat.MUERTO_MINUTOS}) con la sesión abierta. Los niveles están sin "
+            f"vigilar.")
+    else:
+        _log(f"Vigilante de precios: vivo, último latido hace {minutos:.1f} min.")
+        return problemas
+
+    if _relanzar_vigilante_precios():
+        problemas[-1] += " Se ha pedido que arranque otro."
+    return problemas
+
+
+def _relanzar_vigilante_precios() -> bool:
+    """Pide a Actions que levante un vigilante de precios. True si aceptó."""
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        _log("  sin token: no se puede relanzar el vigilante desde aquí.")
+        return False
+    datos = json.dumps({"ref": os.environ.get("GITHUB_REF_NAME", "main")}).encode()
+    peticion = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/actions/workflows/"
+        f"vigilante_precios.yml/dispatches", data=datos, method="POST",
+        headers={"Authorization": f"Bearer {token}",
+                 "Accept": "application/vnd.github+json"})
+    try:
+        with urllib.request.urlopen(peticion, timeout=20) as r:
+            _log(f"  relanzado el vigilante de precios (HTTP {r.status}).")
+            return True
+    except (urllib.error.URLError, OSError) as exc:
+        _log(f"  no se pudo relanzar el vigilante: {exc!r}")
+        return False
+
+
 def revisar_verificacion_apertura(sesiones: int = 1) -> list[str]:
     """Que la verificación posterior a la apertura haya corrido cada sesión.
 
@@ -588,6 +665,10 @@ def main() -> int:
     _log("")
     _log("Verificación de la apertura:")
     problemas.extend(revisar_verificacion_apertura(args.sesiones))
+
+    _log("")
+    _log("Vigilante de precios:")
+    problemas.extend(revisar_vigilante_precios())
 
     if problemas:
         for p in problemas:

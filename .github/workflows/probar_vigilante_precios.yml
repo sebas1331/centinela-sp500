@@ -1,0 +1,121 @@
+name: Probar el vigilante de precios
+
+# ---------------------------------------------------------------------------
+# LA ÚNICA PRUEBA QUE VALE DE VERDAD: con el mercado abierto, contra XTB.
+#
+# Compra una acción barata, le pone un objetivo o un stop pegado al precio
+# actual y deja al vigilante hacer su trabajo. Lo que se comprueba es la cadena
+# entera —tick, cruce, venta a mercado, registro— que ningún test con precios
+# inventados puede darse por probada.
+#
+# NO TOCA NADA DEL SISTEMA REAL: la posición se le pasa al vigilante por
+# argumento (`--prueba`), así que `estado/estado.json` no se modifica, y la
+# bitácora se desvía a un fichero temporal. Al terminar, la cuenta queda como
+# estaba: o la vendió el vigilante, que es el éxito, o la cierra el paso de
+# limpieza.
+#
+# La casilla de operar va desmarcada por defecto y hay que marcarla a mano.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      operar:
+        description: "SÍ operar de verdad (compra 1 acción y la deja vender)"
+        type: boolean
+        default: false
+      ticker:
+        description: "Ticker barato para la prueba"
+        type: string
+        default: "F"
+      disparo:
+        description: "Qué se prueba: objetivo o stop"
+        type: choice
+        options: [objetivo, stop]
+        default: objetivo
+      minutos:
+        description: "Cuánto vigilar como mucho"
+        type: string
+        default: "4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Comprar 1 acción y poner el nivel pegado al precio
+        if: inputs.operar
+        id: montar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          python scripts/montar_prueba_vigilante.py \
+            --ticker "${{ inputs.ticker }}" --disparo "${{ inputs.disparo }}"
+
+      - name: Dejar al vigilante trabajar
+        if: inputs.operar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+          CENTINELA_PRUEBA: "1"
+        run: |
+          python scripts/vigilante_precios.py \
+            --prueba "${{ steps.montar.outputs.spec }}" \
+            --minutos "${{ inputs.minutos }}" \
+            --bitacora "$RUNNER_TEMP/bitacora_prueba.csv" \
+            --forzar
+
+      - name: Qué quedó registrado
+        if: always() && inputs.operar
+        run: |
+          echo "--- bitácora de la prueba ---"
+          cat "$RUNNER_TEMP/bitacora_prueba.csv" || echo "(sin fichero)"
+
+      # Pase lo que pase: la cuenta no puede quedarse con la posición de prueba.
+      - name: Limpiar la cuenta
+        if: always() && inputs.operar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          python scripts/montar_prueba_vigilante.py \
+            --ticker "${{ inputs.ticker }}" --limpiar
+
+      - name: Sin la casilla marcada no se opera
+        if: ${{ !inputs.operar }}
+        run: |
+          echo "La casilla 'operar' está desmarcada: no se ha tocado la cuenta."
+          echo "Márcala para probar el disparo de verdad."

@@ -44,7 +44,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (calendario, config, cuenta, datos,  # noqa: E402
+from centinela import (calendario, config, cuenta, datos, presupuesto,  # noqa: E402
                        ordenes as ords, riesgo)
 
 DOCS_DIR = config.BASE_DIR / "docs"
@@ -348,11 +348,47 @@ def bloque_broker(ctas: dict) -> dict | None:
 
     cartera = config.CARTERA_BROKER
     slippages = pd.to_numeric(hechas["slippage_pct"], errors="coerce").dropna()
+
+    # EL COSTE DE DISPARAR EN VIVO. Desde que existe el vigilante de precios,
+    # las salidas por nivel tienen tres precios y no dos, y los tres hacen
+    # falta para separar dos costes distintos:
+    #
+    #   precio_simulador  el nivel exacto: donde el simulador supone que sale
+    #   precio_disparo    el bid que vio el vigilante: cuánto se pasó el precio
+    #                     del nivel antes de que nadie lo mirara
+    #   precio            lo que XTB ejecutó: cuánto se movió entre ver y vender
+    #
+    # La primera diferencia es el coste de VIGILAR (con el vistazo diario era de
+    # horas; ahora, de un tick). La segunda es el coste de EJECUTAR, que no se
+    # puede evitar. Mezclarlas en un solo "slippage" escondería justo la que
+    # esta pieza vino a reducir.
+    en_vivo = hechas[hechas["tipo"].isin(
+        [ords.VENTA_STOP_INTRADIA, ords.VENTA_OBJETIVO_INTRADIA])]
+    disparos = None
+    if not en_vivo.empty:
+        nivel = pd.to_numeric(en_vivo["precio_simulador"], errors="coerce")
+        visto = pd.to_numeric(en_vivo["precio_disparo"], errors="coerce")
+        hecho = pd.to_numeric(en_vivo["precio"], errors="coerce")
+        # En una venta, el coste es vender MÁS BARATO de lo previsto, así que el
+        # signo se invierte respecto de una compra.
+        vigilar = 100.0 * (nivel - visto) / nivel
+        ejecutar = 100.0 * (visto - hecho) / visto
+        disparos = {
+            "n": int(len(en_vivo)),
+            "por_stop": int((en_vivo["tipo"] == ords.VENTA_STOP_INTRADIA).sum()),
+            "por_objetivo": int(
+                (en_vivo["tipo"] == ords.VENTA_OBJETIVO_INTRADIA).sum()),
+            "coste_vigilar_pct": _redondear(vigilar.mean()),
+            "coste_ejecutar_pct": _redondear(ejecutar.mean()),
+            "peor_pct": _redondear((vigilar + ejecutar).max()),
+        }
+
     return {
         "cartera": cartera,
         "operaciones": int(len(hechas)),
         "compras": int((hechas["tipo"] == ords.COMPRA).sum()),
-        "ventas": int((hechas["tipo"] == ords.VENTA_TIEMPO).sum()),
+        "ventas": int((~hechas["tipo"].isin([ords.COMPRA])).sum()),
+        "disparos_en_vivo": disparos,
         "slippage_medio_pct": _redondear(slippages.mean()) if len(slippages) else None,
         "slippage_peor_pct": _redondear(slippages.max()) if len(slippages) else None,
         # El equity simulado de la cartera que se opera, para ponerlos al lado.
@@ -570,9 +606,7 @@ def generar(destino: Path = DOCS_DIR,
     if tam_json > 500 * 1024:
         raise RuntimeError(f"docs/datos.json pesa {tam_json / 1024:.0f} KB y el "
                            f"techo son 500 KB.")
-    if tam_html > 50 * 1024:
-        raise RuntimeError(f"docs/index.html pesa {tam_html / 1024:.0f} KB y el "
-                           f"techo son 50 KB.")
+    print(presupuesto.exigir(destino / "index.html"), flush=True)
     return datos, bool(cambios)
 
 

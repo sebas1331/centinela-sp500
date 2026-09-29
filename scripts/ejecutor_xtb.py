@@ -45,7 +45,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (config, calendario, broker_xtb as bx, cuenta,  # noqa: E402
+from centinela import (config, calendario, broker_xtb as bx, cuenta, niveles as niv,  # noqa: E402
                        ordenes as ords, estado as est_mod, salud)
 
 MOMENTOS = ("compras", "ventas", "apertura", "reconcilia")
@@ -310,6 +310,17 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             log(f"  {o.id}: ya enviada, se omite.")
             ya_estaban += 1
             continue
+        # Antes de vender, preguntarle a XTB si la posición sigue ahí. Desde
+        # que existe el vigilante de precios hay dos procesos que pueden cerrar
+        # la misma posición al final de la sesión, y el que llegue segundo no
+        # puede mandar una venta de unas acciones que ya no existen.
+        if o.tipo != ords.COMPRA and not niv.sigue_abierta(
+                broker, o.simbolo, o.acciones):
+            log(f"  {o.ticker}: XTB ya no tiene la posición (la cerró el "
+                f"vigilante de precios o una venta anterior). No se vende.")
+            ya_estaban += 1
+            continue
+
         log(f"  enviando {o.tipo} {o.ticker} x{o.acciones}...")
         if o.tipo == ords.COMPRA:
             e = broker.comprar(o.simbolo, o.acciones,

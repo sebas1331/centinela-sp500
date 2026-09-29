@@ -32,8 +32,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (calendario, config, cuenta, ordenes as ords,  # noqa: E402
-                       salud, broker_xtb as bx)
+from centinela import (calendario, config, cuenta, latido as lat,  # noqa: E402
+                       presupuesto,
+                       ordenes as ords, salud, broker_xtb as bx)
 
 DOCS = config.BASE_DIR / "docs"
 PLANTILLA = Path(__file__).resolve().parent / "plantilla_operativa.html"
@@ -207,12 +208,18 @@ NOMBRE_TIPO = {
     ords.VENTA_TIEMPO_DIFERIDO: "Venta diferida",
     ords.VENTA_STOP: "Venta por stop",
     ords.VENTA_OBJETIVO: "Venta por objetivo",
+    # En vivo, disparadas por el vigilante de precios en el momento del cruce.
+    # Se distinguen de las de arriba a propósito: comparar unas con otras es lo
+    # que mide si vigilar tick a tick acerca la ejecución al simulador.
+    ords.VENTA_STOP_INTRADIA: "Stop en vivo",
+    ords.VENTA_OBJETIVO_INTRADIA: "Objetivo en vivo",
 }
 #: Grupos de los chips de filtro.
 GRUPO_TIPO = {
     ords.COMPRA: "compras",
     ords.VENTA_TIEMPO: "ventas", ords.VENTA_TIEMPO_DIFERIDO: "ventas",
     ords.VENTA_STOP: "ventas", ords.VENTA_OBJETIVO: "ventas",
+    ords.VENTA_STOP_INTRADIA: "ventas", ords.VENTA_OBJETIVO_INTRADIA: "ventas",
 }
 
 
@@ -240,6 +247,7 @@ def bloque_ordenes() -> list[dict]:
             "acciones": acciones,
             "precio_pedido": pedido,
             "precio_ejecutado": precio,
+            "precio_disparo": _r(f.get("precio_disparo")),
             "slippage_pct": slip_pct,
             "slippage": (_r(acciones * precio * slip_pct / 100.0)
                          if precio and slip_pct is not None else None),
@@ -364,6 +372,37 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# El vigilante de precios
+# --------------------------------------------------------------------------- #
+def bloque_vigilante_precios(ahora: datetime) -> dict:
+    """De dónde sacar el latido y cuándo exigirlo.
+
+    El latido NO viaja en este JSON. Se publica en una rama aparte que se
+    reescribe cada dos minutos, y la página lo pide en vivo al cargarse: si
+    viniera aquí dentro, tendría la antigüedad de la última vez que se regeneró
+    la página —horas— y la regla de "más de 10 minutos = rojo" sería imposible
+    de cumplir. Aquí solo va la dirección y cuándo hay que exigirlo.
+    """
+    hoy = ahora.date()
+    es_sesion = calendario.es_dia_de_mercado(hoy)
+    apertura = cierre = None
+    if es_sesion:
+        ac = calendario.apertura_cierre_et(hoy.isoformat())
+        if ac:
+            apertura, cierre = ac[0].isoformat(), ac[1].isoformat()
+    return {
+        "url_latido": lat.url_publica(),
+        "muerto_minutos": lat.MUERTO_MINUTOS,
+        "cada_segundos": lat.CADA_SEGUNDOS,
+        # El navegador compara su reloj con estas dos: fuera de sesión, que no
+        # haya latido es lo normal y no puede pintar nada de rojo.
+        "sesion_abre": apertura,
+        "sesion_cierra": cierre,
+        "es_sesion": es_sesion,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Reconciliación y alertas
 # --------------------------------------------------------------------------- #
 def bloque_reconciliacion(datos_salud: dict) -> dict:
@@ -412,6 +451,7 @@ def construir(ahora: datetime | None = None) -> dict:
     return {
         "generado": ahora.isoformat(),
         "hoy": bloque_hoy(ordenes, ahora),
+        "vigilante_precios": bloque_vigilante_precios(ahora),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
         "componentes": bloque_componentes(datos_salud, ahora),
@@ -630,12 +670,11 @@ def generar(destino: Path = DOCS, ahora: datetime | None = None) -> tuple[dict, 
           f"ordenes={len(datos['ordenes'])}")
     print("cambios: " + (", ".join(cambios) if cambios else "ninguno"), flush=True)
 
-    if tam_html > 50 * 1024:
-        raise RuntimeError(f"docs/operativa.html pesa {tam_html / 1024:.0f} KB "
-                           f"y el techo son 50 KB.")
-    if tam_json > 500 * 1024:
+    print(presupuesto.exigir(destino / "operativa.html"), flush=True)
+    if tam_json > presupuesto.TECHO_JSON:
         raise RuntimeError(f"docs/operativa.json pesa {tam_json / 1024:.0f} KB "
-                           f"y el techo son 500 KB.")
+                           f"y el techo son "
+                           f"{presupuesto.TECHO_JSON / 1024:.0f} KB.")
     return datos, bool(cambios)
 
 

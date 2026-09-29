@@ -142,7 +142,11 @@ def test_solo_se_envian_las_ordenes_del_tipo_y_del_dia(aislado, monkeypatch):
     ej.enviar(broker, p, "compras", {"enviadas": {}})
     assert broker.enviadas == [("compra", "MRNA.US", 3)]
 
-    broker2 = BrokerFalso()
+    # Con la posición abierta en XTB: desde que existe el vigilante de precios,
+    # vender exige que la posición siga ahí (dos procesos pueden cerrarla).
+    broker2 = BrokerFalso(posiciones=[
+        {"ticker": "SNDK.US", "acciones": 3.0, "lado": "buy",
+         "precio_entrada": 100.0, "precio_actual": 100.0, "orden": 1}])
     ej.enviar(broker2, p, "ventas", {"enviadas": {}})
     assert broker2.enviadas == [("venta", "SNDK.US", 3)]
 

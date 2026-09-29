@@ -356,3 +356,28 @@ jobs:
             "operativa: republicada tras la pre-apertura [skip ci]" \
             "procesado" \
             docs estado
+
+  # ARRANCA EL VIGILANTE DE PRECIOS, que mira los niveles tick a tick durante
+  # toda la sesión. Se lanza desde aquí y no desde un cron a propósito: el
+  # scheduler de Actions se ha retrasado horas en este repositorio y un
+  # vigilante que llega a mediodía se ha perdido media sesión. Encadenarlo a las
+  # compras lo pone en marcha justo cuando hay algo que vigilar.
+  #
+  # `always()`: arranca aunque hoy no se comprara nada, porque puede haber
+  # posiciones de días anteriores con su objetivo y su stop vivos.
+  arrancar_vigilante:
+    needs: [preapertura, ejecutor]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Llamar al vigilante de precios
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run vigilante_precios.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}"
+          echo "vigilante de precios llamado."

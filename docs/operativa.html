@@ -264,6 +264,25 @@ footer a{color:var(--acento)}
 .hoy .paso.cae b{color:var(--aviso)}
 .hoy .flecha{display:flex; align-items:center; color:var(--muy-tenue);
              font-size:.9rem}
+/* El vigilante de precios. Va pegado a la fila "Hoy" porque contesta la otra
+   mitad de la misma pregunta: qué está pasando AHORA MISMO. */
+.vigia{
+  display:flex; flex-wrap:wrap; align-items:center; gap:.45rem .7rem;
+  margin:0 0 .9rem; padding:.55rem .7rem; font-size:.82rem;
+  background:var(--superficie); border:1px solid var(--borde);
+  border-radius:10px;
+}
+.vigia .luzp{
+  width:.55rem; height:.55rem; border-radius:50%; flex:0 0 auto;
+  background:var(--muy-tenue);
+}
+.vigia.vivo{border-color:var(--verde)} .vigia.vivo .luzp{background:var(--verde)}
+.vigia.mal{border-color:var(--rojo); background:var(--rojo-fondo)}
+.vigia.mal .luzp{background:var(--rojo)}
+.vigia b{font-weight:600}
+.vigia .det{color:var(--tenue); font-variant-numeric:tabular-nums}
+.vigia .tick{font-variant-numeric:tabular-nums}
+
 .huecos{margin:0 0 .9rem; padding:.55rem .7rem; font-size:.8rem;
         line-height:1.5; background:var(--aviso-fondo);
         border:1px solid var(--aviso-borde); border-radius:10px}
@@ -353,6 +372,7 @@ footer a{color:var(--acento)}
 
   <div id="hoy" class="hoy"></div>
   <div id="huecos" class="huecos" hidden></div>
+  <div id="vigia" class="vigia" hidden></div>
   <div id="semaforo" class="semaforo"></div>
 
   <h2>Componentes</h2>
@@ -504,6 +524,12 @@ function iniciar(D){
 
   pintarHoy(D.hoy || {});
   pintarSemaforo(D);
+  /* El latido se pide aparte y EN VIVO: viene de una rama que se reescribe
+     cada dos minutos, así que pedirlo al cargar da la edad real. Si viajara
+     dentro de operativa.json tendría la edad de la última vez que se regeneró
+     la página, y la regla de los 10 minutos no se podría cumplir.
+     Va después del semáforo porque puede empeorarlo. */
+  pintarVigilante(D);
   pintarComponentes(D.componentes || []);
   pintarBroker(D.broker || {});
   pintarPosiciones(D.posiciones || []);
@@ -608,6 +634,86 @@ function pintarSemaforo(D){
       "Todos los componentes reportaron a tiempo, XTB y el simulador " +
       "coinciden y la sesión sigue viva."));
   }
+}
+
+/* ------------------------------------------ 1b. Vigilante de precios ---- */
+function pintarVigilante(D){
+  var V = D.vigilante_precios;
+  var caja = document.getElementById("vigia");
+  if(!V || !V.url_latido) return;
+  caja.hidden = false;
+  caja.textContent = "";
+  caja.appendChild(el("span","luzp"));
+  caja.appendChild(el("b","","Vigilante de precios"));
+  var det = el("span","det","consultando…");
+  caja.appendChild(det);
+
+  /* No es la API de GitHub: es un fichero estático público y no lleva token.
+     El parámetro sirve para esquivar el caché de la CDN. */
+  fetch(V.url_latido + "?t=" + Date.now(), {cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function(L){ mostrarLatido(caja, det, V, L); })
+    .catch(function(){ mostrarLatido(caja, det, V, null); });
+}
+
+function mostrarLatido(caja, det, V, L){
+  var ahora = Date.now();
+  var dentro = V.es_sesion && V.sesion_abre && V.sesion_cierra &&
+               ahora >= new Date(V.sesion_abre).getTime() &&
+               ahora <= new Date(V.sesion_cierra).getTime();
+
+  if(!L || !L.cuando){
+    det.textContent = dentro
+      ? "sin latido: no hay nadie vigilando los niveles."
+      : "sin actividad (fuera de sesión).";
+    caja.className = "vigia" + (dentro ? " mal" : "");
+    if(dentro) empeorarSemaforo("El vigilante de precios no está activo: "
+      + "nadie está mirando los objetivos ni los stops en vivo.");
+    return;
+  }
+
+  var min = (ahora - new Date(L.cuando).getTime()) / 60000;
+  var n = (L.vigiladas || []).length;
+  var vivo = min <= V.muerto_minutos;
+  caja.className = "vigia" + (dentro ? (vivo ? " vivo" : " mal") : "");
+
+  var partes = [];
+  if(L.arrancado) partes.push("activo desde " + horaEc(L.arrancado).split(", ").pop());
+  partes.push("último latido hace " + (min < 1 ? "menos de 1" : Math.round(min)) + " min");
+  partes.push(n + " posición" + (n === 1 ? "" : "es") + " vigilada" + (n === 1 ? "" : "s"));
+  if(L.estado && L.estado !== "vivo") partes.push(L.estado);
+  det.textContent = partes.join(" · ");
+
+  (L.vigiladas || []).forEach(function(v){
+    var txt = v.ticker + (v.bid ? " " + precio(v.bid) : "");
+    var s = el("span","tick", txt);
+    s.title = "objetivo " + precio(v.objetivo) + " · stop " + precio(v.stop);
+    caja.appendChild(s);
+  });
+  if(L.url_run) caja.appendChild(enlace(L.url_run, "ver run"));
+
+  if(dentro && !vivo) empeorarSemaforo(
+    "El vigilante de precios lleva " + Math.round(min) + " min sin latir "
+    + "(más de " + V.muerto_minutos + "): puede haber niveles sin vigilar.");
+}
+
+/* El semáforo ya está pintado cuando llega el latido, así que se le añade el
+   motivo y, si hace falta, se le sube la gravedad. Como la comprobación de
+   datos viejos: solo puede EMPEORAR. */
+function empeorarSemaforo(motivo){
+  var caja = document.getElementById("semaforo");
+  if(!caja) return;
+  caja.className = "semaforo sem-rojo";
+  var luz = caja.querySelector(".luz");
+  if(luz) luz.textContent = "Problema";
+  var ul = caja.querySelector("ul");
+  if(!ul){
+    var ok = caja.querySelector("p.ok");
+    if(ok) ok.remove();
+    ul = el("ul");
+    caja.appendChild(ul);
+  }
+  ul.insertBefore(el("li","",motivo), ul.firstChild);
 }
 
 /* ----------------------------------------------------- 2. Componentes ---- */

@@ -1,0 +1,196 @@
+name: Vigilante de precios
+
+# ---------------------------------------------------------------------------
+# Mira el precio tick a tick durante toda la sesión y ejecuta los objetivos y
+# los stops en el momento en que se cruzan, porque XTB no los acepta en
+# acciones al contado.
+#
+# NO LO ARRANCA UN CRON. Lo llama el workflow de compras al terminar, con
+# `workflow_dispatch`. El motivo es el de siempre en este repositorio: el
+# scheduler de Actions se ha retrasado HORAS más de una vez (hasta 10 h el
+# 2026-08-27) y un vigilante que llega a mediodía se ha perdido media sesión.
+# Encadenarlo a las compras lo pone en marcha justo cuando hay algo que vigilar.
+#
+# LA ESCALERA DE ABAJO ES EL RESPALDO, no el camino normal: cubre el día en que
+# el workflow de compras muera antes de poder llamar a nadie. Cada peldaño
+# comprueba primero si ya hay un vigilante vivo y, si lo hay, se va sin hacer
+# nada. Por eso son baratos y pueden ser muchos.
+#
+# DURACIÓN Y RELEVO. Un trabajo de GitHub muere a las 6 h y la sesión dura 6 h
+# 30 min, así que un solo vigilante no llega. A las 5 h 45 min llama a su
+# sucesor y NO se va hasta verlo latir: mientras espera sigue mirando precios,
+# así que no hay hueco aunque el sucesor tarde en arrancar.
+#
+# MINUTOS DE ACTIONS: este repositorio es PÚBLICO, y en repositorios públicos
+# los runners estándar son gratis y sin límite de minutos. En uno privado esto
+# serían ~6,5 h por sesión de mercado, unas 140 h al mes, que se saldría de
+# cualquier plan: si el repositorio dejara de ser público, esta pieza hay que
+# repensarla.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      relevo_de:
+        description: "Run del vigilante al que releva (lo rellena el saliente)"
+        type: string
+        default: ""
+      forzar:
+        description: "Forzar (ignora la comprobación de sesión de mercado)"
+        type: boolean
+        default: false
+      minutos:
+        description: "Vigilar solo este rato, en minutos (pruebas)"
+        type: string
+        default: ""
+  # Respaldo: si el workflow de compras no pudo llamar a nadie. Cada peldaño se
+  # va enseguida si ya hay un vigilante vivo.
+  #   verano  (EDT, sesión 13:30-20:00 UTC)
+  #   invierno (EST, sesión 14:30-21:00 UTC)
+  schedule:
+    - cron: "41 13 * * 1-5"
+    - cron: "41 14 * * 1-5"
+    - cron: "41 16 * * 1-5"
+    - cron: "41 18 * * 1-5"
+
+permissions:
+  contents: write     # publica las ventas y la rama del latido
+  actions: write      # llama a su sucesor en el relevo
+
+# SIN grupo de concurrencia de escritura: este job vive 6 h y bloquearía todos
+# los escaneos. Lo que impide que dos vigilantes pisen la misma venta no es un
+# turno de Actions, es XTB: antes de vender se relee la posición y si ya no
+# está, no se vende. El grupo propio de abajo evita el caso tonto de dos
+# vigilantes arrancados a la vez por dos peldaños de la escalera.
+concurrency:
+  group: vigilante-precios
+  cancel-in-progress: false
+
+jobs:
+  # Peldaño barato: ¿hace falta arrancar uno? Solo mira el latido publicado.
+  hace_falta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      arrancar: ${{ steps.mirar.outputs.arrancar }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: ¿Hay ya un vigilante vivo?
+        id: mirar
+        run: python scripts/hace_falta_vigilante.py
+
+  vigilar:
+    needs: hace_falta
+    if: needs.hace_falta.outputs.arrancar == 'si'
+    runs-on: ubuntu-latest
+    # 6 h es el techo duro de GitHub. El vigilante se releva a las 5 h 45 min;
+    # este número solo existe para que, si el relevo fallara, el job muera en
+    # rojo por su cuenta y no por un corte silencioso de la plataforma.
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Vigilar precios y ejecutar niveles
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.relevo_de }}" ]; then ARGS="$ARGS --relevo-de ${{ inputs.relevo_de }}"; fi
+          if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
+          if [ -n "${{ inputs.minutos }}" ]; then ARGS="$ARGS --minutos ${{ inputs.minutos }}"; fi
+          python scripts/vigilante_precios.py $ARGS
+
+      # El vigilante publica cada venta en cuanto la hace, para que el ejecutor
+      # de ventas por tiempo la vea. Esto solo recoge lo que quedara suelto si
+      # murió a mitad.
+      - name: Commit y push de lo que quedara suelto
+        if: always()
+        run: |
+          scripts/commit_y_push.sh \
+            "vigilante de precios: cierre de sesión [skip ci]" \
+            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
+            estado bitacora_broker.csv ordenes
+
+  operativa:
+    needs: [hace_falta, vigilar]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: operativa-${{ github.workflow }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Registrar el estado del vigilante
+        run: |
+          python scripts/registrar_salud.py vigilante_precios \
+            --job "${{ needs.vigilar.result }}" --solo-si-falta
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: republicada tras el vigilante de precios [skip ci]" \
+            "procesado" \
+            docs estado

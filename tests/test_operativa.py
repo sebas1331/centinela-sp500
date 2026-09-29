@@ -93,8 +93,24 @@ def test_la_pagina_no_llama_a_la_API_de_GitHub():
     los propios workflows en salud.json."""
     html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
     assert "api.github.com" not in html
-    # Lo único que se descarga es su propio JSON.
-    assert html.count('fetch(') == 1 and 'fetch("operativa.json"' in html
+    # Dos descargas, y las dos son ficheros estáticos públicos sin token: su
+    # propio JSON, y el latido del vigilante de precios, que tiene que pedirse
+    # EN VIVO porque su edad es justo el dato.
+    assert html.count("fetch(") == 2
+    assert 'fetch("operativa.json"' in html
+    assert "V.url_latido" in html
+
+
+def test_el_latido_se_pide_en_vivo_y_no_viaja_en_el_json(datos):
+    """Si el latido viniera dentro de operativa.json tendría la edad de la
+    última vez que se regeneró la página —horas— y la regla de "más de 10
+    minutos = rojo" sería imposible de cumplir sin falsos rojos."""
+    v = datos["vigilante_precios"]
+    assert set(v) == {"url_latido", "muerto_minutos", "cada_segundos",
+                      "sesion_abre", "sesion_cierra", "es_sesion"}
+    assert "cuando" not in v, "el latido no puede viajar aquí dentro"
+    assert v["url_latido"].startswith("https://raw.githubusercontent.com/")
+    assert "token" not in v["url_latido"]
 
 
 # --------------------------------------------------------------------------- #
@@ -113,7 +129,8 @@ def datos(tmp_path, monkeypatch):
 def test_schema_de_operativa_json(datos):
     assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
                           "broker", "posiciones", "ordenes", "niveles",
-                          "reconciliacion", "alertas", "semaforo", "meta"}
+                          "reconciliacion", "alertas", "semaforo", "meta",
+                          "vigilante_precios"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
@@ -259,8 +276,15 @@ def test_el_json_dice_si_hoy_habia_mercado(datos):
 # 5. Presupuesto y enlaces
 # --------------------------------------------------------------------------- #
 def test_la_pagina_cabe_en_el_presupuesto():
-    tam = (RAIZ / "scripts" / "plantilla_operativa.html").stat().st_size
-    assert tam <= 50 * 1024, f"operativa.html pesa {tam / 1024:.1f} KB"
+    """Se mide lo COMPRIMIDO, que es lo que el teléfono siente. El techo en
+    crudo obligaba a borrar comentarios para añadir función, y en estas páginas
+    los comentarios son el 20 % del fichero."""
+    from centinela import presupuesto
+    crudo, comprimido = presupuesto.medir(
+        RAIZ / "scripts" / "plantilla_operativa.html")
+    assert comprimido <= presupuesto.TECHO_COMPRIMIDO, \
+        f"operativa.html viaja {comprimido / 1024:.1f} KB comprimidos"
+    assert crudo <= presupuesto.TECHO_CRUDO
 
 
 def test_sin_frameworks_ni_CDNs():

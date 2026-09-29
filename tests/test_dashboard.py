@@ -773,5 +773,11 @@ def test_presupuestos_de_tamano():
     docs = gd.DOCS_DIR
     if not (docs / "index.html").exists():
         pytest.skip("docs/ aún no generado en este árbol")
-    assert (docs / "index.html").stat().st_size < 50 * 1024
+    from centinela import presupuesto
+    crudo, comprimido = presupuesto.medir(docs / "index.html")
+    # Se mide lo que VIAJA, no lo que ocupa en disco: el 20 % del fichero son
+    # comentarios y un techo en crudo obligaba a borrarlos para añadir función.
+    assert comprimido <= presupuesto.TECHO_COMPRIMIDO, \
+        f"index.html viaja {comprimido / 1024:.1f} KB comprimidos"
+    assert crudo <= presupuesto.TECHO_CRUDO
     assert (docs / "datos.json").stat().st_size < 500 * 1024

@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+"""¿Hace falta arrancar un vigilante de precios, o ya hay uno vivo?
+
+Es el peldaño barato que protege a la escalera de respaldo de sí misma. Los
+crons de respaldo existen para el día en que el workflow de compras muera antes
+de poder llamar a nadie; el resto de los días no tienen nada que hacer, y
+arrancar un segundo vigilante sobre uno sano sería peor que no arrancar ninguno.
+
+La pregunta se contesta con el latido publicado, que es la única señal que
+sobrevive entre runs distintos.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from centinela import calendario, config, latido as lat  # noqa: E402
+
+
+def _salida(arrancar: bool, motivo: str) -> int:
+    print(f"{'ARRANCAR' if arrancar else 'no hace falta'}: {motivo}", flush=True)
+    destino = os.environ.get("GITHUB_OUTPUT")
+    if destino:
+        with open(destino, "a", encoding="utf-8") as fh:
+            fh.write(f"arrancar={'si' if arrancar else 'no'}\n")
+            fh.write(f"motivo={motivo}\n")
+    return 0
+
+
+def decidir(latido: dict | None, ahora: datetime, forzado: bool) -> tuple[bool, str]:
+    """La regla, separada del mundo para poder probarla."""
+    if forzado:
+        return True, "lanzado a mano"
+    if not calendario.es_dia_de_mercado(ahora.date()):
+        return False, "hoy no hay mercado"
+    ac = calendario.apertura_cierre_et(ahora.date().isoformat())
+    if ac is None:
+        return False, "sin horario de mercado para hoy"
+    apertura, cierre = ac
+    if ahora >= cierre:
+        return False, "la sesión ya cerró"
+
+    minutos = lat.minutos_desde(latido, ahora)
+    if minutos is None:
+        return True, "no hay ningún latido: nadie está vigilando"
+    if latido.get("estado") in ("cerrado", "sin-posiciones"):
+        return True, f"el último vigilante terminó ({latido['estado']})"
+    if minutos > lat.MUERTO_MINUTOS:
+        return True, (f"el último latido es de hace {minutos:.0f} min "
+                      f"(más de {lat.MUERTO_MINUTOS}): el vigilante está muerto")
+    return False, (f"hay un vigilante vivo (run {latido.get('run')}), último "
+                   f"latido hace {minutos:.1f} min")
+
+
+def main() -> int:
+    if not config.EJECUCION_BROKER:
+        return _salida(False, "ejecución en broker desactivada en config")
+    trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
+    trabajo.mkdir(parents=True, exist_ok=True)
+    # Un repositorio mínimo solo para poder leer la rama del latido.
+    if not (trabajo / ".git").exists():
+        import subprocess
+        origen = subprocess.run(["git", "remote", "get-url", "origin"],
+                                cwd=str(config.BASE_DIR), capture_output=True,
+                                text=True).stdout.strip()
+        subprocess.run(["git", "init", "-q", trabajo], check=True)
+        subprocess.run(["git", "remote", "add", "origin", origen],
+                       cwd=str(trabajo), check=True)
+
+    forzado = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    arrancar, motivo = decidir(lat.leer(trabajo),
+                               datetime.now(config.TZ_ET), forzado)
+    return _salida(arrancar, motivo)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -581,8 +581,8 @@ function iniciar(D){
 
   /* --- XTB vs. simulador ------------------------------------------------ */
   function pintarBroker(){
-    /* Sin ejecuciones no se pinta nada: un cero se leería como "no hay
-       diferencia" cuando la verdad es "aún no se ha operado". */
+    /* Sin ejecuciones no se pinta: un cero se leería como "no hay
+       diferencia" y la verdad sería "aún no se ha operado". */
     if(!BROKER) return;
     document.getElementById("h-broker").hidden = false;
     document.getElementById("nota-broker").hidden = false;
@@ -594,15 +594,28 @@ function iniciar(D){
     var h3 = el("h3","", "Cartera " + BROKER.cartera + " en XTB ");
     h3.appendChild(el("span","", "cuenta demo"));
     caja.appendChild(h3);
+    /* Tres precios, no dos, en las salidas disparadas en vivo: el nivel exacto,
+       el bid que disparó y lo ejecutado. Del primero al segundo es lo que
+       cuesta VIGILAR; del segundo al tercero, EJECUTAR. Juntarlos escondería
+       justo el que el vigilante de precios vino a reducir. */
+    var D = BROKER.disparos_en_vivo;
+    var filas = [
+      ["Operaciones ejecutadas", String(BROKER.operaciones), ""],
+      ["Compras / ventas", BROKER.compras + " / " + BROKER.ventas, ""]];
+    if(D) filas.push(
+      ["Disparos en vivo", D.n + " (" + D.por_stop + " stop / "
+                             + D.por_objetivo + " objetivo)", ""],
+      ["Coste de vigilar", pct(D.coste_vigilar_pct), signo(-(D.coste_vigilar_pct||0))],
+      ["Coste de ejecutar", pct(D.coste_ejecutar_pct), signo(-(D.coste_ejecutar_pct||0))]);
+    filas.push(
+      ["Slippage medio", pct(BROKER.slippage_medio_pct),
+       signo(-(BROKER.slippage_medio_pct || 0))],
+      ["Peor slippage", pct(BROKER.slippage_peor_pct), "neg"],
+      ["Equity simulado", precio(BROKER.equity_simulado), ""],
+      ["Última ejecución", fecha(BROKER.ultima), ""]);
+
     var dl = el("dl");
-    [["Operaciones ejecutadas", String(BROKER.operaciones), ""],
-     ["Compras / ventas", BROKER.compras + " / " + BROKER.ventas, ""],
-     ["Slippage medio", pct(BROKER.slippage_medio_pct),
-      signo(-(BROKER.slippage_medio_pct || 0))],
-     ["Peor slippage", pct(BROKER.slippage_peor_pct), "neg"],
-     ["Equity simulado", precio(BROKER.equity_simulado), ""],
-     ["Última ejecución", fecha(BROKER.ultima), ""]
-    ].forEach(function(f){
+    filas.forEach(function(f){
       dl.appendChild(el("dt","",f[0]));
       dl.appendChild(el("dd",f[2],f[1]));
     });

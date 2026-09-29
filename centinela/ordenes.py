@@ -49,8 +49,20 @@ VENTA_OBJETIVO = "venta_objetivo"
 #: orden de mercado. Se registra con SU PROPIO NOMBRE para poder medir después
 #: cuánto cuesta el plan B frente a haber cerrado a tiempo.
 VENTA_TIEMPO_DIFERIDO = "tiempo_diferido"
+#: Las mismas dos salidas, pero disparadas EN VIVO por el vigilante de precios
+#: mientras la sesión está abierta, no en el único vistazo de las 15:45 ET.
+#:
+#: Tienen nombre propio y no reutilizan VENTA_STOP/VENTA_OBJETIVO porque la
+#: diferencia entre las dos cosas es justo lo que hay que poder medir: el
+#: vistazo diario llevaba la Cartera A de +12,07% / -10,44% a +9,32% / -12,50%
+#: porque 7 de 21 stops se dispararon por un precio que el día cerró por
+#: encima. Si el vigilante en vivo acerca la ejecución al simulador, se verá
+#: comparando estas filas con aquellas; si las mezcláramos bajo el mismo
+#: nombre, no habría forma de saberlo.
+VENTA_OBJETIVO_INTRADIA = "objetivo_intradia"
+VENTA_STOP_INTRADIA = "stop_intradia"
 TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
-         VENTA_TIEMPO_DIFERIDO)
+         VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA)
 
 #: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
 #: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente
@@ -64,6 +76,13 @@ ARCHIVO_BITACORA_BROKER = config.BASE_DIR / "bitacora_broker.csv"
 COLUMNAS_BROKER = [
     "id", "sesion", "cuando_et", "cartera", "ticker", "simbolo_xtb", "tipo",
     "acciones", "estado", "precio", "orden_xtb", "objetivo", "stop",
+    # `precio_disparo`: el bid exacto que vio el vigilante de precios en el
+    # momento de decidir. Con él, `precio_simulador` (el nivel) y `precio` (lo
+    # que XTB ejecutó) se pueden separar dos cosas que no son la misma:
+    # cuánto se pasó el precio del nivel antes de que nadie lo viera, y cuánto
+    # se movió entre que se vio y la orden llegó. La primera es el coste de
+    # vigilar; la segunda, el de ejecutar.
+    "precio_disparo",
     "precio_simulador", "slippage_pct", "error",
 ]
 
@@ -268,6 +287,7 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
         "acciones": orden.acciones, "estado": ejecucion.estado,
         "precio": ejecucion.precio, "orden_xtb": ejecucion.orden,
         "objetivo": orden.objetivo, "stop": orden.stop,
+        "precio_disparo": orden.referencia,
         "precio_simulador": orden.precio_simulador,
         "slippage_pct": slippage, "error": ejecucion.error,
     }
@@ -297,7 +317,10 @@ def actualizar_ejecucion(id_orden: str, ruta: Path | None = None, **campos) -> b
     if not ruta.exists():
         return False
     with open(ruta, encoding="utf-8", newline="") as f:
-        filas = list(csv.DictReader(f))
+        # `restval`: las filas escritas antes de que existiera una columna no
+        # tienen esa clave, y reescribirlas sin esto reventaría.
+        filas = [{c: fila.get(c, "") for c in COLUMNAS_BROKER}
+                 for fila in csv.DictReader(f, restval="")]
 
     tocada = False
     for fila in filas:
@@ -326,5 +349,5 @@ def filas_de_sesion(sesion: str, ruta: Path | None = None) -> list[dict]:
     if not ruta.exists():
         return []
     with open(ruta, encoding="utf-8", newline="") as f:
-        return [fila for fila in csv.DictReader(f)
+        return [fila for fila in csv.DictReader(f, restval="")
                 if fila.get("sesion") == sesion]

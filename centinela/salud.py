@@ -30,6 +30,7 @@ COMPONENTES = {
     "compras":         ("Compras en XTB", "cada sesión, antes de abrir"),
     "ventas":          ("Ventas en XTB", "cada sesión, antes del cierre"),
     "apertura":        ("Verificación de la apertura", "cada sesión, tras abrir"),
+    "vigilante_precios": ("Vigilante de precios", "toda la sesión, en vivo"),
     "postcierre":      ("Escaneo post-cierre", "cada sesión, tras el cierre"),
     "reconcilia":      ("Reconciliación con XTB", "cada sesión, tras el cierre"),
     "vigilante":       ("Vigilante", "todos los días"),
