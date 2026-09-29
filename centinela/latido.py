@@ -22,9 +22,22 @@ Se elige la 3. El force-push da miedo con razón, así que la rama es una
 constante de este módulo y nunca un parámetro: este código no puede reescribir
 ninguna otra rama ni aunque alguien se lo pida.
 
-EL PRECIO DE LA OPCIÓN 3 es que la página depende del caché de la CDN de
-raw.githubusercontent. Está medido antes de dar esto por bueno (ver el
-CHANGELOG) y se pide con un parámetro anticaché.
+EL PRECIO DE LA OPCIÓN 3, medido y no supuesto (2026-09-29): la CDN de
+raw.githubusercontent sirve el fichero con `cache-control: max-age=300`, y el
+parámetro anticaché de la URL **no la esquiva** —se comprobó: con `?t=` distinto
+seguía devolviendo una copia de 159 s—. Así que lo que ve la página puede
+tener hasta 5 minutos de retraso sobre la verdad.
+
+Qué significa eso en la práctica:
+
+  * NUNCA hay falsos rojos. El latido más nuevo tiene como mucho 2 minutos en
+    origen y la CDN añade como mucho 5: la página nunca ve más de 7, por debajo
+    del umbral de 10.
+  * Un vigilante muerto de verdad tarda entre 10 y 15 minutos en verse en la
+    página, no 10 exactos.
+  * Quien SÍ lo ve exacto es el Vigilante general, que lee la rama por `git
+    fetch` y no pasa por la CDN. Y es el que relanza. O sea: la página es la
+    vista humana, con su margen; la comprobación que actúa no tiene margen.
 """
 from __future__ import annotations
 

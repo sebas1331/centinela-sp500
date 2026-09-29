@@ -371,3 +371,17 @@ def test_el_ejecutor_de_ventas_no_vende_lo_que_el_vigilante_ya_cerro(
     pendientes = {"sesion": HOY, "cartera_broker": "A", "ordenes": [orden]}
     ej.enviar(broker, pendientes, "ventas", {"enviadas": {}})
     assert broker.vendidas == [], "mandó una venta de acciones que ya no existían"
+
+
+def test_el_umbral_del_latido_deja_sitio_al_cache_de_la_CDN():
+    """Medido el 2026-09-29: raw.githubusercontent sirve con max-age=300 y el
+    parámetro anticaché no la esquiva. El latido más nuevo tiene ≤2 min en
+    origen y la CDN añade ≤5, así que la página nunca ve más de 7 minutos con
+    un vigilante sano. El umbral tiene que quedar por encima o habría falsos
+    rojos todos los días.
+    """
+    CACHE_CDN_MIN = 5
+    peor_caso = lat.CADA_SEGUNDOS / 60 + CACHE_CDN_MIN
+    assert peor_caso < lat.MUERTO_MINUTOS, (
+        f"un vigilante sano puede verse con {peor_caso:.0f} min y el umbral es "
+        f"{lat.MUERTO_MINUTOS}: saldría rojo sin que pase nada")

@@ -36,6 +36,10 @@ on:
         description: "Cuánto vigilar como mucho"
         type: string
         default: "4"
+      sesion_nueva:
+        description: "Login en frío (sin reutilizar la sesión cacheada)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -62,7 +66,12 @@ jobs:
       - name: Instalar Chromium para el login
         run: playwright install --with-deps chromium
 
+      # Con `sesion_nueva` no se restaura nada: el login es en frío y el JWT de
+      # trading nace nuevo. Sirve para distinguir un problema del endpoint de
+      # uno de la sesión reutilizada, que es una diferencia que importa: las
+      # ventas de las 15:45 corren siempre con sesión cacheada de la mañana.
       - name: Restaurar sesión de XTB
+        if: ${{ !inputs.sesion_nueva }}
         uses: actions/cache@v4
         with:
           path: |
