@@ -595,6 +595,44 @@ repositorio remoto era un riesgo que no compensaba, así que viven en el Llavero
 de macOS y no salen del ordenador. Además, el login de xStation5 pasa por un
 WAF y las IPs de datacenter de GitHub son justo lo que ese WAF frena.
 
+### El vigilante de precios
+
+XTB no acepta stop loss ni take profit en acciones al contado, así que los
+niveles los ejecuta el sistema. Hasta el 2026-09-29 los miraba el ejecutor **una
+vez al día**, a las 15:45 ET, y eso está medido y es malo: la Cartera A pasaba de
++12,07 % con drawdown −10,44 % a **+9,32 % con −12,50 %**, peor en las dos
+dimensiones que no tener stop, porque 7 de los 21 stops se dispararon por un
+precio que el día cerró por encima.
+
+Ahora hay un proceso mirando el **bid** tick a tick durante toda la sesión, por
+el WebSocket de XTB, que dispara en el momento del cruce. Sus salidas llevan tipo
+propio (`stop_intradia`, `objetivo_intradia`) para poder comparar unas con otras
+y saber si de verdad acerca la ejecución al simulador.
+
+| | |
+|---|---|
+| **Lo arranca** | el workflow de compras al terminar, no un cron: el scheduler de Actions se ha retrasado horas y un vigilante que llega a mediodía se perdió media sesión. Hay una escalera de crons de respaldo que solo arranca si no hay ninguno vivo. |
+| **Dura** | toda la sesión. Un trabajo de GitHub muere a las 6 h y la sesión son 6 h 30, así que a las 5 h 45 llama a su sucesor y **no se va hasta verlo latir**: mientras espera sigue mirando precios. |
+| **Si el WebSocket cae** | el cliente reconecta con backoff; mientras tanto se pregunta por petición cada 20 s y al volver se resuscribe todo. |
+| **Cuesta** | ~6,5 h de runner por sesión. Este repositorio es **público**, y ahí los runners estándar son gratis y sin límite. En uno privado serían ~140 h al mes y habría que repensarlo. |
+
+**Cómo no se vende dos veces.** Al final de la sesión hay dos procesos que pueden
+querer cerrar la misma posición: este y el ejecutor de ventas por tiempo. Corren
+en máquinas que no se ven. El candado no es un fichero —entre que uno lo escribe
+y el otro lo lee caben segundos y un `push`— sino **XTB**: antes de vender, los
+dos releen la posición, y el que llega segundo se la encuentra cerrada y se calla.
+
+**El latido.** Cada 2 minutos publica una señal de vida en la rama `latido`, que
+tiene siempre **un solo commit** reescrito por *force-push*: así `main` no se
+llena de 195 commits al día y la página puede leerlo en vivo. La página lo pide a
+`raw.githubusercontent`, que cachea 5 minutos (medido), así que lo que ves puede
+tener hasta 7 minutos —nunca da falso rojo, pero un vigilante muerto tarda 10-15
+minutos en verse ahí—. Quien lo comprueba **sin margen** es el Vigilante general,
+que lee la rama directamente y es el que relanza.
+
+**Si no está activo**, la venta programada antes del cierre sigue evaluando
+objetivo y stop como red de seguridad. Nunca se queda nadie mirando.
+
 ### Cuatro momentos al día
 
 | Momento | Qué hace | Cuándo (ET) |

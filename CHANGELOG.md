@@ -5,6 +5,72 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-29 (2) — Vigilante de precios: los niveles se ejecutan en vivo
+
+XTB no acepta stop loss ni take profit en acciones al contado, así que los
+niveles los ejecutaba el ejecutor **una vez al día**, a las 15:45 ET. Eso está
+medido y es malo: la Cartera A pasaba de +12,07 % con drawdown −10,44 % a
+**+9,32 % con −12,50 %**, peor en las dos dimensiones que no tener stop, porque
+7 de los 21 stops se dispararon por un precio que el día cerró por encima.
+
+Ahora hay un proceso mirando el **bid** tick a tick toda la sesión, por el
+WebSocket de XTB, que dispara en el momento del cruce.
+
+### Lo primero fue medir, no diseñar
+
+**¿Admite XTB dos sesiones simultáneas con la misma cuenta?** De eso dependía
+todo: si no las admite, el vigilante tendría que absorber también la
+verificación de la apertura y las ventas por tiempo, y los demás workflows
+callarse mientras esté vivo. No se puede contestar leyendo documentación —XTB
+cerró su API oficial y lo que queda es ingeniería inversa— así que se midió.
+
+**Respuesta: SÍ.** Dos conexiones conviven, las dos siguen vivas y las dos
+reciben cotizaciones. El vigilante vive en su propio workflow y nadie tiene que
+callarse.
+
+La prueba comprueba las dos cosas que pueden fallar, no solo una: que la segunda
+sesión conecte, y que la **primera siga viva después**. El modo de fallo más
+probable no era que XTB rechazara la segunda, sino que la segunda echara a la
+primera sin avisar.
+
+### El candado no es un fichero
+
+Al final de la sesión hay dos procesos que pueden querer cerrar la misma
+posición, y corren en máquinas que no se ven. Un fichero de bloqueo sería una
+promesa: entre que uno lo escribe y el otro lo lee caben segundos y un `push`.
+Preguntarle a XTB es un hecho, y es la misma fuente para los dos. Antes de
+vender, los dos releen la posición; el que llega segundo se la encuentra cerrada
+y se calla. Al ponerlo apareció que **al ejecutor de ventas por tiempo le
+faltaba**: vendía sin comprobar.
+
+### El latido, y por qué no va en el historial
+
+Un latido cada dos minutos son ~195 al día. Un commit por latido multiplicaría
+por veinticinco los commits del repositorio y enterraría la bitácora; latir cada
+15 minutos para que fueran pocos haría imposible la regla de «más de 10 minutos
+= rojo». Va en una rama aparte con **un solo commit** reescrito por force-push:
+`main` no se entera y la página lo lee en vivo.
+
+**Lo medido, que cambia una garantía:** `raw.githubusercontent` sirve con
+`cache-control: max-age=300` y el parámetro anticaché **no la esquiva** —se
+comprobó: con `?t=` distinto seguía devolviendo una copia de 159 s—. Lo peor que
+ve la página son 7 minutos (2 de origen + 5 de CDN), así que **no hay falsos
+rojos**, pero un vigilante muerto tarda 10-15 minutos en verse ahí. Quien lo ve
+exacto es el Vigilante general, que lee la rama por `git fetch` y es el que
+relanza: la página es la vista humana, la comprobación que actúa no tiene margen.
+
+### El techo de 50 KB era un mal número
+
+Medía el fichero en crudo, y el 20 % de estas páginas son comentarios: 10,4 KB
+de explicación solo en el dashboard. Al añadir el coste de los disparos, el
+fichero pasó de 50 KB y la única forma de volver a entrar era borrar
+explicaciones. Lo que un teléfono siente es lo que **viaja**: 16,5 KB
+comprimidos, no 50,6. El techo pasa a medir eso, y se añade un segundo techo en
+crudo mucho más holgado para lo que el primero no ve —un volcado de datos
+incrustado en el HTML comprime muy bien y no movería la aguja—.
+
+---
+
 ## 2026-09-29 — Un "ok" que no dice cuántas órdenes no es un "ok"
 
 La página dijo «Compras en XTB: ok» a las 07:47 con cero órdenes enviadas y XTB

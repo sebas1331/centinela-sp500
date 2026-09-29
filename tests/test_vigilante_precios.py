@@ -385,3 +385,25 @@ def test_el_umbral_del_latido_deja_sitio_al_cache_de_la_CDN():
     assert peor_caso < lat.MUERTO_MINUTOS, (
         f"un vigilante sano puede verse con {peor_caso:.0f} min y el umbral es "
         f"{lat.MUERTO_MINUTOS}: saldría rojo sin que pase nada")
+
+
+def test_no_se_apunta_ventas_que_hizo_otro(aislado):
+    """`evaluar` deja de vigilar tanto lo que vende como lo que ya estaba
+    cerrado. Contar por diferencia de longitud inflaba la cifra que el vigilante
+    publica como suya."""
+    broker = BrokerFalso(posiciones=[])        # el otro ya la cerró
+    precios = vp.Precios()
+    precios.encajar({"symbol": "MRNA.US", "bid": 111.0})
+    vp.VENDIDAS["n"] = 0
+    quedan = vp.evaluar(broker, {"enviadas": {}}, [_vigilada()], precios)
+    assert quedan == [] and broker.vendidas == []
+    assert vp.VENDIDAS["n"] == 0, "se apuntó una venta que no hizo"
+
+
+def test_y_sí_se_apunta_la_que_hace(aislado):
+    broker = BrokerFalso([_posicion()])
+    precios = vp.Precios()
+    precios.encajar({"symbol": "MRNA.US", "bid": 111.0})
+    vp.VENDIDAS["n"] = 0
+    vp.evaluar(broker, {"enviadas": {}}, [_vigilada()], precios)
+    assert vp.VENDIDAS["n"] == 1

@@ -54,8 +54,20 @@ def main() -> int:
                     if p["lado"] == "buy" and p["ticker"] == simbolo]
 
         if args.limpiar:
-            if not abiertas:
-                log(f"limpieza: no queda ninguna posición de {simbolo}. "
+            # Las ÓRDENES EN COLA también. Una compra que volvió "ambigua" pudo
+            # haberse colocado igualmente: el cliente dice que el POST entró y
+            # que el cuerpo vino vacío, así que no saber si hay posición no es
+            # lo mismo que saber que no hay nada. Mirar solo posiciones dejaría
+            # una orden viva esperando a que abra el mercado.
+            en_cola = [o for o in b.ordenes_pendientes()
+                       if o.get("ticker") == simbolo]
+            for o in en_cola:
+                log(f"limpieza: cancelando orden en cola {o.get('orden')} de "
+                    f"{simbolo}...")
+                log(f"  -> {b.cancelar(o['orden'])}")
+
+            if not abiertas and not en_cola:
+                log(f"limpieza: no queda ninguna posición ni orden de {simbolo}. "
                     f"La cuenta está como estaba.")
                 return 0
             for p in abiertas:

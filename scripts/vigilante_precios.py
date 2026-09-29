@@ -292,6 +292,13 @@ class Precios:
         self.ultimo_tick = time.monotonic()
 
 
+#: Cuántas ventas ha disparado este vigilante. Se cuenta aquí y no restando
+#: longitudes de la lista: `evaluar` también deja de vigilar las posiciones que
+#: ya había cerrado otro, y contar esas como ventas propias inflaría la cifra
+#: que luego se publica.
+VENDIDAS = {"n": 0}
+
+
 def evaluar(broker, registro: dict, vigiladas: list[dict],
             precios: Precios) -> list[dict]:
     """Mira cada posición contra su nivel. Devuelve las que siguen vivas."""
@@ -303,10 +310,10 @@ def evaluar(broker, registro: dict, vigiladas: list[dict],
         if disparo is None:
             quedan.append(v)
             continue
-        if not vender_por_nivel(broker, registro, v, disparo, bid):
-            # No vendió porque ya estaba vendida o porque otro se adelantó:
-            # deja de vigilarla igualmente, no hay nada que vigilar.
-            continue
+        if vender_por_nivel(broker, registro, v, disparo, bid):
+            VENDIDAS["n"] += 1
+        # Vendida o ya cerrada por otro, deja de vigilarse: en los dos casos no
+        # queda nada que mirar.
     return quedan
 
 
@@ -393,7 +400,7 @@ def main() -> int:
     mi_run = os.environ.get("GITHUB_RUN_ID", "local")
     relevo_a_las = time.monotonic() + RELEVO_TRAS_HORAS * 3600
     credenciales = bx.credenciales_del_entorno_o_llavero()
-    vendidas = 0
+    VENDIDAS["n"] = 0
 
     with bx.BrokerXTB(credenciales, demo=True) as broker:
         saldo = broker.saldo()
@@ -438,11 +445,8 @@ def main() -> int:
         n_inicial = len(vigiladas)
 
         while datetime.now(config.TZ_ET) < cierre and vigiladas:
-            antes = len(vigiladas)
             vigilar_un_rato(broker, registro, vigiladas, segundos=1,
                             precios=precios)
-            vendidas += antes - len(vigiladas)
-
             ahora_mono = time.monotonic()
             mudo = ahora_mono - precios.ultimo_tick > SILENCIO_SOSPECHOSO_SEG
             if (caido["si"] or mudo) and ahora_mono >= proximo_respaldo:
@@ -467,7 +471,7 @@ def main() -> int:
                     salud.registrar(
                         "vigilante_precios",
                         f"ok: relevado tras {RELEVO_TRAS_HORAS} h, "
-                        f"{vendidas} venta(s)")
+                        f"{VENDIDAS['n']} venta(s)")
                     return 0
                 raise RuntimeError(
                     "El relevo falló: el sucesor no llegó a latir en "
@@ -478,7 +482,7 @@ def main() -> int:
         lat.publicar(lat.construir(arrancado, vigiladas, estado="cerrado"),
                      trabajo)
 
-    resultado = (f"ok: {vendidas} venta(s) por nivel, {len(vigiladas)} de "
+    resultado = (f"ok: {VENDIDAS['n']} venta(s) por nivel, {len(vigiladas)} de "
                  f"{n_inicial} posición(es) siguen abiertas")
     salud.registrar("vigilante_precios", resultado)
     log(f"✅ {resultado}")
