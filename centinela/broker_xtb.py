@@ -342,6 +342,10 @@ class BrokerXTB:
         # error de trading sube como "respuesta vacía" y no dice nada.
         from . import parche_grpc
         parche_grpc.instalar()
+        # Y el que elige la ACCIÓN y no su CFD cuando XTB ofrece las dos con el
+        # mismo símbolo. Sin él, la orden se manda al azar a uno de los dos.
+        from . import parche_instrumento
+        parche_instrumento.instalar()
 
         cas = None
         try:
