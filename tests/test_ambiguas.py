@@ -328,3 +328,38 @@ def test_con_pocas_ordenes_el_porcentaje_no_juzga(diario):
     salud_ok = {"runs": {c: {"cuando": ahora.isoformat(), "resultado": "ok"}
                          for c in go.CRITICOS}}
     assert go.semaforo(salud_ok, None, [], [], ahora)["color"] == "verde"
+
+
+# --------------------------------------------------------------------------- #
+# 5. El motivo que el cliente tiraba
+# --------------------------------------------------------------------------- #
+def test_un_error_de_grpc_se_traduce_a_algo_legible():
+    """El 29/09 ocho compras fallaron con 'respuesta vacía' y nada más. El
+    motivo estaba en las cabeceras desde el primer intento."""
+    from centinela import parche_grpc
+    assert parche_grpc.motivo_legible(
+        {"grpc-status": "3", "grpc-message": "Could not find instrument for id: 335"}
+    ) == "INVALID_ARGUMENT (3): Could not find instrument for id: 335"
+
+
+def test_sin_grpc_status_no_se_inventa_un_motivo():
+    from centinela import parche_grpc
+    assert parche_grpc.motivo_legible({"content-type": "x"}) is None
+
+
+def test_el_motivo_llega_al_error_de_la_ejecucion(monkeypatch):
+    """Para que salga en el log del ejecutor y en la página, no solo en un
+    diagnóstico que hay que acordarse de lanzar."""
+    from centinela import parche_grpc
+
+    class Respuesta:
+        status = "AMBIGUOUS"
+        price = None
+        order_number = None
+        error = "gRPC trade endpoint returned an empty response"
+
+    monkeypatch.setitem(parche_grpc.ULTIMO, "motivo",
+                        "INVALID_ARGUMENT (3): Could not find instrument for id: 277")
+    e = bx.BrokerXTB._traducir(Respuesta(), "INTC.US", "compra", 1)
+    assert e.estado == "ambigua"
+    assert "Could not find instrument for id: 277" in e.error

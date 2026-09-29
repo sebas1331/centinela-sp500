@@ -338,6 +338,10 @@ class BrokerXTB:
         # por su nombre en polaco y no lo encuentra (ver parche_otp.py).
         from . import parche_otp
         parche_otp.aplicar()
+        # Y el que lee el motivo real cuando una orden falla: sin él, todo
+        # error de trading sube como "respuesta vacía" y no dice nada.
+        from . import parche_grpc
+        parche_grpc.instalar()
 
         cas = None
         try:
@@ -575,10 +579,20 @@ class BrokerXTB:
     def _traducir(r, ticker: str, lado: str, acciones: int) -> Ejecucion:
         estado = _ESTADOS.get(str(getattr(r, "status", "")), "ambigua")
         precio = getattr(r, "price", None)
+        error = getattr(r, "error", None)
+
+        # Si el fallo vino con cuerpo vacío, el motivo de verdad está en las
+        # cabeceras gRPC y lo ha recogido el parche. Se antepone al mensaje
+        # genérico del cliente, que solo dice que no había cuerpo.
+        from . import parche_grpc
+        motivo = parche_grpc.ULTIMO.get("motivo")
+        if motivo and estado == "ambigua":
+            error = f"{motivo}" + (f" [{error}]" if error else "")
+
         return Ejecucion(
             ticker=ticker, lado=lado, acciones=acciones, estado=estado,
             precio=None if precio is None else float(precio),
             orden=getattr(r, "order_number", None),
-            error=getattr(r, "error", None),
+            error=error,
             cuando=datetime.now(config.TZ_ET).isoformat(),
         )

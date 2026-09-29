@@ -5,6 +5,51 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-29 (3) — La causa de las órdenes "ambiguas", y una corrección
+
+Ayer dejé escrito que «el endpoint de trading de XTB está fallando». Era una
+descripción del síntoma, no la causa, y la causa resultó ser otra cosa.
+
+### Lo que decían las cabeceras que nadie leía
+
+El cliente hace `raise_for_status()` —o sea, el HTTP es 200— y si el cuerpo
+viene vacío devuelve `b""`. Pero en gRPC-web **los errores llegan con HTTP 200**
+y el motivo en las cabeceras. Al leerlas, el motivo apareció al primer intento:
+
+```
+HTTP         : 200 OK
+grpc-status  : 3                                  (INVALID_ARGUMENT)
+grpc-message : Could not find instrument for id: 335
+```
+
+335 es el identificador que el **propio buscador de XTB** devuelve para F.US. Se
+repitió con INTC (`id: 277`), así que no es cosa de un ticker: el servicio de
+trading de XTB no reconoce los identificadores que su servicio de búsqueda
+acaba de dar. Mandamos exactamente lo que XTB dice y XTB lo rechaza.
+
+Eso explica también la intermitencia —una de ocho entró— mejor que ninguna otra
+hipótesis: una flota parcialmente actualizada, donde algunos backends todavía
+conocen esos ids y la mayoría no. No hay nada que arreglar por nuestra parte, y
+la librería está huérfana: su repositorio (`liskeee/xtb-api-python`) devuelve
+404, aunque el paquete siga publicado y 0.10.0 siga siendo la última versión.
+
+### Lo que sí se arregla: que el motivo se vea
+
+Ocho intentos a ciegas frente a un mensaje claro es la diferencia entre
+diagnosticar en un minuto y en una tarde. `parche_grpc.py` envuelve la llamada,
+lee las cabeceras y pone el motivo real en el error de la ejecución, así que
+sale en el log del ejecutor y en la página en vez de en un diagnóstico que hay
+que acordarse de lanzar.
+
+### La cuenta, limpia
+
+Saldo 29.999,94, cero posiciones, cero órdenes en cola, y el saldo **cuadra al
+céntimo** con la única operación registrada. Como cada ida y vuelta se come el
+spread, un viaje sin registrar habría dejado un hueco: **ninguna de las siete
+compras ambiguas llegó a ejecutarse**.
+
+---
+
 ## 2026-09-29 (2) — Vigilante de precios: los niveles se ejecutan en vivo
 
 XTB no acepta stop loss ni take profit en acciones al contado, así que los
