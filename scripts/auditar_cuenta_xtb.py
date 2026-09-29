@@ -88,14 +88,20 @@ def main() -> int:
         if sobrantes and args.cerrar:
             log("")
             log("CERRANDO LO QUE NO DEBERÍA ESTAR")
+            # Agrupado por símbolo: XTB puede devolver una misma posición
+            # partida en varias entradas, y una venta por entrada manda de más.
+            por_simbolo: dict[str, int] = {}
             for p in sobrantes:
-                log(f"  cerrando {p['acciones']:.0f} de {p['ticker']}...")
-                e = b.vender(p["ticker"], int(p["acciones"]))
+                por_simbolo[p["ticker"]] = (por_simbolo.get(p["ticker"], 0)
+                                            + int(p["acciones"]))
+            for simbolo, acciones in por_simbolo.items():
+                log(f"  cerrando {acciones} de {simbolo}...")
+                e = b.vender(simbolo, acciones)
                 log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
                     + (f" ERROR: {e.error}" if e.error else ""))
                 if not e.ok:
                     problemas.append(
-                        f"NO se pudo cerrar {p['ticker']}: {e.error}. Ciérrala "
+                        f"NO se pudo cerrar {simbolo}: {e.error}. Ciérrala "
                         f"a mano en xStation 5.")
         elif sobrantes:
             problemas.append(

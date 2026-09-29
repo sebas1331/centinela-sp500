@@ -41,6 +41,43 @@ lee las cabeceras y pone el motivo real en el error de la ejecución, así que
 sale en el log del ejecutor y en la página en vez de en un diagnóstico que hay
 que acordarse de lanzar.
 
+### La causa raíz, y es nuestra
+
+Buscando el símbolo aparecieron **dos** instrumentos llamados `F.US`:
+
+```
+id=7813   clave=9_F.US_US_STC        Ford Motor Co
+id=335    clave=4_F.US_US_STC CFD    CLOSE ONLY / Ford Motor Co CFD
+```
+
+Uno es la acción al contado y el otro su **CFD**, además en *close only*. El
+cliente resuelve el símbolo devolviendo **el primero que coincida**, y el orden
+de esa lista cambia entre sesiones. Cuando salía primero el CFD, se mandaba su
+id al servicio de acciones al contado, que con toda la razón contesta que no lo
+conoce.
+
+Eso explica todo lo que no encajaba: la intermitencia de 1 de cada 8 (era una
+moneda al aire), el mensaje raro, y que INTC fallara igual con su propio CFD
+(id 277). No era XTB rompiéndose: era una ambigüedad que la librería resolvía a
+suertes.
+
+`parche_instrumento.py` la resuelve con criterio: entre las coincidencias
+exactas se queda con la de contado y descarta los CFD; si no hay ninguna de
+contado, falla con un mensaje claro en vez de operar el instrumento equivocado.
+Se distingue por la clave (`9_` contado, `4_` CFD), que es estructura, y de
+reserva por el nombre, que es texto para humanos.
+
+**Verificado con el mercado abierto**: con el parche puesto, la compra entró **a
+la primera** (`en_cola`, orden 916133272), después de ocho intentos fallidos sin
+él.
+
+### Y un fallo propio que salió en la misma prueba
+
+El bucle de limpieza vendía una vez por cada entrada que XTB devolvía. XTB
+devolvió la misma posición partida en tres, así que hizo tres viajes de ida y
+vuelta donde debía hacer uno. Se vio porque el saldo bajó seis céntimos en vez
+de dos. Ahora se vende el TOTAL de una vez, agrupando por símbolo.
+
 ### La cuenta, limpia
 
 Saldo 29.999,94, cero posiciones, cero órdenes en cola, y el saldo **cuadra al

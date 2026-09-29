@@ -167,10 +167,16 @@ def main() -> int:
         abiertas = [p for p in b.posiciones()
                     if p["lado"] == "buy" and p["ticker"] == simbolo]
         if abiertas:
-            log(f"la orden SÍ entró: cerrando {len(abiertas)} posición(es)...")
-            for p in abiertas:
-                c = b.vender(simbolo, int(p["acciones"]))
-                log(f"  -> {c.estado}" + (f" ERROR: {c.error}" if c.error else ""))
+            # UNA venta por el TOTAL, no una por entrada. XTB puede devolver la
+            # misma posición partida en varias entradas, y vender una vez por
+            # cada una manda de más: el 2026-09-29 este bucle hizo tres viajes
+            # de ida y vuelta donde debía hacer uno, y se vio porque el saldo
+            # bajó seis céntimos en vez de dos.
+            total = int(sum(p["acciones"] for p in abiertas))
+            log(f"la orden SÍ entró: {len(abiertas)} entrada(s), {total} "
+                f"acción(es) en total. Cerrando de una vez...")
+            c = b.vender(simbolo, total)
+            log(f"  -> {c.estado}" + (f" ERROR: {c.error}" if c.error else ""))
 
     log("")
     log(f"RESUMEN: {len(visto['llamadas'])} llamada(s) gRPC")
