@@ -5,6 +5,75 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-29 — Un "ok" que no dice cuántas órdenes no es un "ok"
+
+La página dijo «Compras en XTB: ok» a las 07:47 con cero órdenes enviadas y XTB
+vacío tras la apertura. El «ok» era literalmente cierto y aun así no informaba
+de nada.
+
+### Qué pasó de verdad
+
+El escaneo recorrió 503 tickers, 182 pasaron el filtro de drawdown y **uno** dio
+señal: COHR con prob 0.808 sobre el umbral 0.79. Se descartó porque ya había
+posición abierta de ese ticker, así que se generaron 0 órdenes y no había nada
+que enviar. Para saber eso había que abrir Actions y leer 187 líneas de log.
+
+**Señales 1 → decididas 0 → enviadas 0 → ejecutadas 0.**
+
+La posición de COHR que bloqueó la entrada existe **solo en el simulador**: es
+una de las cinco heredadas del paper trading, y XTB tiene cero posiciones. Se
+decide dejarlo así —las cinco vencen entre hoy y el 7 de octubre y a partir de
+ahí simulador y broker vuelven a coincidir solos—, pero ya no en silencio.
+
+### Los dos fallos que había al lado y que hoy no se notaron
+
+**Una carrera.** Los jobs `ordenes` y `ejecutor` arrancaron EL MISMO SEGUNDO
+(12:45:53), porque los dos colgaban solo del escaneo. El ejecutor hizo checkout
+a las 12:45:55 y las órdenes se empujaron a las 12:46:18: leyó una copia rancia.
+Hoy daba igual porque había 0 órdenes de todas formas; con decisiones habría
+enviado nada y terminado en verde. Ahora `needs: [escaneo, ordenes]`, y además
+el ejecutor relee hasta encontrar la decisión del día y muere con
+`fallo:sin-decision` si la ventana se agota.
+
+**Un fichero con dos escritores.** `guardar_pendientes()` reescribía
+`ordenes/pendientes.json` entero. El post-cierre de ayer había dejado ahí dos
+ventas por tiempo para hoy (VRT y GLW, las dos con `dia_limite` de hoy) y el job
+de órdenes de esta mañana las borró al escribir `"ordenes": []`. Sesión perdida
+del lado del broker, documentada en el log del día y sin recuperación: no se
+envían ventas tardías. No costó dinero porque las dos son heredadas y XTB no las
+tenía. Ahora cada momento reemplaza solo los tipos que él genera.
+
+### Nunca más un "ok" mudo
+
+El ejecutor termina siempre con un veredicto contable: `ok: 3 de 3 órdenes`, o
+`ok: 0 órdenes — COHR: ya hay posición abierta en Cartera A y Cartera B`, con el
+motivo sacado del propio log de decisiones. Si se decidieron tres y salieron
+dos, es `fallo:envio-incompleto` y rojo, aunque las dos que salieron fueran
+perfectas.
+
+La página abre con la fila **Hoy**: señales → decididas → enviadas → ejecutadas,
+y debajo quién se quedó en cada escalón y por qué. Un cero con motivo es
+información; un cero sin motivo es una pregunta.
+
+### Verificación de la apertura (nuevo, cuarto momento del día)
+
+Corre 30-90 minutos después de abrir y no decide nada: compara lo decidido, lo
+enviado y lo que XTB tiene de verdad. Corrige el precio de la bitácora —una
+compra encolada antes de abrir no tiene precio real hasta que abre— y calcula el
+slippage contra el open. Es rojo si una orden enviada no se ejecutó, si alguna
+fue rechazada, o si una decisión no llegó a orden. El Vigilante denuncia si este
+paso deja de correr.
+
+Sobre el stop y el objetivo: se comprueban y **se intenta** ponerlos si faltan,
+pero lo medido es que XTB los ignora en acciones al contado y que el cliente no
+oficial no permite ponerlos después. Se registra lo que pase y no se pinta de
+rojo: es un límite conocido del broker, y un rojo diario deja de significar nada.
+Si algún día XTB empieza a aceptarlos, se verá el mismo día.
+
+23 tests nuevos. 352 en total.
+
+---
+
 ## 2026-09-28 (5) — La caché de precios dejaba sin sitio a la sesión de XTB
 
 Verificando la página de Operativa apareció esto: el repositorio estaba al

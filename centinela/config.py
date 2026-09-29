@@ -295,6 +295,16 @@ EJECUTOR_COMPRAS_MIN_ANTES_APERTURA = (5, 60)      # entre 60 y 5 min antes
 EJECUTOR_VENTAS_MIN_ANTES_CIERRE = (5, 30)         # entre 30 y 5 min antes
 EJECUTOR_RECONCILIA_MIN_DESPUES_CIERRE = 30        # al menos 30 min después
 
+#: Ventana de la verificación posterior a la apertura, en minutos DESPUÉS de
+#: abrir. No decide nada: mira si se ejecutó lo que se mandó y a qué precio.
+#:
+#: El suelo son 30 minutos porque una compra a mercado encolada antes de abrir
+#: no tiene precio real hasta que el libro se estabiliza, y preguntarlo a los
+#: cinco minutos da una foto que cambia sola. El techo son 90 porque a partir
+#: de ahí el precio de ejecución ya no se distingue del movimiento del día y la
+#: comparación con el open deja de medir lo que se quiere medir.
+VERIFICACION_MIN_TRAS_APERTURA = (30, 90)
+
 # --------------------------------------------------------------------------- #
 # Fuente del universo
 # --------------------------------------------------------------------------- #

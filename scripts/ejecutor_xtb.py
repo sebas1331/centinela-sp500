@@ -34,8 +34,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import time
 
 import pandas as pd
 from datetime import datetime
@@ -46,11 +48,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from centinela import (config, calendario, broker_xtb as bx, cuenta,  # noqa: E402
                        ordenes as ords, estado as est_mod, salud)
 
-MOMENTOS = ("compras", "ventas", "reconcilia")
+MOMENTOS = ("compras", "ventas", "apertura", "reconcilia")
 
 #: Cada momento del ejecutor deja su huella en el componente que le toca de
 #: `salud.COMPONENTES`, que es lo que la página de operativa pinta.
-_COMPONENTE = {"compras": "compras", "ventas": "ventas",
+_COMPONENTE = {"compras": "compras", "ventas": "ventas", "apertura": "apertura",
                "reconcilia": "reconcilia"}
 
 
@@ -131,10 +133,159 @@ def en_ventana(momento: str, ahora=None) -> tuple[bool, str]:
             return False, f"faltan {faltan:.0f} min para el cierre: más de {hi}"
         return True, f"faltan {faltan:.0f} min para el cierre"
 
+    if momento == "apertura":
+        pasados = (ahora - apertura).total_seconds() / 60
+        lo, hi = config.VERIFICACION_MIN_TRAS_APERTURA
+        if pasados < lo:
+            return False, (f"solo han pasado {pasados:.0f} min de la apertura: "
+                           f"menos de {lo}, el precio todavía se mueve solo")
+        if pasados > hi:
+            return False, (f"han pasado {pasados:.0f} min de la apertura: más "
+                           f"de {hi}, comparar con el open ya no mide nada")
+        return True, f"{pasados:.0f} min tras la apertura"
+
     pasados = (ahora - cierre).total_seconds() / 60
     if pasados < config.EJECUTOR_RECONCILIA_MIN_DESPUES_CIERRE:
         return False, f"solo han pasado {pasados:.0f} min del cierre"
     return True, f"{pasados:.0f} min tras el cierre"
+
+
+#: Recuento del último `enviar()`, por tipo de orden. Global a propósito: lo
+#: escribe el envío y lo lee el resumen final, y pasarlo a mano por media
+#: docena de firmas solo para eso haría el código peor.
+ENVIADAS: dict[str, dict] = {}
+
+#: Cuánto se espera entre intentos a que aparezca la decisión del día.
+ESPERA_DECISION_SEG = 30
+
+
+class SinDecision(RuntimeError):
+    """La decisión del día no apareció dentro de la ventana."""
+
+
+def decision_del_dia(momento: str, sin_git: bool = False,
+                     ahora=None, dormir=time.sleep) -> dict:
+    """Las órdenes de hoy, esperando a que quien decide haya escrito.
+
+    POR QUÉ ESPERAR Y NO DAR "ok" (fallo del 2026-09-29)
+    -----------------------------------------------------
+    Un ejecutor que no encuentra la decisión del día no sabe distinguir dos
+    cosas que se parecen mucho en un log y no se parecen en nada de verdad:
+    que no hubiera nada que comprar, y que él haya llegado antes que quien lo
+    decide. Decir "ok" en el segundo caso es contar una sesión perdida como
+    una sesión tranquila.
+
+    Ese día los jobs `ordenes` y `ejecutor` arrancaron EL MISMO SEGUNDO
+    (12:45:53) porque los dos colgaban solo del escaneo; el ejecutor hizo
+    checkout a las 12:45:55 y las órdenes se empujaron a las 12:46:18. Leyó
+    una copia rancia. No se notó porque aquel día había 0 órdenes de todas
+    formas, pero con decisiones habría enviado nada y terminado en verde.
+
+    El arreglo de fondo es el `needs: ordenes` del workflow, que ordena los dos
+    jobs. Esto es el cinturón por si alguien lanza el ejecutor a mano, cambia el
+    workflow, o el push de las órdenes tarda: se relee el repositorio hasta que
+    la decisión sea la de hoy, y si la ventana se agota, ROJO.
+    """
+    ahora = ahora or datetime.now(config.TZ_ET)
+    hoy = ahora.date().isoformat()
+    intento = 0
+    while True:
+        intento += 1
+        if not sin_git:
+            traer_ordenes()
+        pendientes = ords.cargar_pendientes()
+        if pendientes.get("sesion") == hoy:
+            if intento > 1:
+                log(f"la decisión de {hoy} apareció en el intento {intento}.")
+            return pendientes
+
+        vigente, motivo = en_ventana(momento)
+        if not vigente:
+            raise SinDecision(
+                f"La decisión de {hoy} no apareció y la ventana se agotó "
+                f"({motivo}). El fichero de órdenes va por la sesión "
+                f"{pendientes.get('sesion')!r}. Nadie ha enviado nada y NO se "
+                f"puede dar por buena la sesión: revisa si el escaneo de hoy "
+                f"llegó a decidir y si su job de órdenes terminó.")
+        log(f"la decisión de {hoy} todavía no está (el fichero va por "
+            f"{pendientes.get('sesion')!r}); reintento en "
+            f"{ESPERA_DECISION_SEG} s — {motivo}.")
+        dormir(ESPERA_DECISION_SEG)
+
+
+def resultado_explicito(momento: str, motivo_cero: str = "") -> str:
+    """El veredicto del ejecutor en una línea, nunca un "ok" a secas.
+
+    Un "ok" sin número no distingue "no había nada que hacer" de "no hice lo
+    que había que hacer", que es justo la diferencia que hay que poder leer de
+    un vistazo en la página.
+    """
+    if momento == "apertura":
+        r = ENVIADAS.get("apertura")
+        if r is None:
+            return "ok"
+        if r["filas"] == 0:
+            return (f"ok: 0 órdenes que verificar — "
+                    f"{motivo_cero or 'no se envió ninguna hoy'}")
+        return (f"ok: {r['ejecutadas']} de {r['filas']} órdenes ejecutadas"
+                + (f", {r['sin_niveles']} sin stop/objetivo en XTB"
+                   if r["sin_niveles"] else ""))
+
+    tipo = {"compras": ords.COMPRA, "ventas": ords.VENTA_TIEMPO}.get(momento)
+    if tipo is None:
+        return "ok"
+    r = ENVIADAS.get(tipo)
+    if r is None:
+        return "ok: no se llegó a mirar la cola de órdenes"
+    cubiertas = r["enviadas"] + r["ya_estaban"]
+    if r["decididas"] == 0:
+        return f"ok: 0 órdenes — {motivo_cero or 'no se decidió ninguna entrada'}"
+    detalle = f"ok: {cubiertas} de {r['decididas']} órdenes"
+    if r["ya_estaban"]:
+        detalle += f" ({r['ya_estaban']} ya estaban enviadas)"
+    return detalle
+
+
+def motivo_de_cero(momento: str) -> str:
+    """Por qué no había nada que enviar, con nombres y apellidos.
+
+    Se lee del log de decisiones del día, que es quien lo sabe. Sin esto la
+    página decía "0 órdenes" y punto, y averiguar el porqué obligaba a abrir
+    Actions y leer 187 líneas.
+    """
+    if momento == "apertura":
+        return "no se envió ninguna orden hoy"
+    if momento != "compras":
+        return "no había salidas por tiempo para hoy"
+    hoy = datetime.now(config.TZ_ET).date().isoformat()
+    ruta = config.LOGS_DIR / f"decisiones-{hoy}.log"
+    if not ruta.exists():
+        return "no hay log de decisiones de hoy"
+    try:
+        lineas = ruta.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return "no se pudo leer el log de decisiones"
+
+    senales = sum(1 for ln in lineas if "| ENTRAR |" in ln)
+    descartes = [ln.split("ENTRADA DESCARTADA:")[-1].strip()
+                 for ln in lineas if "ENTRADA DESCARTADA" in ln]
+    if senales == 0:
+        return "el modelo no dio ninguna señal hoy"
+    if descartes:
+        tickers = [ln.split("|")[0].strip() for ln in lineas
+                   if "ENTRADA DESCARTADA" in ln]
+        return (f"{senales} señal(es) descartada(s): "
+                + "; ".join(f"{t} — {d}" for t, d in zip(tickers, descartes))[:200])
+    return f"{senales} señal(es), ninguna llegó a orden"
+
+
+def publicar_resultado(resultado: str) -> None:
+    """Deja el veredicto donde el workflow pueda recogerlo."""
+    salida = os.environ.get("GITHUB_OUTPUT")
+    if not salida:
+        return
+    with open(salida, "a", encoding="utf-8") as fh:
+        fh.write(f"resultado={resultado}\n")
 
 
 # --------------------------------------------------------------------------- #
@@ -149,12 +300,15 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             if o.tipo == tipo and o.sesion == hoy]
     if not cola:
         log(f"no hay órdenes de tipo {tipo} para {hoy}.")
+        ENVIADAS[tipo] = {"decididas": 0, "enviadas": 0, "ya_estaban": 0}
         return []
+    log(f"{len(cola)} orden(es) de tipo {tipo} para {hoy}.")
 
-    hechas = []
+    hechas, ya_estaban = [], 0
     for o in cola:
         if ords.ya_enviada(registro, o.id):
             log(f"  {o.id}: ya enviada, se omite.")
+            ya_estaban += 1
             continue
         log(f"  enviando {o.tipo} {o.ticker} x{o.acciones}...")
         if o.tipo == ords.COMPRA:
@@ -177,6 +331,12 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         raise RuntimeError(
             "Órdenes que NO llegaron al broker:\n" + "\n".join(
                 f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
+
+    # El recuento es lo que después permite decir "ok: 3 órdenes enviadas" en
+    # vez de un "ok" a secas, y detectar que se decidieron 3 y salieron 2.
+    ENVIADAS[tipo] = {"decididas": len(cola),
+                      "enviadas": sum(1 for _, e in hechas if e.ok),
+                      "ya_estaban": ya_estaban}
     return hechas
 
 
@@ -222,6 +382,174 @@ def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> None:
     ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2,
                                sort_keys=True) + "\n", encoding="utf-8")
     log(f"estado del broker volcado: {len(datos['posiciones'])} posiciones")
+
+
+# --------------------------------------------------------------------------- #
+# Verificación posterior a la apertura
+# --------------------------------------------------------------------------- #
+def _apertura_del_dia(tickers: list[str]) -> dict:
+    """El precio de apertura de hoy de cada ticker, o {} si no se puede saber."""
+    if not tickers:
+        return {}
+    from centinela import datos
+    hoy = pd.Timestamp(datetime.now(config.TZ_ET).date())
+    aperturas = {}
+    try:
+        series = datos.actualizar_precios(sorted(set(tickers)))
+    except Exception as exc:  # noqa: BLE001 — sin precios se verifica igual
+        log(f"no se pudieron traer las aperturas de hoy: {exc!r}")
+        return {}
+    for tk, df in series.items():
+        if df is None or len(df) == 0 or hoy not in df.index:
+            continue
+        try:
+            aperturas[tk] = float(df.loc[hoy, "Open"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return aperturas
+
+
+def _num(v):
+    """Un número, o None. La bitácora es un CSV: todo llega como texto, y pasar
+    un "138.0" donde el broker espera un float es un error que no se ve hasta
+    que la llamada falla del otro lado."""
+    if v in (None, "", "None"):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def verificar_apertura(broker: bx.BrokerXTB, pendientes: dict) -> list[str]:
+    """Con el mercado ya abierto: ¿pasó de verdad lo que se decidió?
+
+    POR QUÉ ESTE PASO EXISTE (fallo del 2026-09-29)
+    -----------------------------------------------
+    Hasta hoy nadie miraba el resultado de la apertura el mismo día. El
+    ejecutor manda las compras entre 20 y 45 minutos antes de abrir, XTB las
+    deja EN COLA —que es justo lo que la estrategia quiere, ejecutar al open— y
+    ahí terminaba todo hasta el post-cierre. Entre medias no había forma de
+    saber si esas órdenes llegaron a ejecutarse, a qué precio, ni si alguna se
+    quedó colgada.
+
+    Este paso no decide nada nuevo. Solo mira y compara tres listas que tienen
+    que cuadrar: lo decidido, lo enviado y lo que XTB tiene de verdad.
+    """
+    hoy = datetime.now(config.TZ_ET).date().isoformat()
+    problemas: list[str] = []
+
+    decididas = [o for o in pendientes["ordenes"] if o.sesion == hoy]
+    filas = ords.filas_de_sesion(hoy)
+    posiciones = {p["ticker"]: p for p in broker.posiciones() if p["lado"] == "buy"}
+    en_cola = broker.ordenes_pendientes()
+
+    log(f"decididas hoy: {len(decididas)} | filas en la bitácora: {len(filas)} "
+        f"| posiciones en XTB: {len(posiciones)} | órdenes aún en cola: "
+        f"{len(en_cola)}")
+
+    # --- 1. Decisiones que nunca llegaron a orden -------------------------
+    ids_en_bitacora = {f["id"] for f in filas}
+    for o in decididas:
+        if o.id not in ids_en_bitacora:
+            problemas.append(
+                f"{o.ticker}: se decidió {o.tipo} de {o.acciones} acciones y no "
+                f"hay ninguna orden en la bitácora ({o.id}). El ejecutor no la "
+                f"llegó a enviar.")
+
+    # --- 2. Órdenes rechazadas -------------------------------------------
+    for f in filas:
+        if f.get("estado") == "rechazada":
+            problemas.append(
+                f"{f['ticker']}: la orden {f['id']} fue RECHAZADA por XTB — "
+                f"{f.get('error') or 'sin motivo'}.")
+
+    # --- 3. Órdenes enviadas que no se ejecutaron -------------------------
+    aperturas = _apertura_del_dia([f["ticker"] for f in filas])
+    for f in filas:
+        if f.get("estado") == "rechazada" or f.get("tipo") != ords.COMPRA:
+            continue
+        simbolo = ords.simbolo_xtb(f["ticker"])
+        pos = posiciones.get(simbolo)
+        if pos is None:
+            sigue_en_cola = any(o["ticker"] == simbolo for o in en_cola)
+            problemas.append(
+                f"{f['ticker']}: la compra se envió (orden "
+                f"{f.get('orden_xtb') or '?'}) y "
+                + ("SIGUE EN COLA sin ejecutar" if sigue_en_cola
+                   else "XTB no tiene la posición")
+                + f", {config.VERIFICACION_MIN_TRAS_APERTURA[0]}+ minutos "
+                  f"después de la apertura.")
+            continue
+
+        # --- 4. El precio de verdad, que al enviar no se conocía ----------
+        real = pos["precio_entrada"]
+        apertura = aperturas.get(f["ticker"])
+        campos = {"precio": real, "estado": "ejecutada"}
+        if apertura:
+            # Positivo = se compró más caro que el open, que es lo que el
+            # simulador asume. Esta columna es la factura de operar de verdad.
+            campos["slippage_pct"] = round(100.0 * (real / apertura - 1.0), 4)
+        if ords.actualizar_ejecucion(f["id"], **campos):
+            log(f"  {f['ticker']}: ejecutada a {real}"
+                + (f" (open {apertura}, slippage "
+                   f"{campos.get('slippage_pct')}%)" if apertura else ""))
+
+    # --- 5. Niveles en XTB ------------------------------------------------
+    sin_niveles = revisar_niveles_en_xtb(broker, filas, posiciones)
+    problemas.extend(sin_niveles["problemas"])
+
+    ENVIADAS["apertura"] = {
+        "filas": len(filas),
+        "ejecutadas": sum(1 for f in ords.filas_de_sesion(hoy)
+                          if f.get("estado") == "ejecutada"),
+        "sin_niveles": sin_niveles["sin_niveles"],
+    }
+    return problemas
+
+
+def revisar_niveles_en_xtb(broker: bx.BrokerXTB, filas: list[dict],
+                           posiciones: dict) -> list[str]:
+    """Que cada posición nueva tenga su objetivo y su stop puestos en XTB.
+
+    SE INTENTA Y SE REGISTRA LO QUE PASE. Lo medido hasta hoy es que XTB
+    IGNORA en silencio el stop_loss y el take_profit en acciones al contado
+    —comprobado con una orden real el 28/09/2026: F.US volvió con STOP=None y
+    OBJETIVO=None— y que el cliente no oficial tampoco permite ponerlos después
+    sobre una posición ya abierta.
+
+    Por eso los niveles los vigila el ejecutor, que es la decisión que ya se
+    tomó y está medida en el README. Este paso no la cambia: comprueba, intenta
+    corregir, y deja escrito el resultado. Si algún día XTB empieza a
+    aceptarlos, se verá aquí el mismo día en vez de dentro de seis meses.
+
+    Lo que NO se hace es pintarlo de rojo: es una limitación conocida y
+    aceptada del broker, y un rojo que sale todos los días deja de significar
+    nada — la lección del 2026-09-28.
+    """
+    problemas: list[str] = []
+    sin_niveles = 0
+    for f in filas:
+        if f.get("tipo") != ords.COMPRA or f.get("estado") == "rechazada":
+            continue
+        pos = posiciones.get(ords.simbolo_xtb(f["ticker"]))
+        if pos is None:
+            continue                       # ya se denunció arriba
+        faltan = [n for n, v in (("stop", pos.get("stop")),
+                                 ("objetivo", pos.get("objetivo"))) if not v]
+        if not faltan:
+            log(f"  {f['ticker']}: stop y objetivo puestos en XTB.")
+            continue
+        sin_niveles += 1
+        try:
+            broker.modificar_objetivo(pos["orden"],
+                                      objetivo=_num(f.get("objetivo")),
+                                      stop=_num(f.get("stop")))
+            log(f"  {f['ticker']}: {' y '.join(faltan)} colocado(s) en XTB.")
+        except bx.OperacionNoSoportada as exc:
+            log(f"  {f['ticker']}: sin {' ni '.join(faltan)} en XTB — {exc}. "
+                f"Los vigila el ejecutor.")
+    return {"problemas": problemas, "sin_niveles": sin_niveles}
 
 
 # --------------------------------------------------------------------------- #
@@ -472,10 +800,22 @@ def main() -> int:
     if not ok:
         return 0
 
-    if not args.sin_git:
-        traer_ordenes()
+    # Los momentos que ENVÍAN exigen la decisión del día; los que solo miran
+    # (reconcilia) se apañan con lo que haya.
+    try:
+        if args.momento in ("compras", "ventas", "apertura"):
+            pendientes = decision_del_dia(args.momento, args.sin_git)
+        else:
+            if not args.sin_git:
+                traer_ordenes()
+            pendientes = ords.cargar_pendientes()
+    except SinDecision as exc:
+        print(f"::error::{exc}", flush=True)
+        salud.registrar(_COMPONENTE[args.momento], "fallo:sin-decision",
+                        str(exc)[:300])
+        publicar_resultado("fallo:sin-decision")
+        return 1
 
-    pendientes = ords.cargar_pendientes()
     registro = ords.cargar_enviadas()
     credenciales = bx.credenciales_del_entorno_o_llavero()
 
@@ -501,7 +841,14 @@ def main() -> int:
             if args.momento == "ventas":
                 log("vigilando stops y objetivos...")
                 vigilar_niveles(broker, registro)
-            problemas = reconciliar(broker)
+
+            # No decide nada: compara lo decidido, lo enviado y lo que XTB
+            # tiene de verdad, con el mercado ya abierto.
+            if args.momento == "apertura":
+                log("verificando la apertura...")
+                problemas.extend(verificar_apertura(broker, pendientes))
+
+            problemas.extend(reconciliar(broker))
             volcar_estado_broker(broker, candado_ok=True)
     except bx.CuentaNoDemo as exc:
         # El candado saltó: queda anotado para que la página lo pinte en rojo.
@@ -525,11 +872,30 @@ def main() -> int:
             print(f"::error::{p}", flush=True)
         salud.registrar(_COMPONENTE[args.momento], "diferencias",
                         " | ".join(problemas)[:400])
+        publicar_resultado("diferencias")
         log(f"❌ {len(problemas)} diferencia(s) entre XTB y el simulador.")
         return 1
 
-    salud.registrar(_COMPONENTE[args.momento], "ok")
-    log("✅ sin diferencias entre XTB y el simulador.")
+    # Se decidió comprar tres cosas y salieron dos: eso es ROJO aunque las dos
+    # que salieron fueran perfectas. Un ejecutor que envía de menos y termina
+    # en verde es exactamente el fallo que esta sesión vino a cerrar.
+    tipo = {"compras": ords.COMPRA, "ventas": ords.VENTA_TIEMPO}.get(args.momento)
+    r = ENVIADAS.get(tipo) if tipo else None
+    if r and r["enviadas"] + r["ya_estaban"] < r["decididas"]:
+        faltan = r["decididas"] - r["enviadas"] - r["ya_estaban"]
+        msg = (f"Se decidieron {r['decididas']} orden(es) de {tipo} para hoy y "
+               f"solo {r['enviadas'] + r['ya_estaban']} llegaron al broker: "
+               f"faltan {faltan}.")
+        print(f"::error::{msg}", flush=True)
+        salud.registrar(_COMPONENTE[args.momento], "fallo:envio-incompleto", msg)
+        publicar_resultado("fallo:envio-incompleto")
+        log(f"❌ {msg}")
+        return 1
+
+    resultado = resultado_explicito(args.momento, motivo_de_cero(args.momento))
+    salud.registrar(_COMPONENTE[args.momento], resultado)
+    publicar_resultado(resultado)
+    log(f"✅ {resultado} · sin diferencias entre XTB y el simulador.")
     return 0
 
 

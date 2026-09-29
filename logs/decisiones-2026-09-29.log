@@ -185,3 +185,20 @@ ZBH | dd=45.3% | prob=0.459 < umbral -> SIN SEÑAL
 ZTS | dd=69.7% | prob=0.438 < umbral -> SIN SEÑAL
 COHR | dd=35.8% | prob=0.808 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+----- nota añadida a posteriori (2026-09-29, revisión del "ok" mudo) -----
+Las dos órdenes de VENTA POR TIEMPO que el post-cierre del 2026-09-28 dejó
+encoladas para esta sesión (VRT 6 acciones y GLW 10 acciones, las dos con
+dia_limite=2026-09-29) NO se enviaron al broker: el job de órdenes de esta
+mañana reescribió ordenes/pendientes.json entero y las borró antes de que se
+abriera su ventana. El fichero quedó con "ordenes": [] porque hoy no había
+ninguna compra que hacer.
+
+No costó dinero: las dos son posiciones heredadas del paper trading
+(fecha_entrada anterior a EJECUCION_DESDE=2026-09-29) que XTB nunca tuvo, y la
+reconciliación las excluye por eso mismo. En el simulador las dos salieron por
+tiempo con normalidad, porque el simulador no depende de este fichero.
+
+Queda como sesión perdida del lado del broker y sin recuperación: no se envían
+ventas tardías. La causa está arreglada (guardar_pendientes ahora conserva las
+órdenes del otro momento) y fijada con un test.

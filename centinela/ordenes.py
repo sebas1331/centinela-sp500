@@ -119,13 +119,63 @@ def identificador(sesion: str, cartera: str, ticker: str, tipo: str) -> str:
 # --------------------------------------------------------------------------- #
 # pendientes.json
 # --------------------------------------------------------------------------- #
-def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str) -> Path:
+#: Qué tipos de orden produce cada momento. Al guardar, un momento reemplaza
+#: LOS SUYOS y no toca los del otro: es lo que impide que la pre-apertura de la
+#: mañana borre las ventas que el post-cierre de la víspera dejó encoladas.
+TIPOS_POR_EVENTO = {
+    "preapertura": {COMPRA},
+    "postcierre": {VENTA_TIEMPO},
+}
+
+
+def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str,
+                       evento: str | None = None, hoy: str | None = None) -> Path:
+    """Escribe las órdenes pendientes CONSERVANDO las del otro momento.
+
+    POR QUÉ NO SE REESCRIBE EL FICHERO ENTERO (fallo del 2026-09-29)
+    ----------------------------------------------------------------
+    Antes sí se reescribía, y eso convertía el fichero en "gana el último que
+    escribe". Cada día hay DOS escritores para la misma sesión: el post-cierre
+    de la víspera deja las ventas por tiempo del día siguiente, y la
+    pre-apertura de la mañana deja las compras. El 2026-09-29 la pre-apertura
+    escribió `"ordenes": []` —no había ninguna compra que hacer— y se llevó por
+    delante las dos ventas por tiempo que el post-cierre había encolado para ese
+    mismo día (VRT y GLW, las dos con `dia_limite` de ese día).
+
+    Aquel día no costó dinero porque las dos eran posiciones heredadas del paper
+    trading que XTB no tenía, pero el mecanismo destruye órdenes reales en
+    cuanto el broker tenga posiciones propias, y lo hace en silencio: el fichero
+    resultante es perfectamente válido, solo que le faltan órdenes.
+
+    Ahora cada momento reemplaza únicamente los tipos que él genera. Se
+    descartan además las órdenes de sesiones ya pasadas, que no son historia
+    —para eso está `bitacora_broker.csv`— sino basura que solo puede confundir.
+    """
     ARCHIVO_PENDIENTES.parent.mkdir(parents=True, exist_ok=True)
+    hoy = hoy or datetime.now(config.TZ_ET).date().isoformat()
+    mios = TIPOS_POR_EVENTO.get(evento or "", set())
+
+    conservadas: list[dict] = []
+    if evento and ARCHIVO_PENDIENTES.exists():
+        try:
+            previas = json.loads(ARCHIVO_PENDIENTES.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            previas = {"ordenes": []}
+        nuevos_ids = {o.id for o in ordenes}
+        for o in previas.get("ordenes", []):
+            if o.get("tipo") in mios:
+                continue                       # lo regenera este momento
+            if str(o.get("sesion", "")) < hoy:
+                continue                       # de una sesión ya pasada
+            if o.get("id") in nuevos_ids:
+                continue                       # duplicado exacto
+            conservadas.append(o)
+
     datos = {
         "sesion": sesion,
         "cartera_broker": cartera,
         "generado": datetime.now(config.TZ_ET).isoformat(),
-        "ordenes": [asdict(o) for o in ordenes],
+        "ordenes": conservadas + [asdict(o) for o in ordenes],
     }
     ARCHIVO_PENDIENTES.write_text(
         json.dumps(datos, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -226,3 +276,55 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
         if nuevo:
             w.writeheader()
         w.writerow(fila)
+
+
+def actualizar_ejecucion(id_orden: str, ruta: Path | None = None, **campos) -> bool:
+    """Corrige una fila ya escrita de `bitacora_broker.csv`. True si la tocó.
+
+    POR QUÉ HACE FALTA
+    ------------------
+    Una compra a mercado enviada antes de la apertura se queda EN COLA, y XTB
+    devuelve entonces el precio que tenía en ese momento, no el de apertura al
+    que realmente se ejecutará. La fila que se escribe al enviar es, por tanto,
+    provisional: el precio de verdad solo se conoce con el mercado abierto.
+
+    La verificación posterior a la apertura vuelve sobre esa fila y la corrige.
+    Se corrige, no se añade otra: dos filas para la misma orden convertirían la
+    bitácora en algo que hay que interpretar, y la bitácora existe justamente
+    para no tener que interpretar nada.
+    """
+    ruta = ruta or ARCHIVO_BITACORA_BROKER
+    if not ruta.exists():
+        return False
+    with open(ruta, encoding="utf-8", newline="") as f:
+        filas = list(csv.DictReader(f))
+
+    tocada = False
+    for fila in filas:
+        if fila.get("id") != id_orden:
+            continue
+        for k, v in campos.items():
+            if k not in COLUMNAS_BROKER:
+                raise ValueError(
+                    f"Columna desconocida {k!r} en bitacora_broker.csv. Las "
+                    f"columnas son una lista cerrada: {COLUMNAS_BROKER}")
+            fila[k] = "" if v is None else v
+        tocada = True
+
+    if not tocada:
+        return False
+    with open(ruta, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=COLUMNAS_BROKER)
+        w.writeheader()
+        w.writerows(filas)
+    return True
+
+
+def filas_de_sesion(sesion: str, ruta: Path | None = None) -> list[dict]:
+    """Las filas de `bitacora_broker.csv` de una sesión concreta."""
+    ruta = ruta or ARCHIVO_BITACORA_BROKER
+    if not ruta.exists():
+        return []
+    with open(ruta, encoding="utf-8", newline="") as f:
+        return [fila for fila in csv.DictReader(f)
+                if fila.get("sesion") == sesion]

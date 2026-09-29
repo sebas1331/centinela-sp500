@@ -244,6 +244,38 @@ footer a{color:var(--acento)}
 /* ------------------------------- Operativa -------------------------------- */
 /* Semáforo: lo primero que se ve y lo único que debería hacer falta mirar
    cuando todo va bien. */
+/* La fila "Hoy": el camino del modelo al broker en cuatro cifras. Va ARRIBA
+   del todo porque es la pregunta que trae aquí a cualquiera: ¿pasó hoy lo que
+   tenía que pasar? */
+.hoy{
+  display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem;
+  margin:0 0 .7rem;
+}
+.hoy .paso{
+  flex:1 1 7rem; background:var(--superficie); border:1px solid var(--borde);
+  border-radius:10px; padding:.5rem .6rem; text-align:center;
+}
+.hoy .paso b{
+  display:block; font-size:1.3rem; font-weight:650; line-height:1.15;
+  font-variant-numeric:tabular-nums;
+}
+.hoy .paso span{font-size:.7rem; color:var(--tenue); text-transform:uppercase;
+                letter-spacing:.05em}
+.hoy .paso.cae b{color:var(--aviso)}
+.hoy .flecha{display:flex; align-items:center; color:var(--muy-tenue);
+             font-size:.9rem}
+.huecos{margin:0 0 .9rem; padding:.55rem .7rem; font-size:.8rem;
+        line-height:1.5; background:var(--aviso-fondo);
+        border:1px solid var(--aviso-borde); border-radius:10px}
+.huecos ul{margin:.2rem 0 0; padding-left:1.1rem}
+.huecos li{margin:.15rem 0}
+.huecos .tit{font-weight:600; font-size:.74rem; text-transform:uppercase;
+             letter-spacing:.05em; color:var(--tenue)}
+@media (max-width:560px){
+  .hoy .flecha{display:none}
+  .hoy .paso{flex:1 1 40%}
+}
+
 .semaforo{
   border-radius:14px; padding:1rem 1.1rem; margin-bottom:.9rem;
   border:1px solid var(--borde); background:var(--superficie); box-shadow:var(--sombra);
@@ -319,6 +351,8 @@ footer a{color:var(--acento)}
     <span>Estás en Operativa</span>
   </p>
 
+  <div id="hoy" class="hoy"></div>
+  <div id="huecos" class="huecos" hidden></div>
   <div id="semaforo" class="semaforo"></div>
 
   <h2>Componentes</h2>
@@ -468,6 +502,7 @@ function iniciar(D){
   s.appendChild(el("b","",horaEc(D.generado)));
   s.appendChild(el("span","rotulo","última actualización"));
 
+  pintarHoy(D.hoy || {});
   pintarSemaforo(D);
   pintarComponentes(D.componentes || []);
   pintarBroker(D.broker || {});
@@ -476,6 +511,51 @@ function iniciar(D){
   pintarNiveles(D.niveles || []);
   pintarReconciliacion(D.reconciliacion || {});
   pintarAlertas(D.alertas || []);
+}
+
+/* ------------------------------------------------------------- 0. Hoy ---- */
+/* Cuatro cifras y las flechas entre ellas. Un cero solo informa si se ve de
+   dónde venía y quién se quedó por el camino. */
+function pintarHoy(H){
+  var zona = document.getElementById("hoy");
+  var caja = document.getElementById("huecos");
+  zona.textContent = ""; caja.textContent = ""; caja.hidden = true;
+
+  if(!H.es_sesion){
+    zona.appendChild(el("div","paso vacio-sec","Hoy no hay mercado."));
+    return;
+  }
+  if(!H.hubo_escaneo){
+    zona.appendChild(el("div","paso vacio-sec",
+      "El escaneo de hoy todavía no ha dejado su log."));
+    return;
+  }
+
+  var pasos = [
+    ["senales",    "Señales"],
+    ["decididas",  "Decididas"],
+    ["enviadas",   "Enviadas"],
+    ["ejecutadas", "Ejecutadas"],
+  ];
+  pasos.forEach(function(par, i){
+    var n = H[par[0]] || 0;
+    var previo = i === 0 ? n : (H[pasos[i-1][0]] || 0);
+    /* Se marca el escalón donde se pierde algo, no el que vale cero: si no
+       hubo señales, que enviadas sea cero no es una caída. */
+    var d = el("div","paso" + (n < previo ? " cae" : ""));
+    d.appendChild(el("b","",String(n)));
+    d.appendChild(el("span","",par[1]));
+    zona.appendChild(d);
+    if(i < pasos.length - 1) zona.appendChild(el("div","flecha","→"));
+  });
+
+  if((H.huecos || []).length){
+    caja.hidden = false;
+    caja.appendChild(el("div","tit","Por qué no pasaron todas"));
+    var ul = el("ul");
+    H.huecos.forEach(function(m){ ul.appendChild(el("li","",m)); });
+    caja.appendChild(ul);
+  }
 }
 
 /* --------------------------------------------------------- 1. Semáforo ---- */

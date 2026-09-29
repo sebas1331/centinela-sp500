@@ -1,0 +1,151 @@
+name: Verificación de la apertura
+
+# ---------------------------------------------------------------------------
+# EL CUARTO MOMENTO DEL DÍA, Y EL ÚNICO QUE NO DECIDE NADA.
+#
+# POR QUÉ EXISTE (fallo del 2026-09-29). Hasta ese día nadie miraba el
+# resultado de la apertura hasta el post-cierre. El ejecutor manda las compras
+# entre 60 y 5 minutos antes de abrir, XTB las deja EN COLA —que es justo lo
+# que la estrategia quiere, ejecutar al open— y ahí se acababa: si una orden se
+# quedaba colgada, si la rechazaban, o si una decisión no llegaba a orden, no
+# se sabía hasta la tarde. Aquel día la página llegó a decir "Compras en XTB:
+# ok" con cero órdenes enviadas y nadie podía contradecirla.
+#
+# Este workflow compara tres listas que tienen que cuadrar: lo decidido, lo
+# enviado y lo que XTB tiene de verdad. Cualquier hueco entre ellas es rojo.
+#
+# LA VENTANA son 30-90 minutos tras la apertura (config.VERIFICACION_MIN_TRAS_
+# APERTURA). El suelo, porque una orden encolada no tiene precio real hasta que
+# el libro se estabiliza; el techo, porque después el precio de ejecución ya no
+# se distingue del movimiento del día y compararlo con el open no mide nada.
+#
+#   verano  (EDT, apertura 13:30 UTC) -> ventana 14:00-15:00 UTC
+#   invierno (EST, apertura 14:30 UTC) -> ventana 15:00-16:00 UTC
+#
+# Se disparan las dos franjas todos los días laborables; la que caiga fuera de
+# ventana termina en verde sin hacer nada, igual que la escalera de los
+# escaneos. Cuatro peldaños por franja porque el cron de Actions se retrasa.
+# ---------------------------------------------------------------------------
+on:
+  schedule:
+    - cron: "3,18,33,48 14 * * 1-5"
+    - cron: "3,18,33,48 15 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Forzar (ignora la comprobación de ventana)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      resultado: ${{ steps.verif.outputs.resultado }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Comparar lo decidido, lo enviado y lo que XTB tiene
+        id: verif
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS="--sin-git"
+          if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
+          python scripts/ejecutor_xtb.py apertura $ARGS
+
+      # `always()`: la verificación corrige precios en la bitácora. Si encuentra
+      # un problema y muere en rojo, las correcciones que ya hizo tienen que
+      # quedar guardadas igual.
+      - name: Commit y push de lo verificado
+        if: always()
+        run: |
+          scripts/commit_y_push.sh \
+            "verificación de la apertura [skip ci]" \
+            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
+            estado bitacora_broker.csv ordenes
+
+  # La página, para que el resultado de la apertura se vea EL MISMO DÍA y no
+  # haya que esperar al post-cierre. Job aparte y grupo propio, como en los
+  # demás: publicar no puede competir con lo que escribe la bitácora.
+  operativa:
+    needs: verificar
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: operativa-${{ github.workflow }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Registrar el estado de la verificación
+        run: |
+          python scripts/registrar_salud.py apertura \
+            --salida "${{ needs.verificar.outputs.resultado }}" \
+            --job "${{ needs.verificar.result }}" --solo-si-falta
+
+      - name: Generar la página de operativa
+        id: op
+        run: python scripts/generar_operativa.py
+
+      - name: Commit y push de la operativa
+        if: steps.op.outputs.cambios == 'si'
+        run: |
+          scripts/commit_y_push.sh \
+            "operativa: republicada tras verificar la apertura [skip ci]" \
+            "procesado" \
+            docs estado

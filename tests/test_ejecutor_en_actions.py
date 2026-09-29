@@ -36,7 +36,13 @@ def test_el_ejecutor_va_en_un_job_aparte_que_depende_del_escaneo(fichero, escane
     assert "ejecutor" in jobs, f"{fichero} no tiene job de ejecutor"
 
     ejecutor = jobs["ejecutor"]
-    assert ejecutor["needs"] == escaneo
+    needs = ejecutor["needs"]
+    needs = [needs] if isinstance(needs, str) else needs
+    assert escaneo in needs
+    # Y de las ÓRDENES, que es lo que lee. Sin esto los dos jobs arrancaban el
+    # mismo segundo y el ejecutor leía un fichero rancio (fallo del 2026-09-29).
+    assert "ordenes" in needs, (
+        f"{fichero}: el ejecutor no espera al job que escribe las órdenes")
     assert "success" in ejecutor["if"] and "procesado" in ejecutor["if"]
 
     # Y sobre todo: el escaneo NO sabe que el ejecutor existe. Si dependiera de

@@ -111,9 +111,11 @@ def datos(tmp_path, monkeypatch):
 
 
 def test_schema_de_operativa_json(datos):
-    assert set(datos) == {"generado", "hoy_es_sesion", "componentes", "broker",
-                          "posiciones", "ordenes", "niveles", "reconciliacion",
-                          "alertas", "semaforo", "meta"}
+    assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
+                          "broker", "posiciones", "ordenes", "niveles",
+                          "reconciliacion", "alertas", "semaforo", "meta"}
+    assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
+                                 "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
                                       "n_ambares"}
     assert datos["semaforo"]["color"] in ("verde", "ambar", "rojo")
@@ -288,7 +290,8 @@ import yaml  # noqa: E402
 WORKFLOWS = RAIZ / ".github" / "workflows"
 #: Los workflows que tienen que republicar la página, y de qué job cuelgan.
 PUBLICAN = ["preapertura.yml", "postcierre.yml", "ventas.yml",
-            "vigilante.yml", "reentrenamiento.yml"]
+            "vigilante.yml", "reentrenamiento.yml",
+            "verificacion_apertura.yml"]
 
 
 def _wf(nombre: str) -> dict:

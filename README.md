@@ -90,7 +90,14 @@ eso están separadas: el dashboard dice **cuánto gana la estrategia**; esta dic
 hay que abrir cuando algo huele mal, y la que resume en un vistazo lo que antes
 obligaba a rebuscar en la pestaña Actions.
 
-Arriba de todo hay un **semáforo** con los motivos escritos:
+Arriba del todo, la fila **Hoy**: `señales → decididas → enviadas → ejecutadas`,
+y debajo quién se quedó en cada escalón y por qué. Nace del 2026-09-29, cuando
+la página decía «Compras en XTB: ok» con cero órdenes enviadas: era cierto —una
+señal, descartada por duplicado— pero averiguarlo obligaba a leer 187 líneas de
+log en Actions. Un cero con motivo es información; un cero sin motivo es una
+pregunta.
+
+Debajo, el **semáforo** con los motivos escritos:
 
 | Color | Cuándo |
 |---|---|
@@ -101,7 +108,7 @@ Arriba de todo hay un **semáforo** con los motivos escritos:
 Un rojo **no esconde los ámbares**: se listan todos los motivos, porque quien
 entra a arreglar algo quiere ver todo lo que hay, no solo lo más grave.
 
-Debajo, en este orden: los **siete componentes** con su última ejecución y
+Debajo, en este orden: los **ocho componentes** con su última ejecución y
 enlace a su run; la **cuenta en XTB** (saldo, equity, invertido, P&L abierto y
 el candado); las **posiciones abiertas**, cruzando lo que sabe el broker
 (acciones, precio) con lo que sabe el simulador (objetivo, stop, fecha de
@@ -584,15 +591,24 @@ repositorio remoto era un riesgo que no compensaba, así que viven en el Llavero
 de macOS y no salen del ordenador. Además, el login de xStation5 pasa por un
 WAF y las IPs de datacenter de GitHub son justo lo que ese WAF frena.
 
-### Tres momentos al día
+### Cuatro momentos al día
 
 | Momento | Qué hace | Cuándo (ET) |
 |---|---|---|
 | `compras` | Manda las compras; XTB las deja en cola y las ejecuta **al abrir** | 60–5 min antes de la apertura |
+| `apertura` | **No decide nada**: comprueba que se ejecutó lo que se mandó | 30–90 min tras la apertura |
 | `ventas` | Cierra las posiciones que cumplen su décima sesión | 30–5 min antes del cierre |
 | `reconcilia` | Compara XTB con el simulador y rompe en rojo si difieren | ≥30 min tras el cierre |
 
-El tercero existe porque se midió: cerrar al cierre del día 10 se desvía
+El de la apertura nació del 2026-09-29: hasta entonces nadie miraba el resultado
+de la apertura hasta el post-cierre, así que una orden colgada, una rechazada o
+una decisión que no llegó a orden no se veían hasta la tarde. Compara las tres
+listas que tienen que cuadrar —decidido, enviado, y lo que XTB tiene— y corrige
+en la bitácora el precio de ejecución, que al enviar todavía no se conocía: una
+compra a mercado encolada antes de abrir se ejecuta al open, no al precio de la
+víspera. Cualquier hueco entre las tres listas es rojo.
+
+Lo de cerrar antes del cierre y no a la apertura siguiente se midió: cerrar al cierre del día 10 se desvía
 **0,03 pp** del simulador; hacerlo a la apertura del día siguiente, 0,40 pp con
 **3,14 pp de dispersión** — gap overnight que la estrategia no contempla.
 

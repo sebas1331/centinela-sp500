@@ -288,6 +288,82 @@ def bloque_niveles(estado_sim: dict) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
+# La línea "Hoy": del modelo al broker, y dónde se cae cada una
+# --------------------------------------------------------------------------- #
+def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
+    """Señales -> decididas -> enviadas -> ejecutadas, con el motivo de cada salto.
+
+    POR QUÉ ESTAS CUATRO CIFRAS Y NO UNA (fallo del 2026-09-29)
+    -----------------------------------------------------------
+    Ese día la página decía "Compras en XTB: ok" y el historial tenía cero
+    órdenes, y las dos cosas eran ciertas: el modelo dio UNA señal (COHR,
+    prob 0.808) y se descartó porque ya había posición abierta de ese ticker en
+    el simulador. Pero para saberlo había que abrir Actions y leer 187 líneas de
+    log. Un "ok" que obliga a eso no está informando de nada.
+
+    Cada número de esta fila es una etapa del camino, y entre etapa y etapa se
+    escribe QUIÉN se quedó por el camino y por qué. Un cero con motivo es
+    información; un cero sin motivo es una pregunta.
+    """
+    hoy = ahora.date().isoformat()
+    ruta = config.LOGS_DIR / f"decisiones-{hoy}.log"
+    senales, decididas, descartes = 0, 0, []
+    if ruta.exists():
+        try:
+            lineas = ruta.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            lineas = []
+        for ln in lineas:
+            if "| ENTRAR |" in ln:
+                senales += 1
+            if "ENTRADA DESCARTADA" in ln:
+                descartes.append({
+                    "ticker": ln.split("|")[0].strip(),
+                    "motivo": ln.split("ENTRADA DESCARTADA:")[-1].strip(),
+                })
+            m = re.search(r"DECIDIDAS PARA ENTRAR HOY \((\d+)\)", ln)
+            if m:
+                decididas = int(m.group(1))
+
+    del_dia = [o for o in ordenes
+               if o.get("sesion") == hoy and o.get("tipo") == ords.COMPRA]
+    enviadas = [o for o in del_dia if o.get("estado") != "rechazada"]
+    ejecutadas = [o for o in del_dia if o.get("estado") == "ejecutada"]
+    rechazadas = [o for o in del_dia if o.get("estado") == "rechazada"]
+
+    # Entre etapa y etapa, el porqué. Sin esto la fila sería cuatro números que
+    # no cuadran y ninguna explicación, que es de donde venimos.
+    huecos = []
+    if senales > decididas:
+        for d in descartes:
+            huecos.append(f"{d['ticker']}: {d['motivo']}")
+        if not descartes:
+            huecos.append(f"{senales - decididas} señal(es) no llegaron a "
+                          f"decisión y el log no dice por qué.")
+    if decididas > len(del_dia):
+        huecos.append(f"{decididas - len(del_dia)} decisión(es) sin orden en la "
+                      f"bitácora: el ejecutor no llegó a enviarlas.")
+    for o in rechazadas:
+        huecos.append(f"{o.get('ticker')}: orden rechazada — "
+                      f"{o.get('error') or 'sin motivo'}.")
+    pendientes_de_ejecutar = len(enviadas) - len(ejecutadas)
+    if pendientes_de_ejecutar > 0:
+        huecos.append(f"{pendientes_de_ejecutar} orden(es) enviada(s) que XTB "
+                      f"todavía no ha ejecutado.")
+
+    return {
+        "fecha": hoy,
+        "es_sesion": calendario.es_dia_de_mercado(ahora.date()),
+        "hubo_escaneo": ruta.exists(),
+        "senales": senales,
+        "decididas": decididas,
+        "enviadas": len(enviadas),
+        "ejecutadas": len(ejecutadas),
+        "huecos": huecos,
+    }
+
+
+# --------------------------------------------------------------------------- #
 # Reconciliación y alertas
 # --------------------------------------------------------------------------- #
 def bloque_reconciliacion(datos_salud: dict) -> dict:
@@ -335,6 +411,7 @@ def construir(ahora: datetime | None = None) -> dict:
     posiciones = bloque_posiciones(estado_broker, estado_sim, ahora)
     return {
         "generado": ahora.isoformat(),
+        "hoy": bloque_hoy(ordenes, ahora),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
         "componentes": bloque_componentes(datos_salud, ahora),
@@ -360,8 +437,8 @@ def construir(ahora: datetime | None = None) -> dict:
 #: Componentes cuyo fallo es un problema de verdad: si uno de estos está en
 #: rojo, el sistema no está haciendo su trabajo. El reentrenamiento no está
 #: porque corre una vez al mes y su fallo no impide operar ese día.
-CRITICOS = ("preapertura", "postcierre", "compras", "ventas", "reconcilia",
-            "vigilante")
+CRITICOS = ("preapertura", "postcierre", "compras", "apertura", "ventas",
+            "reconcilia", "vigilante")
 #: Cuántas horas de retraso sobre lo esperado se toleran antes de avisar.
 RETRASO_AMBAR_HORAS = 30
 #: Cuántos días atrás se miran las órdenes rechazadas.

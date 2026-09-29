@@ -183,7 +183,7 @@ def main() -> int:
     else:
         ordenes = ordenes_de_venta_por_tiempo(sesion, cartera, args.capital)
 
-    ruta = ords.guardar_pendientes(ordenes, sesion, cartera)
+    ruta = ords.guardar_pendientes(ordenes, sesion, cartera, args.evento)
     log(f"{len(ordenes)} orden(es) de {args.evento} para la cartera {cartera} "
         f"-> {ruta.relative_to(config.BASE_DIR)}")
     for o in ordenes:

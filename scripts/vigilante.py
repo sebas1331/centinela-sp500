@@ -363,6 +363,50 @@ def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str
     return problemas
 
 
+def revisar_verificacion_apertura(sesiones: int = 1) -> list[str]:
+    """Que la verificación posterior a la apertura haya corrido cada sesión.
+
+    Es el paso que comprueba si las compras del día llegaron a ejecutarse de
+    verdad. Si él mismo deja de correr, el sistema vuelve exactamente al agujero
+    del 2026-09-29: nadie mira la apertura hasta el post-cierre y un "ok" con
+    cero órdenes pasa sin que nadie lo contradiga. Un vigilante que no vigila al
+    vigilante de la apertura no sirve de nada.
+
+    Su ventana son 30-90 minutos tras abrir, así que solo se exige para
+    sesiones ya terminadas: preguntar por la de hoy a media mañana daría un
+    falso positivo todos los días.
+    """
+    problemas: list[str] = []
+    if not getattr(config, "EJECUCION_BROKER", False):
+        return problemas
+
+    from centinela import salud
+    exigibles = sesiones_a_exigir(sesiones)
+    if not exigibles:
+        _log("Verificación de la apertura: no hay ninguna sesión exigible.")
+        return problemas
+
+    registro = salud.cargar().get("runs", {}).get("apertura")
+    if not registro or not registro.get("cuando"):
+        _log("Verificación de la apertura: nunca ha corrido. Si el workflow "
+             "acaba de desplegarse es normal; si no, nadie está comprobando "
+             "que las compras se ejecuten.")
+        return problemas
+
+    visto = str(registro["cuando"])[:10]
+    ultima = exigibles[-1]
+    if visto < ultima:
+        problemas.append(
+            f"La verificación de la apertura no ha corrido desde el {visto} y "
+            f"la última sesión exigible es la del {ultima}. Nadie está "
+            f"comprobando que las compras del día lleguen a ejecutarse: revisa "
+            f"el workflow 'Verificación de la apertura'.")
+    else:
+        _log(f"Verificación de la apertura: última el {visto} "
+             f"({registro.get('resultado')}).")
+    return problemas
+
+
 def revisar_salidas_diferidas(dias: int = 7) -> list[str]:
     """Denuncia cada salida por tiempo que hubo que cerrar con el plan B.
 
@@ -505,6 +549,10 @@ def main() -> int:
     _log("")
     _log("Salidas por tiempo diferidas:")
     problemas.extend(revisar_salidas_diferidas())
+
+    _log("")
+    _log("Verificación de la apertura:")
+    problemas.extend(revisar_verificacion_apertura(args.sesiones))
 
     if problemas:
         for p in problemas:

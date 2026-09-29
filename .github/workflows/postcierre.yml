@@ -237,8 +237,15 @@ jobs:
   # datacenter— se comprobó con `probar_broker.yml`: funciona, y reutilizando
   # la sesión de la caché conecta en 2 segundos sin pedir segundo factor.
   ejecutor:
-    needs: postcierre
-    if: needs.postcierre.result == 'success' && needs.postcierre.outputs.resultado == 'procesado'
+    # `needs: ordenes` NO es decorativo (fallo del 2026-09-29). Antes colgaba
+    # solo del escaneo, igual que `ordenes`, así que los dos jobs arrancaban EL
+    # MISMO SEGUNDO: el 29/09 a las 12:45:53 los dos, el ejecutor hizo checkout
+    # a las 12:45:55 y las órdenes se empujaron a las 12:46:18. El ejecutor leyó
+    # una copia rancia del fichero de órdenes. Aquel día no se notó porque había
+    # 0 órdenes de todas formas; con decisiones habría enviado nada y terminado
+    # en verde. Ahora espera a que las órdenes estén escritas y empujadas.
+    needs: [postcierre, ordenes]
+    if: needs.postcierre.result == 'success' && needs.postcierre.outputs.resultado == 'procesado' && needs.ordenes.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
