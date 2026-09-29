@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -99,13 +100,36 @@ def main() -> int:
             log(f"{simbolo}: bid {q['bid']} / ask {q['ask']}")
         else:
             log("sin pedir cotización antes de comprar (a propósito).")
-        log("comprando 1 acción...")
-        e = b.comprar(simbolo, 1)
-        log(f"  -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
-            + (f" (orden {e.orden})" if e.orden else "")
-            + (f" ERROR: {e.error}" if e.error else ""))
-        if not e.ok:
-            raise RuntimeError(f"La compra de prueba no entró: {e.error}")
+        # RECONCILIAR ANTES DE REINTENTAR, que es literalmente lo que el
+        # cliente pide hacer ante una orden ambigua: "the order may or may not
+        # have been placed; the caller must reconcile". Hoy el endpoint de
+        # trading de XTB está devolviendo cuerpo vacío ~4 de cada 5 veces, así
+        # que sin reintento la prueba depende de la suerte; pero reintentar sin
+        # comprobar podría comprar dos veces. Se mira si la posición apareció.
+        for intento in (1, 2, 3):
+            log(f"comprando 1 acción (intento {intento}/3)...")
+            e = b.comprar(simbolo, 1)
+            log(f"  -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
+                + (f" (orden {e.orden})" if e.orden else "")
+                + (f" ERROR: {e.error}" if e.error else ""))
+            if e.ok:
+                break
+            time.sleep(3)
+            llegó = [p for p in b.posiciones()
+                     if p["lado"] == "buy" and p["ticker"] == simbolo]
+            if llegó:
+                log("  la orden ambigua SÍ había entrado: hay posición. Sigo.")
+                break
+            en_cola = [o for o in b.ordenes_pendientes()
+                       if o.get("ticker") == simbolo]
+            if en_cola:
+                log("  la orden ambigua está en cola. Sigo.")
+                break
+            log("  no hay posición ni orden: la ambigua no entró, se reintenta.")
+        else:
+            raise RuntimeError(
+                f"La compra de prueba no entró en 3 intentos: {e.error}. El "
+                f"endpoint de trading de XTB está devolviendo cuerpo vacío.")
 
         # El nivel se pone del lado que dispara, con margen: el objetivo por
         # DEBAJO del bid (se vende cuando bid >= objetivo) y el stop por encima.
