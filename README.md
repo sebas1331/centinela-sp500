@@ -633,6 +633,19 @@ que lee la rama directamente y es el que relanza.
 **Si no está activo**, la venta programada antes del cierre sigue evaluando
 objetivo y stop como red de seguridad. Nunca se queda nadie mirando.
 
+**Probado contra XTB con el mercado abierto** (2026-09-29): comprando 1 acción y
+poniéndole un nivel pegado al precio, disparó por **objetivo** (bid 12,29 cruzó
+12,27) y por **stop** (bid 12,30 cruzó 12,32), las dos veces en **menos de dos
+segundos** entre ver el cruce y tener la orden en el broker.
+
+> **Ojo con los CFD.** XTB ofrece muchos símbolos por partida doble: la acción al
+> contado y su CFD, con el mismo nombre. El cliente no oficial resolvía el
+> símbolo cogiendo «el primero que coincida», y el orden de esa lista cambia
+> entre sesiones, así que unas veces mandaba la acción y otras el CFD — que el
+> servicio de contado rechaza. Siete de ocho compras se perdieron por eso el
+> 2026-09-29. Ahora `parche_instrumento.py` elige la de contado y, si solo queda
+> el CFD, **falla en vez de operarlo**.
+
 ### Cuatro momentos al día
 
 | Momento | Qué hace | Cuándo (ET) |

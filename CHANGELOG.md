@@ -71,6 +71,28 @@ reserva por el nombre, que es texto para humanos.
 la primera** (`en_cola`, orden 916133272), después de ocho intentos fallidos sin
 él.
 
+### La prueba completa, con el mercado abierto
+
+Con el instrumento bien resuelto, lo que ayer no se pudo terminar salió a la
+primera. Las dos compras entraron **sin una sola ambigua**:
+
+| | Nivel | Bid que disparó | Orden | Latencia |
+|---|---|---|---|---|
+| **Objetivo** | 12,27 | 12,29 | 916134784 | **1,88 s** |
+| **Stop** | 12,32 | 12,30 | 916135107 | **1,87 s** |
+
+Y queda registrado con sus tres precios, que es lo que permite medir el coste
+real de vigilar en vivo:
+
+```
+2026-09-29|A|F|objetivo_intradia … objetivo_intradia,1,en_cola,,916134784,,,12.29,12.27,,
+2026-09-29|A|F|stop_intradia     … stop_intradia,1,en_cola,,916135107,,,12.30,12.32,,
+```
+
+El precio de ejecución va vacío a propósito: la orden quedó `en_cola` y todavía
+no tiene precio de relleno. Es justo el hueco que la verificación posterior a la
+apertura rellena al día siguiente.
+
 ### Y un fallo propio que salió en la misma prueba
 
 El bucle de limpieza vendía una vez por cada entrada que XTB devolvía. XTB
