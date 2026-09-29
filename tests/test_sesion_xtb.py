@@ -107,25 +107,29 @@ def test_una_sesion_con_cuerda_de_sobra_no_molesta(tmp_path, monkeypatch):
     assert vigilante.revisar_sesion_xtb() == []
 
 
-def test_avisa_cuando_quedan_pocas_horas(tmp_path, monkeypatch):
-    """Avisar cuando ya caducó llega tarde: para entonces un escaneo ya murió.
+def test_que_caduque_pronto_se_informa_pero_no_es_un_problema(tmp_path, monkeypatch,
+                                                              capsys):
+    """Esta regla nació esperando que renovar exigiera a una persona. El
+    2026-09-29 se midió que NO: el TGT caduca de madrugada todas las noches y el
+    login en frío de la mañana entra solo con la cookie de dispositivo de
+    confianza.
 
-    Renovarla necesita a una persona leyendo un correo, así que el aviso tiene
-    que dar tiempo a actuar.
+    Avisar igualmente era un rojo cada mañana laborable por algo que se arregla
+    solo. Se informa en el log, que es donde no molesta, y ya está.
     """
     _sesion(tmp_path, monkeypatch, horas_restantes=1.5)
-    problemas = vigilante.revisar_sesion_xtb()
-    assert len(problemas) == 1
-    assert "caduca en 1.5 h" in problemas[0]
-    assert "Renovar sesión XTB" in problemas[0]
+    assert vigilante.revisar_sesion_xtb() == []
+    assert "caduca en 1.5 h" in capsys.readouterr().out
 
 
-def test_denuncia_una_sesion_ya_caducada(tmp_path, monkeypatch):
+def test_una_sesion_ya_caducada_tampoco(tmp_path, monkeypatch, capsys):
     _sesion(tmp_path, monkeypatch, horas_restantes=-2)
-    problemas = vigilante.revisar_sesion_xtb()
-    assert len(problemas) == 1
-    assert "CADUCÓ" in problemas[0]
-    assert bx.MARCA_SESION_CADUCADA in problemas[0]
+    assert vigilante.revisar_sesion_xtb() == []
+    salida = capsys.readouterr().out
+    assert "caducada hace 2.0 h" in salida
+    # Y dice qué pasaría si la cookie dejara de valer, que es el caso que sí
+    # exigiría a una persona.
+    assert bx.MARCA_SESION_CADUCADA in salida
 
 
 def test_no_tener_sesion_todavia_NO_es_un_fallo(tmp_path, monkeypatch):
@@ -190,3 +194,50 @@ def test_el_README_explica_que_hacer_en_tres_pasos():
     readme = (RAIZ / "README.md").read_text(encoding="utf-8")
     assert bx.MARCA_SESION_CADUCADA in readme
     assert "Renovar sesión XTB" in readme
+
+
+# --------------------------------------------------------------------------- #
+# Una sesión caducada NO es un problema: está medido que se renueva sola
+# --------------------------------------------------------------------------- #
+def test_una_sesion_caducada_no_es_un_problema(tmp_path, monkeypatch):
+    """Medido el 2026-09-29: el TGT dura 8 h y se refresca con el último login
+    del día, así que caduca de madrugada TODAS las noches. Aquel día caducó a
+    las 05:11 UTC y el run de compras de las 12:46 hizo login en frío y entró
+    sin pedir código — la cookie de dispositivo de confianza sigue valiendo.
+
+    Denunciarlo sería un rojo cada mañana laborable por algo que se arregla
+    solo, y un rojo diario deja de significar nada.
+    """
+    import sys
+    from datetime import datetime, timedelta
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import vigilante as vig
+    from centinela import broker_xtb as bx, config, salud
+
+    ruta = tmp_path / "sesion.json"
+    expira = datetime.now(config.TZ_ET) - timedelta(hours=9)
+    ruta.write_text(json.dumps({"tgt": "x", "expires_at": expira.isoformat()}),
+                    encoding="utf-8")
+    monkeypatch.setattr(bx, "ARCHIVO_SESION", ruta)
+    monkeypatch.setattr(salud, "ARCHIVO", tmp_path / "salud.json")
+    monkeypatch.setattr(config, "EJECUCION_BROKER", True)
+
+    assert vig.revisar_sesion_xtb() == []
+
+
+def test_pero_un_login_que_falla_de_verdad_si_lo_es(tmp_path, monkeypatch):
+    """Es el único síntoma que prueba que la cookie dejó de valer."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import vigilante as vig
+    from centinela import broker_xtb as bx, config, salud
+
+    monkeypatch.setattr(bx, "ARCHIVO_SESION", tmp_path / "no-hay.json")
+    monkeypatch.setattr(salud, "ARCHIVO", tmp_path / "salud.json")
+    monkeypatch.setattr(config, "EJECUCION_BROKER", True)
+    salud.registrar("compras", bx.MARCA_SESION_CADUCADA, "la sesión caducó")
+
+    problemas = vig.revisar_sesion_xtb()
+    assert len(problemas) == 1
+    assert "Renovar sesión XTB" in problemas[0]
+    assert "Compras en XTB" in problemas[0]

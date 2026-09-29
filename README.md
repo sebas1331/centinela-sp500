@@ -311,12 +311,16 @@ Se arregla en tres pasos, sin terminal:
 **¿Y si el código ya no vale?** Lanza el mismo workflow **con el campo vacío**:
 eso pide uno nuevo y te llega otro correo. Luego repite el paso 2 con ese.
 
-El Vigilante avisa **antes** de que ocurra: revisa la sesión y da la voz cuando
-le quedan menos de 3 horas, para que puedas renovarla sin prisas. Lo hace en un
-disparo de las **07:07 UTC (02:07 Ecuador)**, y esa hora no es casual: el TGT
-dura 8 h y se refresca con el último login del día —el post-cierre, sobre las
-21:00 UTC—, así que caduca de madrugada. Con el único disparo que había antes,
-a las 14:37, el aviso llegaba **siempre después** de la ventana de compras.
+> **Casi nunca hace falta.** Medido el 2026-09-29: el TGT dura 8 h y se refresca
+> con el último login del día, así que caduca de madrugada **todas las noches**
+> —aquel día, a las 05:11 UTC—. El run de compras de las 12:46 hizo login en
+> frío y entró **sin pedir ningún código**, porque la cookie de dispositivo de
+> confianza sigue valiendo. El sistema es autónomo día a día.
+>
+> Por eso el Vigilante **no** denuncia una sesión caducada: lo informa en su log
+> y sigue. Lo que sí denuncia, y es el único síntoma que prueba que la cookie
+> dejó de valer, es que algún componente haya muerto pidiendo código
+> (`XTB_REQUIERE_CODIGO`). Ahí sí hacen falta los tres pasos de arriba.
 También mantiene viva la caché donde vive la sesión — GitHub borra las cachés
 que nadie usa en 7 días, y el Vigilante es el único que corre también los fines
 de semana.

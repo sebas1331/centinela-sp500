@@ -451,6 +451,26 @@ def revisar_salidas_diferidas(dias: int = 7) -> list[str]:
     return problemas
 
 
+def _logins_que_pidieron_codigo(bx) -> list[str]:
+    """Componentes que murieron pidiendo el código de XTB.
+
+    Es el único síntoma que prueba que la cookie de dispositivo de confianza
+    dejó de valer, y por tanto lo único que de verdad exige a una persona.
+    """
+    from centinela import salud
+    fuera = []
+    for clave, r in salud.cargar().get("runs", {}).items():
+        texto = f"{r.get('resultado', '')} {r.get('detalle', '')}"
+        if bx.MARCA_SESION_CADUCADA in texto:
+            fuera.append(
+                f"{salud.COMPONENTES.get(clave, (clave,))[0]} murió pidiendo "
+                f"código de XTB ({str(r.get('cuando', '?'))[:16]}). La cookie de "
+                f"dispositivo de confianza ya no vale: lanza el workflow "
+                f"'Renovar sesión XTB' desde el móvil, con el código que te "
+                f"llegue por correo.")
+    return fuera
+
+
 def revisar_sesion_xtb() -> list[str]:
     """La sesión de XTB: que exista, que valga y que le quede cuerda.
 
@@ -475,6 +495,12 @@ def revisar_sesion_xtb() -> list[str]:
         return problemas
 
     from centinela import broker_xtb as bx
+    # EL SÍNTOMA QUE SÍ IMPORTA, y va PRIMERO porque no depende de que exista
+    # ningún fichero: que un login haya fallado de verdad. Mirar la caducidad no
+    # sirve para adivinarlo —quedó demostrado el 2026-09-29— así que se mira lo
+    # único que lo prueba.
+    problemas.extend(_logins_que_pidieron_codigo(bx))
+
     ruta = bx.ARCHIVO_SESION
     if not ruta.exists():
         _log("Sesión de XTB: no hay ninguna guardada. El próximo run que toque "
@@ -493,17 +519,26 @@ def revisar_sesion_xtb() -> list[str]:
 
     restan = (expira - datetime.now(expira.tzinfo)).total_seconds() / 3600
     if restan <= 0:
-        problemas.append(
-            f"La sesión de XTB CADUCÓ hace {-restan:.1f} h. El próximo run que "
-            f"toque el broker morirá con {bx.MARCA_SESION_CADUCADA}. Lanza el "
-            f"workflow 'Renovar sesión XTB' desde Actions.")
+        # NO es un problema, y está medido (2026-09-29). El TGT dura 8 h y se
+        # refresca con el último login del día, así que caduca de madrugada
+        # TODAS las noches: a las 05:11 UTC de ese día. El run de compras de las
+        # 12:46 hizo login en frío y entró SIN pedir código, porque la cookie de
+        # dispositivo de confianza sigue valiendo. La cuenta se operó con
+        # normalidad.
+        #
+        # Denunciarlo sería un rojo cada mañana laborable por algo que se arregla
+        # solo, y un rojo diario deja de significar nada — la lección del
+        # 2026-09-28. Lo que SÍ es un problema es que un login falle de verdad, y
+        # eso se mira abajo, en el registro de salud.
+        _log(f"Sesión de XTB: caducada hace {-restan:.1f} h. El próximo login "
+             f"la renueva solo mientras la cookie de dispositivo de confianza "
+             f"siga valiendo; si deja de valer, saldrá "
+             f"{bx.MARCA_SESION_CADUCADA} y habrá que renovarla a mano.")
     elif restan <= config.SESION_AVISO_HORAS:
-        problemas.append(
-            f"La sesión de XTB caduca en {restan:.1f} h (menos de "
-            f"{config.SESION_AVISO_HORAS}). Renuévala antes de que un escaneo "
-            f"se la encuentre cerrada: Actions -> 'Renovar sesión XTB'.")
+        _log(f"Sesión de XTB: caduca en {restan:.1f} h.")
     else:
         _log(f"Sesión de XTB: válida {restan:.1f} h más.")
+
     return problemas
 
 

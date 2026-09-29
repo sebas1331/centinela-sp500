@@ -55,6 +55,20 @@ La página abre con la fila **Hoy**: señales → decididas → enviadas → eje
 y debajo quién se quedó en cada escalón y por qué. Un cero con motivo es
 información; un cero sin motivo es una pregunta.
 
+### Y la pregunta que quedó abierta ayer, contestada
+
+Ayer se añadió un disparo del Vigilante a las 07:07 UTC para avisar de la
+caducidad **antes** de la ventana de compras, sabiendo que podía dar rojo todas
+las mañanas. Hoy hay dato: el TGT caducó a las 05:11 UTC y el run de compras de
+las 12:46 hizo **login en frío y entró sin pedir código** — la cookie de
+dispositivo de confianza sigue valiendo, y la cuenta se operó con normalidad.
+
+O sea: la sesión caduca **todas las noches** y no pasa nada. Denunciarlo habría
+sido un rojo cada mañana laborable por algo que se arregla solo. La regla pasa a
+ser la correcta: una sesión caducada se informa en el log, y lo que se denuncia
+es el único síntoma que prueba que la cookie dejó de valer — que algún
+componente muriera con `XTB_REQUIERE_CODIGO`.
+
 ### Verificación de la apertura (nuevo, cuarto momento del día)
 
 Corre 30-90 minutos después de abrir y no decide nada: compara lo decidido, lo
