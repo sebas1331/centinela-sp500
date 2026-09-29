@@ -1,35 +1,6 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-09-28T18:01:36.376844-04:00",
-  "ordenes": [
-    {
-      "acciones": 6,
-      "cartera": "A",
-      "fecha_limite": "2026-09-29",
-      "id": "2026-09-29|A|VRT|venta_tiempo",
-      "id_operacion": 145,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-09-29",
-      "stop": null,
-      "ticker": "VRT",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 10,
-      "cartera": "A",
-      "fecha_limite": "2026-09-29",
-      "id": "2026-09-29|A|GLW|venta_tiempo",
-      "id_operacion": 147,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-09-29",
-      "stop": null,
-      "ticker": "GLW",
-      "tipo": "venta_tiempo"
-    }
-  ],
-  "sesion": "2026-09-28"
+  "generado": "2026-09-29T08:46:17.359148-04:00",
+  "ordenes": [],
+  "sesion": "2026-09-29"
 }
