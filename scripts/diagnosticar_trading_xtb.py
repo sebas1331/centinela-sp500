@@ -108,6 +108,32 @@ def main() -> int:
         q = b.cotizacion(simbolo)
         log(f"{simbolo}: bid {q['bid']} / ask {q['ask']}")
 
+        # DE DÓNDE SALE EL ID QUE SE MANDA. `_resolve_instrument_id` busca el
+        # símbolo y, si ninguno coincide EXACTAMENTE, devuelve el primero de la
+        # lista. Un id equivocado por esa vía se ve aquí y no en ningún otro
+        # sitio: la orden sale con un instrumento que no es el que se pidió.
+        log("")
+        log(f"búsqueda de instrumento para {simbolo}:")
+        try:
+            hallados = b._ejecutar(b._cliente.search_instrument(simbolo))
+        except Exception as exc:  # noqa: BLE001
+            log(f"  la búsqueda falló: {exc!r}")
+            hallados = []
+        for r in hallados[:8]:
+            exacto = "<-- EXACTO" if r.symbol.upper() == simbolo.upper() else ""
+            log(f"  id={r.instrument_id:<8} {r.symbol:<14} {r.name[:38]:<38} "
+                f"{exacto}")
+        if not hallados:
+            log("  (ninguno)")
+        exactos = [r for r in hallados if r.symbol.upper() == simbolo.upper()]
+        if not exactos and hallados:
+            log(f"  ⚠ NINGUNO coincide exactamente: se mandaría el primero, "
+                f"id={hallados[0].instrument_id} ({hallados[0].symbol}), que no "
+                f"es {simbolo}.")
+        elif exactos:
+            log(f"  el id que se mandará: {exactos[0].instrument_id}")
+        log("")
+
         if not args.comprar:
             log("(sin --comprar: no se manda ninguna orden)")
             return 0
