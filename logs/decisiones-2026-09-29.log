@@ -202,3 +202,9 @@ tiempo con normalidad, porque el simulador no depende de este fichero.
 Queda como sesión perdida del lado del broker y sin recuperación: no se envían
 ventas tardías. La causa está arreglada (guardar_pendientes ahora conserva las
 órdenes del otro momento) y fijada con un test.
+
+===== escaneo postcierre 2026-09-29 18:00:37 ET =====
+POST-CIERRE 2026-09-29
+entradas ejecutadas: []
+cambios de objetivo: 3
+cierres: [('VRT', 'A', 'tiempo', 0.0348), ('GLW', 'A', 'tiempo', 0.078), ('VRT', 'B', 'tiempo', 0.0348), ('GLW', 'B', 'tiempo', 0.078)]
