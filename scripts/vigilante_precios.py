@@ -59,6 +59,25 @@ RELEVO_TRAS_HORAS = 5.75
 ESPERA_SUCESOR_SEG = 600
 
 
+def en_prueba() -> bool:
+    """¿Es una prueba? Entonces ni se publica el latido ni se toca el repo.
+
+    Un latido de prueba haría que la página enseñara un vigilante vigilando
+    posiciones que no son de nadie, y el job de pruebas es de solo lectura a
+    propósito: no debe poder empujar nada.
+    """
+    return bool(os.environ.get("CENTINELA_PRUEBA"))
+
+
+def latir(datos, trabajo) -> None:
+    """Publica el latido, salvo en una prueba."""
+    if en_prueba():
+        print(f"[latido] (prueba: no se publica) {len(datos['vigiladas'])} "
+              f"vigilada(s)", flush=True)
+        return
+    lat.publicar(datos, trabajo)
+
+
 def log(msg: str) -> None:
     print(f"[{datetime.now(config.TZ_ET):%H:%M:%S ET}] {msg}", flush=True)
 
@@ -416,8 +435,8 @@ def main() -> int:
         registro = {"enviadas": {}} if args.prueba else ords.cargar_enviadas()
         if not vigiladas:
             log("no hay ninguna posición con nivel que vigilar.")
-            lat.publicar(lat.construir(arrancado, [], estado="sin-posiciones"),
-                         trabajo)
+            latir(lat.construir(arrancado, [], estado="sin-posiciones"),
+                  trabajo)
             salud.registrar("vigilante_precios",
                             "ok: 0 posiciones — ninguna con objetivo ni stop")
             return 0
@@ -441,7 +460,7 @@ def main() -> int:
 
         suscribir_todo(broker, vigiladas)
         respaldo_por_peticion(broker, vigiladas, precios)   # foto inicial
-        lat.publicar(lat.construir(arrancado, vigiladas), trabajo)
+        latir(lat.construir(arrancado, vigiladas), trabajo)
 
         ultimo_latido_ok = time.monotonic()
         proximo_latido = time.monotonic() + lat.CADA_SEGUNDOS
@@ -465,9 +484,12 @@ def main() -> int:
                     precios.ultimo_tick = ahora_mono
 
             if ahora_mono >= proximo_latido:
-                ultimo_latido_ok = lat.publicar_tolerante(
-                    lat.construir(arrancado, vigiladas), trabajo,
-                    ultimo_latido_ok, ahora_mono)
+                if en_prueba():
+                    latir(lat.construir(arrancado, vigiladas), trabajo)
+                else:
+                    ultimo_latido_ok = lat.publicar_tolerante(
+                        lat.construir(arrancado, vigiladas), trabajo,
+                        ultimo_latido_ok, ahora_mono)
                 proximo_latido = ahora_mono + lat.CADA_SEGUNDOS
 
             if ahora_mono >= relevo_a_las:
@@ -485,8 +507,7 @@ def main() -> int:
                     f"a morir por el límite de 6 h de GitHub y no hay quien "
                     f"mire los precios.")
 
-        lat.publicar(lat.construir(arrancado, vigiladas, estado="cerrado"),
-                     trabajo)
+        latir(lat.construir(arrancado, vigiladas, estado="cerrado"), trabajo)
 
     resultado = (f"ok: {VENDIDAS['n']} venta(s) por nivel, {len(vigiladas)} de "
                  f"{n_inicial} posición(es) siguen abiertas")
