@@ -95,6 +95,8 @@ def main() -> int:
     ap.add_argument("--ticker", default="F")
     ap.add_argument("--comprar", action="store_true",
                     help="intenta comprar 1 acción (si no, solo lee)")
+    ap.add_argument("--repetir-busqueda", type=int, default=1,
+                    help="repetir la búsqueda N veces, por si el id cambia")
     args = ap.parse_args()
 
     visto = instalar_espia()
@@ -112,27 +114,41 @@ def main() -> int:
         # símbolo y, si ninguno coincide EXACTAMENTE, devuelve el primero de la
         # lista. Un id equivocado por esa vía se ve aquí y no en ningún otro
         # sitio: la orden sale con un instrumento que no es el que se pidió.
-        log("")
-        log(f"búsqueda de instrumento para {simbolo}:")
-        try:
-            hallados = b._ejecutar(b._cliente.search_instrument(simbolo))
-        except Exception as exc:  # noqa: BLE001
-            log(f"  la búsqueda falló: {exc!r}")
-            hallados = []
-        for r in hallados[:8]:
-            exacto = "<-- EXACTO" if r.symbol.upper() == simbolo.upper() else ""
-            log(f"  id={r.instrument_id:<8} {r.symbol:<14} {r.name[:38]:<38} "
-                f"{exacto}")
-        if not hallados:
-            log("  (ninguno)")
-        exactos = [r for r in hallados if r.symbol.upper() == simbolo.upper()]
-        if not exactos and hallados:
-            log(f"  ⚠ NINGUNO coincide exactamente: se mandaría el primero, "
-                f"id={hallados[0].instrument_id} ({hallados[0].symbol}), que no "
-                f"es {simbolo}.")
-        elif exactos:
-            log(f"  el id que se mandará: {exactos[0].instrument_id}")
-        log("")
+        for vuelta in range(1, args.repetir_busqueda + 1):
+          log("")
+          log(f"búsqueda de instrumento para {simbolo}"
+              + (f" (vuelta {vuelta}/{args.repetir_busqueda})"
+                 if args.repetir_busqueda > 1 else "") + ":")
+          try:
+              hallados = b._ejecutar(b._cliente.search_instrument(simbolo))
+          except Exception as exc:  # noqa: BLE001
+              log(f"  la búsqueda falló: {exc!r}")
+              hallados = []
+          for r in hallados[:8]:
+              exacto = "<-- EXACTO" if r.symbol.upper() == simbolo.upper() else ""
+              log(f"  id={r.instrument_id:<8} {r.symbol:<14} {r.name[:38]:<38} "
+                  f"{exacto}")
+          if not hallados:
+              log("  (ninguno)")
+          log(f"  ({len(hallados)} resultados en total)")
+          exactos = [r for r in hallados if r.symbol.upper() == simbolo.upper()]
+          if not exactos and hallados:
+              log(f"  ⚠ NINGUNO coincide exactamente: se mandaría el primero, "
+                  f"id={hallados[0].instrument_id} ({hallados[0].symbol}), que no "
+                  f"es {simbolo}.")
+          elif exactos:
+              # TODOS los exactos, no solo el primero. Si XTB ha duplicado el
+              # instrumento (uno viejo y uno nuevo), la librería coge el primero
+              # y eso sería una moneda al aire — que es justo lo que parece la
+              # intermitencia de 1 de cada 8.
+              log(f"  coincidencias EXACTAS con {simbolo}: {len(exactos)}")
+              for r in exactos:
+                  log(f"    id={r.instrument_id:<8} clave={r.symbol_key:<16} "
+                      f"clase={r.asset_class:<12} {r.name[:30]}")
+              log(f"  el id que se mandará: {exactos[0].instrument_id}"
+                  + ("  ⚠ HAY MÁS DE UNO: la librería coge este por ser el "
+                     "primero" if len(exactos) > 1 else ""))
+          log("")
 
         if not args.comprar:
             log("(sin --comprar: no se manda ninguna orden)")

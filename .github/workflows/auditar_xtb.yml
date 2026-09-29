@@ -41,6 +41,10 @@ on:
         description: "Ticker para el diagnóstico"
         type: string
         default: "F"
+      repetir_busqueda:
+        description: "Repetir la búsqueda de instrumento N veces"
+        type: string
+        default: "1"
 
 permissions:
   contents: read
@@ -100,6 +104,7 @@ jobs:
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
         run: |
           ARGS="--ticker ${{ inputs.ticker }}"
+          ARGS="$ARGS --repetir-busqueda ${{ inputs.repetir_busqueda }}"
           if [ "${{ inputs.comprar_en_diagnostico }}" = "true" ]; then
             ARGS="$ARGS --comprar"
           fi
