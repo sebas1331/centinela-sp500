@@ -5,6 +5,72 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-09-29 (4) — Dos falsos avisos menos, y la librería deja de ser prestada
+
+### Un vigilante en reposo no es un vigilante caído
+
+La página decía «Problema: el vigilante lleva 62 min sin latir» con la cuenta
+**vacía** y nada que vigilar. El vigilante había terminado bien —no había
+posiciones con nivel— pero se iba en silencio, y su último latido envejecía
+hasta que el reloj lo daba por muerto.
+
+Dos cambios, y el segundo importa más que el primero:
+
+1. Un vigilante que termina por su cuenta publica ahora un estado **`en-reposo`
+   con el motivo**, y un latido en reposo no se juzga por su antigüedad. El
+   motivo es obligatorio: sin él se lee igual que uno caído, que es justo lo que
+   se quería evitar.
+2. **Rojo solo si hay algo que vigilar.** Un vigilante ausente con la cuenta
+   vacía no deja nada al aire; uno ausente con tres posiciones y sus stops, sí.
+   Antes solo se miraba el reloj. Ahora se mira también cuántas posiciones tiene
+   XTB con objetivo o stop, y estar en reposo **con** posiciones sin vigilar
+   sigue siendo rojo — porque entonces sí se fue dejando trabajo sin hacer.
+
+Si luego entra una compra, el vigilante vuelve a arrancar: lo lanza el workflow
+de compras, y el peldaño que decide si hace falta uno nuevo entiende el reposo
+como «terminó, y si ahora hay trabajo hace falta otro».
+
+### La sesión de XTB deja de avisar de nada
+
+«La sesión caduca en 1.3 h. Renuévala…» era un aviso de cuando se creía que
+renovarla exigía a una persona. El 2026-09-29 se midió que no: el TGT caduca de
+madrugada **todas las noches** y el login en frío de la mañana entra solo con la
+cookie de dispositivo de confianza.
+
+Avisar de lo que se arregla solo es ruido, y el ruido se come la señal. Sale del
+semáforo y se queda como una línea gris en Componentes: «Sesión de XTB: válida
+1,3 h más». Lo único que sigue pintando rojo es lo único que de verdad exige a
+una persona: que un componente muera con `XTB_REQUIERE_CODIGO`.
+
+### La librería, copiada dentro
+
+`github.com/liskeee/xtb-api-python` devuelve **404**. El paquete sigue publicado
+y sin retirar, pero no hay dónde consultar incidencias, nada garantiza que siga
+publicado mañana, y este sistema **manda órdenes a un broker** con él.
+
+`vendor/xtb_api/` es ahora una copia de la 0.10.0 con su licencia MIT intacta y
+los dos parches aplicados **dentro**, cada uno documentado en
+[`vendor/xtb_api/CAMBIOS.md`](vendor/xtb_api/CAMBIOS.md) con qué hacía el
+original, qué problema daba, qué costó y qué hace ahora:
+
+| Parche | Qué corrige |
+|---|---|
+| **1** — `_resolve_instrument_id` | Elegir la **acción** y no su CFD cuando XTB ofrece las dos con el mismo símbolo. Era lo que perdió 7 de 8 compras. |
+| **2** — `_grpc_call` | Leer `grpc-status`/`grpc-message` de las cabeceras en vez de tirarlos. Era lo que convertía cualquier error en «respuesta vacía». |
+
+`centinela/__init__.py` mete `vendor/` al principio de `sys.path`, así que la
+copia gana aunque alguien instale el paquete de PyPI. Los dos monkeypatch que
+hacían esto en tiempo de ejecución desaparecen: la corrección vive donde estaba
+el fallo. `requirements-broker.txt` deja de descargar el paquete y pasa a
+instalar solo **sus** dependencias, que antes venían de arrastre.
+
+Hay un test que arranca un intérprete limpio, sin el paquete instalado, e
+importa el sistema entero: si la copia dejara de bastarse, se vería ahí.
+
+449 tests.
+
+---
+
 ## 2026-09-29 (3) — La causa de las órdenes "ambiguas", y una corrección
 
 Ayer dejé escrito que «el endpoint de trading de XTB está fallando». Era una

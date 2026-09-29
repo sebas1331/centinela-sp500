@@ -287,7 +287,7 @@ def esperar_sucesor(trabajo: Path, mi_run: str, broker, registro,
             log(f"el sucesor (run {actual['run']}) está latiendo. Testigo "
                 f"entregado; me retiro.")
             return True
-        lat.publicar(lat.construir(arrancado, vigiladas, estado="esperando-relevo",
+        lat.publicar(lat.construir(arrancado, vigiladas, estado=lat.ESPERANDO_RELEVO,
                                    relevo=mi_run), trabajo)
     return False
 
@@ -399,26 +399,35 @@ def main() -> int:
 
     ahora = datetime.now(config.TZ_ET)
     hoy = ahora.date()
-    if not args.forzar and not calendario.es_dia_de_mercado(hoy):
-        log("hoy no hay mercado. Nada que vigilar.")
-        salud.registrar("vigilante_precios", "omitido:no-es-sesion")
+    arrancado = ahora.isoformat()
+    trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
+
+    def reposo(motivo: str, resultado: str) -> int:
+        """Terminar bien, dejándolo dicho.
+
+        Antes estas salidas no publicaban nada, y un latido viejo de la sesión
+        anterior se quedaba ahí envejeciendo hasta que la página lo daba por
+        muerto: "lleva 62 min sin latir" con la cuenta vacía y nada que vigilar.
+        Un vigilante que se va porque no hay trabajo tiene que decirlo.
+        """
+        log(motivo)
+        latir(lat.construir(arrancado, [], estado=lat.EN_REPOSO, motivo=motivo),
+             trabajo)
+        salud.registrar("vigilante_precios", resultado)
         return 0
+
+    if not args.forzar and not calendario.es_dia_de_mercado(hoy):
+        return reposo("hoy no hay mercado", "omitido:no-es-sesion")
 
     ac = calendario.apertura_cierre_et(hoy.isoformat())
     if ac is None:
-        log("sin horario de mercado para hoy.")
-        salud.registrar("vigilante_precios", "omitido:no-es-sesion")
-        return 0
+        return reposo("hoy no hay horario de mercado", "omitido:no-es-sesion")
     apertura, cierre = ac
     if args.minutos:
         cierre = min(cierre, ahora + timedelta(minutes=args.minutos))
     if not args.forzar and ahora >= cierre:
-        log("la sesión ya cerró. Nada que vigilar.")
-        salud.registrar("vigilante_precios", "omitido:fuera-de-sesion")
-        return 0
+        return reposo("la sesión ya cerró", "omitido:fuera-de-sesion")
 
-    arrancado = ahora.isoformat()
-    trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
     mi_run = os.environ.get("GITHUB_RUN_ID", "local")
     relevo_a_las = time.monotonic() + RELEVO_TRAS_HORAS * 3600
     credenciales = bx.credenciales_del_entorno_o_llavero()
@@ -434,12 +443,8 @@ def main() -> int:
             vigiladas = cargar_vigiladas(broker)
         registro = {"enviadas": {}} if args.prueba else ords.cargar_enviadas()
         if not vigiladas:
-            log("no hay ninguna posición con nivel que vigilar.")
-            latir(lat.construir(arrancado, [], estado="sin-posiciones"),
-                  trabajo)
-            salud.registrar("vigilante_precios",
-                            "ok: 0 posiciones — ninguna con objetivo ni stop")
-            return 0
+            return reposo("no hay ninguna posición con nivel que vigilar",
+                          "ok: 0 posiciones — ninguna con objetivo ni stop")
 
         for v in vigiladas:
             log(f"  {v['ticker']} x{v['acciones']}: objetivo {v['objetivo']} | "
@@ -507,7 +512,11 @@ def main() -> int:
                     f"a morir por el límite de 6 h de GitHub y no hay quien "
                     f"mire los precios.")
 
-        latir(lat.construir(arrancado, vigiladas, estado="cerrado"), trabajo)
+        motivo_final = ("la sesión cerró" if not vigiladas
+                        else "la sesión cerró con "
+                             f"{len(vigiladas)} posición(es) todavía abiertas")
+        latir(lat.construir(arrancado, vigiladas, estado=lat.EN_REPOSO,
+                            motivo=motivo_final), trabajo)
 
     resultado = (f"ok: {VENDIDAS['n']} venta(s) por nivel, {len(vigiladas)} de "
                  f"{n_inicial} posición(es) siguen abiertas")

@@ -326,6 +326,7 @@ footer a{color:var(--acento)}
   padding:.55rem .7rem; background:var(--superficie);
   border:1px solid var(--borde); border-radius:10px;
 }
+.nota-sesion{margin:.45rem 0 0; font-size:.74rem; color:var(--tenue)}
 .comp-fila b{font-size:.86rem; font-weight:600}
 .comp-fila .meta{font-size:.72rem; color:var(--tenue); grid-column:1}
 .comp-fila .est{font-size:.76rem; font-weight:600; text-align:right}
@@ -381,6 +382,7 @@ footer a{color:var(--acento)}
 
   <h2>Componentes</h2>
   <div class="comp" id="componentes"></div>
+  <p id="sesion-xtb" class="nota-sesion" hidden></p>
 
   <h2>Cuenta en XTB</h2>
   <div class="carteras" id="broker"></div>
@@ -536,6 +538,7 @@ function iniciar(D){
   pintarVigilante(D);
   pintarFiabilidad(D.fiabilidad || {});
   pintarComponentes(D.componentes || []);
+  pintarSesionXTB(D.sesion_xtb);
   pintarBroker(D.broker || {});
   pintarPosiciones(D.posiciones || []);
   montarOrdenes(D.ordenes || []);
@@ -666,23 +669,46 @@ function mostrarLatido(caja, det, V, L){
   var dentro = V.es_sesion && V.sesion_abre && V.sesion_cierra &&
                ahora >= new Date(V.sesion_abre).getTime() &&
                ahora <= new Date(V.sesion_cierra).getTime();
+  /* QUÉ HACE FALTA PARA QUE ESTO SEA UN PROBLEMA: que haya algo que vigilar.
+     Un vigilante ausente con la cuenta vacía no deja nada al aire; uno ausente
+     con tres posiciones y sus stops, sí. Antes solo se miraba el reloj, y eso
+     daba "lleva 62 min sin latir" en una cuenta sin una sola posición. */
+  var hayQueVigilar = (V.posiciones_a_vigilar || 0) > 0;
+  var importa = dentro && hayQueVigilar;
 
   if(!L || !L.cuando){
-    det.textContent = dentro
+    det.textContent = importa
       ? "sin latido: no hay nadie vigilando los niveles."
-      : "sin actividad (fuera de sesión).";
-    caja.className = "vigia" + (dentro ? " mal" : "");
-    if(dentro) empeorarSemaforo("El vigilante de precios no está activo: "
-      + "nadie está mirando los objetivos ni los stops en vivo.");
+      : (dentro ? "sin actividad: no hay posiciones que vigilar."
+                : "sin actividad (fuera de sesión).");
+    caja.className = "vigia" + (importa ? " mal" : "");
+    if(importa) empeorarSemaforo("El vigilante de precios no está activo y hay "
+      + V.posiciones_a_vigilar + " posición(es) con nivel: nadie está mirando "
+      + "los objetivos ni los stops en vivo.");
     return;
   }
 
   var min = (ahora - new Date(L.cuando).getTime()) / 60000;
   var n = (L.vigiladas || []).length;
-  var vivo = min <= V.muerto_minutos;
+  /* EN REPOSO NO ES MUERTO. Un vigilante que terminó porque no había nada que
+     vigilar, o porque cerró el mercado, hizo su trabajo y se fue: su edad da
+     igual. Juzgarlo por el reloj era el falso rojo. */
+  var reposo = L.estado === "en-reposo";
+  var vivo = reposo || min <= V.muerto_minutos;
   caja.className = "vigia" + (dentro ? (vivo ? " vivo" : " mal") : "");
 
   var partes = [];
+  if(reposo){
+    partes.push("en reposo" + (L.motivo ? ": " + L.motivo : ""));
+    det.textContent = partes.join(" · ");
+    if(L.url_run) caja.appendChild(enlace(L.url_run, "ver run"));
+    /* Y si hubiera posiciones que vigilar, estar en reposo SÍ es un problema:
+       significa que se fue dejando trabajo sin hacer. */
+    if(importa) empeorarSemaforo("El vigilante de precios está en reposo ("
+      + (L.motivo || "sin motivo") + ") y hay " + V.posiciones_a_vigilar
+      + " posición(es) con nivel sin vigilar.");
+    return;
+  }
   if(L.arrancado) partes.push("activo desde " + horaEc(L.arrancado).split(", ").pop());
   partes.push("último latido hace " + (min < 1 ? "menos de 1" : Math.round(min)) + " min");
   partes.push(n + " posición" + (n === 1 ? "" : "es") + " vigilada" + (n === 1 ? "" : "s"));
@@ -697,9 +723,10 @@ function mostrarLatido(caja, det, V, L){
   });
   if(L.url_run) caja.appendChild(enlace(L.url_run, "ver run"));
 
-  if(dentro && !vivo) empeorarSemaforo(
+  if(importa && !vivo) empeorarSemaforo(
     "El vigilante de precios lleva " + Math.round(min) + " min sin latir "
-    + "(más de " + V.muerto_minutos + "): puede haber niveles sin vigilar.");
+    + "(más de " + V.muerto_minutos + ") y hay " + V.posiciones_a_vigilar
+    + " posición(es) con nivel: pueden estar sin vigilar.");
 }
 
 /* El semáforo ya está pintado cuando llega el latido, así que se le añade el
@@ -763,6 +790,19 @@ function pintarFiabilidad(F){
     d.title = u.cuando || "";
     caja.appendChild(d);
   }
+}
+
+/* Informativo y sin color. La sesión de XTB caduca todas las noches y el login
+   en frío de la mañana la renueva solo, así que esto es un dato, no un aviso:
+   avisar de lo que se arregla solo es ruido, y el ruido se come la señal. */
+function pintarSesionXTB(S){
+  var zona = document.getElementById("sesion-xtb");
+  if(!S || S.horas === null){ zona.hidden = true; return; }
+  zona.hidden = false;
+  zona.textContent = S.caducada
+    ? "Sesión de XTB caducada hace " + Math.abs(S.horas).toFixed(1)
+      + " h. El próximo login la renueva solo."
+    : "Sesión de XTB: válida " + S.horas.toFixed(1) + " h más.";
 }
 
 /* ----------------------------------------------------- 2. Componentes ---- */

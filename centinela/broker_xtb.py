@@ -338,14 +338,7 @@ class BrokerXTB:
         # por su nombre en polaco y no lo encuentra (ver parche_otp.py).
         from . import parche_otp
         parche_otp.aplicar()
-        # Y el que lee el motivo real cuando una orden falla: sin él, todo
-        # error de trading sube como "respuesta vacía" y no dice nada.
-        from . import parche_grpc
-        parche_grpc.instalar()
-        # Y el que elige la ACCIÓN y no su CFD cuando XTB ofrece las dos con el
-        # mismo símbolo. Sin él, la orden se manda al azar a uno de los dos.
-        from . import parche_instrumento
-        parche_instrumento.instalar()
+
 
         cas = None
         try:
@@ -586,10 +579,11 @@ class BrokerXTB:
         error = getattr(r, "error", None)
 
         # Si el fallo vino con cuerpo vacío, el motivo de verdad está en las
-        # cabeceras gRPC y lo ha recogido el parche. Se antepone al mensaje
-        # genérico del cliente, que solo dice que no había cuerpo.
-        from . import parche_grpc
-        motivo = parche_grpc.ULTIMO.get("motivo")
+        # cabeceras gRPC y lo ha recogido la copia del cliente (ver
+        # vendor/xtb_api/CAMBIOS.md, parche 2). Se antepone al mensaje genérico
+        # del cliente, que solo dice que no había cuerpo.
+        from xtb_api.grpc.client import CENTINELA_ULTIMO_ERROR
+        motivo = CENTINELA_ULTIMO_ERROR.get("motivo")
         if motivo and estado == "ambigua":
             error = f"{motivo}" + (f" [{error}]" if error else "")
 

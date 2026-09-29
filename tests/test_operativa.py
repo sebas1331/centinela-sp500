@@ -107,7 +107,8 @@ def test_el_latido_se_pide_en_vivo_y_no_viaja_en_el_json(datos):
     minutos = rojo" sería imposible de cumplir sin falsos rojos."""
     v = datos["vigilante_precios"]
     assert set(v) == {"url_latido", "muerto_minutos", "cada_segundos",
-                      "sesion_abre", "sesion_cierra", "es_sesion"}
+                      "sesion_abre", "sesion_cierra", "es_sesion",
+                      "posiciones_a_vigilar"}
     assert "cuando" not in v, "el latido no puede viajar aquí dentro"
     assert v["url_latido"].startswith("https://raw.githubusercontent.com/")
     assert "token" not in v["url_latido"]
@@ -130,7 +131,7 @@ def test_schema_de_operativa_json(datos):
     assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
                           "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
-                          "vigilante_precios", "fiabilidad"}
+                          "vigilante_precios", "fiabilidad", "sesion_xtb"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
@@ -208,15 +209,48 @@ def test_ambar_si_hubo_una_salida_diferida():
     assert any("plan B" in m for m in s["motivos"])
 
 
-def test_ambar_si_la_sesion_esta_a_punto_de_caducar(tmp_path, monkeypatch):
+def test_que_la_sesion_caduque_pronto_NO_es_un_aviso(tmp_path, monkeypatch):
+    """Este aviso existía cuando se creía que renovar la sesión exigía a una
+    persona. El 2026-09-29 se midió que no: el TGT caduca de madrugada todas
+    las noches y el login en frío de la mañana entra solo con la cookie de
+    dispositivo de confianza.
+
+    Avisar de algo que se arregla solo es ruido, y el ruido se come la señal.
+    Lo único que exige a una persona es que un login FALLE, y eso ya pinta rojo
+    por otra regla.
+    """
     ruta = tmp_path / "sesion.json"
     expira = datetime.now(config.TZ_ET) + timedelta(hours=1)
     ruta.write_text(json.dumps({"tgt": "x", "expires_at": expira.isoformat()}),
                     encoding="utf-8")
     monkeypatch.setattr(bx, "ARCHIVO_SESION", ruta)
     s = _sem()
-    assert s["color"] == "ambar"
-    assert any("caduca en" in m for m in s["motivos"])
+    assert s["color"] == "verde", s["motivos"]
+    assert not any("caduca" in m for m in s["motivos"])
+
+
+def test_una_sesion_ya_caducada_tampoco(tmp_path, monkeypatch):
+    ruta = tmp_path / "sesion.json"
+    expira = datetime.now(config.TZ_ET) - timedelta(hours=4)
+    ruta.write_text(json.dumps({"tgt": "x", "expires_at": expira.isoformat()}),
+                    encoding="utf-8")
+    monkeypatch.setattr(bx, "ARCHIVO_SESION", ruta)
+    assert _sem()["color"] == "verde"
+
+
+def test_pero_un_login_que_pide_codigo_sigue_siendo_ROJO():
+    """Es lo único que de verdad exige a una persona."""
+    s = _sem(_salud(compras={"resultado": bx.MARCA_SESION_CADUCADA,
+                             "detalle": "la sesión caducó"}))
+    assert s["color"] == "rojo"
+    assert any("Renovar sesión XTB" in m for m in s["motivos"])
+
+
+def test_la_caducidad_se_informa_sin_color(datos):
+    """Como mucho, un dato en la página. No un aviso."""
+    assert "sesion_xtb" in datos
+    if datos["sesion_xtb"] is not None:
+        assert set(datos["sesion_xtb"]) == {"horas", "caducada"}
 
 
 def test_ambar_si_un_componente_lleva_demasiado_sin_correr():
@@ -667,3 +701,14 @@ def test_pero_un_omitido_que_publica_el_propio_componente_si_se_guarda(
                          "--salida", "omitido:ya-procesado", "--job", "success"])
     assert rs.main() == 0
     assert salud.cargar()["runs"]["postcierre"]["resultado"] == "omitido:ya-procesado"
+
+
+def test_la_sesion_se_informa_en_componentes_y_sin_color():
+    """Como mucho un dato, nunca un aviso: caduca todas las noches y el login
+    en frío de la mañana la renueva solo."""
+    html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
+    assert 'id="sesion-xtb"' in html and "pintarSesionXTB" in html
+    # Sin clase de aviso ni de error: es tenue y punto.
+    assert ".nota-sesion{" in html and "var(--tenue)" in html
+    assert "empeorarSemaforo" not in html.split("function pintarSesionXTB")[1] \
+        .split("function pintarComponentes")[0]

@@ -8,18 +8,23 @@
 #   playwright install chromium        # el login de XTB pasa por un navegador
 #
 # SOBRE ESTA LIBRERÍA. XTB cerró su API oficial (xapi.xtb.com / ws.xtb.com) el
-# 14 de marzo de 2025. Esta es ingeniería inversa de xStation5, no está
-# afiliada a XTB y puede romperse cualquier día sin aviso; por eso todo lo que
-# la toca está detrás de centinela/broker_xtb.py y no en el resto del código.
+# 14 de marzo de 2025. El cliente que usamos es ingeniería inversa de xStation5,
+# no está afiliado a XTB y puede romperse cualquier día sin aviso; por eso todo
+# lo que lo toca está detrás de centinela/broker_xtb.py y no en el resto.
 #
-# Se eligió tras revisar las alternativas: xapi-python (★46), xapi-node (★64),
-# xapi-php y xapi-cpp están TODAS archivadas porque hablaban con la API que
-# murió. Esta es la única mantenida en 2026 (último release 2026-04-21) y sus
-# 10.824 líneas se auditaron antes de usarla: los únicos dominios a los que se
-# conecta son de XTB.
+# YA NO SE DESCARGA: vive COPIADO en vendor/xtb_api/ (xtb-api-python 0.10.0,
+# MIT), con nuestros parches aplicados dentro y documentados uno a uno en
+# vendor/xtb_api/CAMBIOS.md. El motivo está ahí: el repositorio del proyecto
+# —github.com/liskeee/xtb-api-python— devuelve 404 desde el 2026-09-29. El
+# paquete sigue publicado y sin retirar, pero un sistema que manda órdenes a un
+# broker no puede depender de que siga estando mañana, ni quedarse sin sitio
+# donde mirar cuando algo falle.
 #
-# Versión FIJA a propósito: una actualización automática de una librería no
-# oficial que manda órdenes a un broker es exactamente lo que no queremos.
-# El extra [totp] trae pyotp, que genera los códigos del segundo factor a
-# partir del secreto en base32. Sin él, una cuenta con 2FA no puede entrar.
-xtb-api-python[totp]==0.10.0
+# Lo que sí hay que instalar son SUS dependencias, que antes venían de arrastre.
+httpx>=0.27
+playwright>=1.40
+pydantic>=2.5
+websockets>=13.0
+# pyotp: genera los códigos del segundo factor a partir del secreto en base32.
+# Sin él, una cuenta con 2FA por app no puede entrar.
+pyotp>=2.9.0

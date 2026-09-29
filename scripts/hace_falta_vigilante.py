@@ -47,8 +47,13 @@ def decidir(latido: dict | None, ahora: datetime, forzado: bool) -> tuple[bool, 
     minutos = lat.minutos_desde(latido, ahora)
     if minutos is None:
         return True, "no hay ningún latido: nadie está vigilando"
-    if latido.get("estado") in ("cerrado", "sin-posiciones"):
-        return True, f"el último vigilante terminó ({latido['estado']})"
+    if lat.en_reposo(latido):
+        # Terminó bien, pero eso fue ANTES. Si ahora hay algo que vigilar —una
+        # compra que acaba de entrar— hay que levantar otro: el que se fue no
+        # va a volver solo.
+        return True, (f"el último vigilante quedó en reposo "
+                      f"({latido.get('motivo') or 'sin motivo'}); si hay algo "
+                      f"que vigilar, hace falta uno nuevo")
     if minutos > lat.MUERTO_MINUTOS:
         return True, (f"el último latido es de hace {minutos:.0f} min "
                       f"(más de {lat.MUERTO_MINUTOS}): el vigilante está muerto")

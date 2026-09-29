@@ -336,21 +336,21 @@ def test_con_pocas_ordenes_el_porcentaje_no_juzga(diario):
 def test_un_error_de_grpc_se_traduce_a_algo_legible():
     """El 29/09 ocho compras fallaron con 'respuesta vacía' y nada más. El
     motivo estaba en las cabeceras desde el primer intento."""
-    from centinela import parche_grpc
-    assert parche_grpc.motivo_legible(
+    from xtb_api.grpc.client import _centinela_motivo
+    assert _centinela_motivo(
         {"grpc-status": "3", "grpc-message": "Could not find instrument for id: 335"}
     ) == "INVALID_ARGUMENT (3): Could not find instrument for id: 335"
 
 
 def test_sin_grpc_status_no_se_inventa_un_motivo():
-    from centinela import parche_grpc
-    assert parche_grpc.motivo_legible({"content-type": "x"}) is None
+    from xtb_api.grpc.client import _centinela_motivo
+    assert _centinela_motivo({"content-type": "x"}) is None
 
 
 def test_el_motivo_llega_al_error_de_la_ejecucion(monkeypatch):
     """Para que salga en el log del ejecutor y en la página, no solo en un
     diagnóstico que hay que acordarse de lanzar."""
-    from centinela import parche_grpc
+    from xtb_api.grpc.client import CENTINELA_ULTIMO_ERROR
 
     class Respuesta:
         status = "AMBIGUOUS"
@@ -358,7 +358,7 @@ def test_el_motivo_llega_al_error_de_la_ejecucion(monkeypatch):
         order_number = None
         error = "gRPC trade endpoint returned an empty response"
 
-    monkeypatch.setitem(parche_grpc.ULTIMO, "motivo",
+    monkeypatch.setitem(CENTINELA_ULTIMO_ERROR, "motivo",
                         "INVALID_ARGUMENT (3): Could not find instrument for id: 277")
     e = bx.BrokerXTB._traducir(Respuesta(), "INTC.US", "compra", 1)
     assert e.estado == "ambigua"

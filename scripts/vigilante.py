@@ -363,6 +363,35 @@ def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str
     return problemas
 
 
+def _posiciones_con_nivel() -> int:
+    """Cuántas posiciones de XTB tienen objetivo o stop que vigilar.
+
+    Se cruza lo que el broker tiene de verdad con los niveles del simulador,
+    igual que hace el propio vigilante. Preguntar solo al simulador contaría
+    posiciones heredadas que XTB nunca tuvo.
+    """
+    ruta = config.ESTADO_DIR / "broker.json"
+    if not ruta.exists():
+        return 0
+    try:
+        broker = json.loads(ruta.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return 0
+
+    estado = est_mod.cargar()
+    niveles = {
+        p["ticker"]: p
+        for p in estado.get("posiciones", {}).get(config.CARTERA_BROKER, [])
+        if str(p.get("fecha_entrada", "")) >= config.EJECUCION_DESDE
+    }
+    n = 0
+    for p in broker.get("posiciones", []):
+        sim = niveles.get(str(p.get("ticker", "")).replace(".US", "").replace("-", "."))
+        if sim and (sim.get("stop") is not None or sim.get("objetivo") is not None):
+            n += 1
+    return n
+
+
 def revisar_vigilante_precios(ahora: datetime | None = None) -> list[str]:
     """Que alguien esté mirando los niveles mientras la sesión está abierta.
 
@@ -399,18 +428,41 @@ def revisar_vigilante_precios(ahora: datetime | None = None) -> list[str]:
         subprocess.run(["git", "remote", "add", "origin", origen],
                        cwd=str(trabajo), check=True)
 
-    minutos = lat.minutos_desde(lat.leer(trabajo), ahora)
+    # ¿HAY ALGO QUE VIGILAR? Un vigilante ausente con la cuenta vacía no deja
+    # nada al aire. Lo que se mira es lo que XTB tiene de verdad, no lo que el
+    # simulador cree.
+    con_nivel = _posiciones_con_nivel()
+    latido = lat.leer(trabajo)
+    minutos = lat.minutos_desde(latido, ahora)
+
+    if lat.en_reposo(latido) and not con_nivel:
+        _log(f"Vigilante de precios: en reposo "
+             f"({latido.get('motivo') or 'sin motivo'}) y no hay posiciones con "
+             f"nivel. Correcto.")
+        return problemas
+    if not con_nivel:
+        _log(f"Vigilante de precios: no hay posiciones con nivel que vigilar, "
+             f"así que no se le exige estar en marcha.")
+        return problemas
+
     if minutos is None:
         problemas.append(
-            "La sesión está abierta y no hay ningún latido del vigilante de "
-            "precios: nadie está ejecutando objetivos ni stops en vivo.")
+            f"La sesión está abierta, hay {con_nivel} posición(es) con nivel y "
+            f"no hay ningún latido del vigilante de precios: nadie está "
+            f"ejecutando objetivos ni stops en vivo.")
+    elif lat.en_reposo(latido):
+        problemas.append(
+            f"El vigilante de precios está en reposo "
+            f"({latido.get('motivo') or 'sin motivo'}) y hay {con_nivel} "
+            f"posición(es) con nivel sin vigilar.")
     elif minutos > lat.MUERTO_MINUTOS:
         problemas.append(
             f"El vigilante de precios lleva {minutos:.0f} min sin latir (más de "
-            f"{lat.MUERTO_MINUTOS}) con la sesión abierta. Los niveles están sin "
-            f"vigilar.")
+            f"{lat.MUERTO_MINUTOS}) con la sesión abierta y {con_nivel} "
+            f"posición(es) con nivel. Están sin vigilar.")
     else:
-        _log(f"Vigilante de precios: vivo, último latido hace {minutos:.1f} min.")
+        _log(f"Vigilante de precios: vivo, último latido hace {minutos:.1f} min, "
+             f"{con_nivel} posición(es) con nivel.")
         return problemas
 
     if _relanzar_vigilante_precios():

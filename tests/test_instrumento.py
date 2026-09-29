@@ -17,7 +17,9 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from centinela import parche_instrumento as pi  # noqa: E402
+import centinela  # noqa: F401,E402  — pone vendor/ en sys.path
+from xtb_api.client import _is_cash_instrument  # noqa: E402
+from xtb_api.exceptions import InstrumentNotFoundError  # noqa: E402
 
 
 class Resultado:
@@ -36,33 +38,47 @@ CFD = Resultado("F.US", 335, "4_F.US_US_STC CFD", "CLOSE ONLY / Ford Motor Co CF
 OTRO = Resultado("FF.US", 23201, "9_FF.US_US_STC", "FutureFuel Corp")
 
 
+def _elegir(resultados, simbolo):
+    """Lo que hace `_resolve_instrument_id` de la copia, sin red."""
+    exactos = [r for r in resultados if r.symbol.upper() == simbolo.upper()]
+    if not exactos:
+        raise InstrumentNotFoundError(f"Symbol not found: {simbolo}")
+    contado = [r for r in exactos if _is_cash_instrument(r)]
+    if not contado:
+        raise InstrumentNotFoundError(
+            f"De los {len(exactos)} instrumentos que XTB llama {simbolo}, "
+            f"ninguno es la acción al contado: "
+            + ", ".join(f"{r.symbol_key} (id {r.instrument_id})" for r in exactos))
+    return contado[0]
+
+
 def test_entre_la_accion_y_su_CFD_se_elige_la_accion():
-    assert pi.elegir([ACCION, CFD, OTRO], "F.US").instrument_id == 7813
+    assert _elegir([ACCION, CFD, OTRO], "F.US").instrument_id == 7813
 
 
 def test_y_da_igual_en_que_orden_vengan():
     """Esta es LA prueba: el orden de la lista cambia entre sesiones, y de ahí
     salía la intermitencia de 1 de cada 8."""
-    assert pi.elegir([CFD, ACCION, OTRO], "F.US").instrument_id == 7813
-    assert pi.elegir([OTRO, CFD, ACCION], "F.US").instrument_id == 7813
+    assert _elegir([CFD, ACCION, OTRO], "F.US").instrument_id == 7813
+    assert _elegir([OTRO, CFD, ACCION], "F.US").instrument_id == 7813
 
 
 def test_un_simbolo_parecido_no_vale():
     """El cliente, sin coincidencia exacta, se conforma con el primer resultado
     de la búsqueda. Eso es mandar una orden sobre algo que nadie pidió."""
-    with pytest.raises(pi.InstrumentoAmbiguo, match="exactamente"):
-        pi.elegir([OTRO], "F.US")
+    with pytest.raises(InstrumentNotFoundError, match="Symbol not found"):
+        _elegir([OTRO], "F.US")
 
 
 def test_si_solo_queda_el_CFD_se_falla_en_vez_de_operarlo():
     """Operar el instrumento equivocado es peor que no operar."""
-    with pytest.raises(pi.InstrumentoAmbiguo, match="ninguno es la acción"):
-        pi.elegir([CFD], "F.US")
+    with pytest.raises(InstrumentNotFoundError, match="ninguno es la acción"):
+        _elegir([CFD], "F.US")
 
 
 def test_el_mensaje_dice_QUE_habia_para_poder_mirarlo():
-    with pytest.raises(pi.InstrumentoAmbiguo) as exc:
-        pi.elegir([CFD], "F.US")
+    with pytest.raises(InstrumentNotFoundError) as exc:
+        _elegir([CFD], "F.US")
     assert "4_F.US_US_STC CFD" in str(exc.value) and "335" in str(exc.value)
 
 
@@ -75,11 +91,11 @@ def test_el_mensaje_dice_QUE_habia_para_poder_mirarlo():
 def test_se_distingue_por_la_clave_y_de_reserva_por_el_nombre(clave, nombre, esperado):
     """La clave es estructura y el nombre es texto para humanos, que puede
     cambiar de un día para otro. Se mira la clave primero."""
-    assert pi.es_contado(Resultado("AAPL.US", 1, clave, nombre)) is esperado
+    assert _is_cash_instrument(Resultado("AAPL.US", 1, clave, nombre)) is esperado
 
 
 def test_la_accion_se_elige_aunque_el_CFD_no_diga_que_lo_es():
     """Si XTB dejara de escribir 'CFD' en el nombre, la clave lo seguiría
     diciendo."""
     cfd_callado = Resultado("F.US", 335, "4_F.US_US_STC", "Ford Motor Co")
-    assert pi.elegir([cfd_callado, ACCION], "F.US").instrument_id == 7813
+    assert _elegir([cfd_callado, ACCION], "F.US").instrument_id == 7813

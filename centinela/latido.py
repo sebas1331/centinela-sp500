@@ -54,6 +54,23 @@ from . import config
 RAMA = "latido"
 ARCHIVO = "latido.json"
 
+#: Los estados en que puede estar un vigilante. Lista cerrada: añadir uno
+#: obliga a decidir también si cuenta como "caído".
+#:
+#: La distinción que importa es entre MUERTO y EN REPOSO. Un vigilante que
+#: termina porque no hay nada que vigilar no está caído: hizo su trabajo y se
+#: fue. Tratarlo igual que a uno que se murió a media sesión daba un rojo falso
+#: —"lleva 62 min sin latir"— con la cuenta vacía y nada que vigilar, que es
+#: exactamente el ruido que este panel existe para no generar.
+VIVO = "vivo"
+EN_REPOSO = "en-reposo"
+ESPERANDO_RELEVO = "esperando-relevo"
+ESTADOS = (VIVO, EN_REPOSO, ESPERANDO_RELEVO)
+
+#: Los que significan "terminó por su cuenta y está bien". Un latido con uno de
+#: estos no se juzga por su antigüedad.
+TERMINALES = (EN_REPOSO,)
+
 #: Cada cuánto late el vigilante.
 CADA_SEGUNDOS = 120
 #: A partir de cuántos minutos sin latido se da por muerto. Tres latidos
@@ -69,13 +86,27 @@ def url_publica() -> str:
     return URL.format(repo=repo)
 
 
-def construir(arrancado: str, vigiladas: list[dict], estado: str = "vivo",
-              relevo: str | None = None) -> dict:
-    """El contenido del latido. Sin un solo dato de sesión: es público."""
+def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
+              relevo: str | None = None, motivo: str = "") -> dict:
+    """El contenido del latido. Sin un solo dato de sesión: es público.
+
+    `motivo` solo tiene sentido con `en-reposo`, y ahí es obligatorio de hecho:
+    un vigilante en reposo sin explicación se lee igual que uno caído, que es
+    justo lo que se quiere evitar.
+    """
+    if estado not in ESTADOS:
+        raise ValueError(
+            f"Estado desconocido: {estado!r}. La lista es cerrada ({ESTADOS}) "
+            f"para que añadir uno obligue a decidir si cuenta como caído.")
+    if estado == EN_REPOSO and not motivo:
+        raise ValueError(
+            "Un vigilante en reposo tiene que decir POR QUÉ. Sin motivo se lee "
+            "igual que uno caído.")
     return {
         "cuando": datetime.now(config.TZ_ET).isoformat(),
         "arrancado": arrancado,
         "estado": estado,
+        "motivo": motivo or None,
         "run": os.environ.get("GITHUB_RUN_ID"),
         "url_run": (
             f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
@@ -205,6 +236,11 @@ def leer(trabajo: Path) -> dict | None:
         return json.loads(crudo)
     except json.JSONDecodeError:
         return None
+
+
+def en_reposo(latido: dict | None) -> bool:
+    """¿Terminó por su cuenta y está bien? Entonces su edad da igual."""
+    return bool(latido) and latido.get("estado") in TERMINALES
 
 
 def minutos_desde(latido: dict | None, ahora: datetime | None = None) -> float | None:

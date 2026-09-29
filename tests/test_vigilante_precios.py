@@ -31,6 +31,12 @@ HOY = "2026-10-15"
 class BrokerFalso:
     """Un broker con precios que uno decide, y memoria de lo que se le pidió."""
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
     def __init__(self, posiciones=None, fallar=()):
         self._pos = list(posiciones or [])
         self._fallar = set(fallar)
@@ -440,3 +446,89 @@ def test_el_latido_se_empuja_con_credenciales_propias(monkeypatch):
     url = lat.remoto_autenticado()
     assert url.startswith("https://x-access-token:")
     assert url.endswith("/sebas1331/centinela-sp500.git")
+
+
+# --------------------------------------------------------------------------- #
+# 7. En reposo no es lo mismo que caído
+# --------------------------------------------------------------------------- #
+def test_un_vigilante_en_reposo_tiene_que_decir_por_que():
+    """Sin motivo se lee igual que uno caído, que es lo que se quiere evitar."""
+    with pytest.raises(ValueError, match="tiene que decir POR QUÉ"):
+        lat.construir("x", [], estado=lat.EN_REPOSO)
+
+
+def test_un_estado_inventado_no_cuela():
+    with pytest.raises(ValueError, match="Estado desconocido"):
+        lat.construir("x", [], estado="echando la siesta")
+
+
+def test_el_reposo_no_se_juzga_por_su_antiguedad():
+    viejo = {"cuando": "2026-01-01T09:00:00-05:00", "estado": lat.EN_REPOSO,
+             "motivo": "no hay posiciones"}
+    assert lat.en_reposo(viejo) is True
+    assert lat.en_reposo({"cuando": "x", "estado": lat.VIVO}) is False
+
+
+def test_sin_posiciones_el_vigilante_queda_en_reposo_y_lo_dice(aislado, monkeypatch):
+    """CASO 1 del falso rojo: la cuenta vacía. El vigilante terminaba sin
+    publicar nada y su último latido envejecía hasta que la página lo daba por
+    muerto — 'lleva 62 min sin latir' sin una sola posición que vigilar."""
+    publicados = []
+    monkeypatch.setattr(vp, "latir", lambda d, _t: publicados.append(d))
+    monkeypatch.setattr(vp, "cargar_vigiladas", lambda _b: [])
+    monkeypatch.setattr(vp.bx, "credenciales_del_entorno_o_llavero",
+                        lambda: object())
+    monkeypatch.setattr(vp.bx, "BrokerXTB", lambda *_a, **_k: BrokerFalso())
+    monkeypatch.setattr(vp.salud, "registrar", lambda *_a, **_k: None)
+    monkeypatch.setattr(sys, "argv", ["vigilante_precios.py", "--forzar"])
+
+    assert vp.main() == 0
+    assert publicados, "no publicó nada al terminar"
+    ultimo = publicados[-1]
+    assert ultimo["estado"] == lat.EN_REPOSO
+    assert "no hay ninguna posición" in ultimo["motivo"]
+
+
+def test_fuera_de_sesion_tambien_queda_en_reposo(aislado, monkeypatch):
+    """CASO 2: mercado cerrado. Antes se iba en silencio."""
+    publicados = []
+    monkeypatch.setattr(vp, "latir", lambda d, _t: publicados.append(d))
+    monkeypatch.setattr(vp.calendario, "es_dia_de_mercado", lambda _d: False)
+    monkeypatch.setattr(vp.salud, "registrar", lambda *_a, **_k: None)
+    monkeypatch.setattr(sys, "argv", ["vigilante_precios.py"])
+
+    assert vp.main() == 0
+    assert publicados[-1]["estado"] == lat.EN_REPOSO
+    assert "no hay mercado" in publicados[-1]["motivo"]
+
+
+def test_tras_el_reposo_una_compra_vuelve_a_levantarlo():
+    """CASO 3: si luego entra una compra, hace falta otro vigilante. El que se
+    fue no vuelve solo."""
+    ahora = datetime(2026, 10, 15, 11, 0, tzinfo=config.TZ_ET)
+    reposo = {"cuando": (ahora - timedelta(minutes=45)).isoformat(),
+              "estado": lat.EN_REPOSO, "motivo": "no hay posiciones", "run": "9"}
+    arrancar, motivo = hfv.decidir(reposo, ahora, forzado=False)
+    assert arrancar is True and "reposo" in motivo
+
+
+def test_el_html_no_da_por_muerto_a_quien_esta_en_reposo():
+    """La regla vive en el navegador porque el latido se pide en vivo."""
+    html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
+    assert 'var reposo = L.estado === "en-reposo";' in html
+    assert "var vivo = reposo || min <= V.muerto_minutos;" in html
+    # Y solo importa si hay algo que vigilar.
+    assert "var importa = dentro && hayQueVigilar;" in html
+    assert "if(importa && !vivo) empeorarSemaforo(" in html
+
+
+def test_el_json_dice_cuantas_posiciones_hay_que_vigilar(tmp_path, monkeypatch):
+    """Sin ese número, el navegador no puede distinguir 'ausente y da igual' de
+    'ausente y hay stops al aire'."""
+    import generar_operativa as go
+    from centinela import config as cfg
+    ahora = datetime(2026, 10, 15, 11, 0, tzinfo=cfg.TZ_ET)
+    con = [{"ticker": "MRNA", "stop": 90.0, "objetivo": 110.0},
+           {"ticker": "SINNIVEL", "stop": None, "objetivo": None}]
+    assert go.bloque_vigilante_precios(ahora, con)["posiciones_a_vigilar"] == 1
+    assert go.bloque_vigilante_precios(ahora, [])["posiciones_a_vigilar"] == 0

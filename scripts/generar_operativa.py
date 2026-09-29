@@ -382,7 +382,7 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
 # --------------------------------------------------------------------------- #
 # El vigilante de precios
 # --------------------------------------------------------------------------- #
-def bloque_vigilante_precios(ahora: datetime) -> dict:
+def bloque_vigilante_precios(ahora: datetime, posiciones: list[dict]) -> dict:
     """De dónde sacar el latido y cuándo exigirlo.
 
     El latido NO viaja en este JSON. Se publica en una rama aparte que se
@@ -407,6 +407,14 @@ def bloque_vigilante_precios(ahora: datetime) -> dict:
         "sesion_abre": apertura,
         "sesion_cierra": cierre,
         "es_sesion": es_sesion,
+        # CUÁNTAS POSICIONES HAY QUE VIGILAR DE VERDAD. Sin esto, el navegador
+        # daba por caído a un vigilante que había terminado porque no había
+        # nada que vigilar: 62 minutos sin latir con la cuenta vacía se leía
+        # igual que 62 minutos sin latir con tres posiciones y sus stops al
+        # aire, y no son lo mismo ni de lejos.
+        "posiciones_a_vigilar": sum(
+            1 for p in posiciones
+            if p.get("stop") is not None or p.get("objetivo") is not None),
     }
 
 
@@ -454,16 +462,23 @@ def construir(ahora: datetime | None = None) -> dict:
     estado_broker = (json.loads(ruta_broker.read_text(encoding="utf-8"))
                      if ruta_broker.exists() else None)
 
+    horas_sesion = _horas_de_sesion()
     ordenes = bloque_ordenes()
     posiciones = bloque_posiciones(estado_broker, estado_sim, ahora)
     return {
         "generado": ahora.isoformat(),
         "hoy": bloque_hoy(ordenes, ahora),
-        "vigilante_precios": bloque_vigilante_precios(ahora),
+        "vigilante_precios": bloque_vigilante_precios(ahora, posiciones),
         "fiabilidad": fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
         "componentes": bloque_componentes(datos_salud, ahora),
+        # Informativo y sin color: cuánto le queda a la sesión de XTB. No es un
+        # aviso, es un dato — se renueva sola.
+        "sesion_xtb": {
+            "horas": _r(horas_sesion, 1),
+            "caducada": bool(horas_sesion is not None and horas_sesion <= 0),
+        } if horas_sesion is not None else None,
         "broker": bloque_cuenta_broker(estado_broker),
         "posiciones": posiciones,
         "ordenes": ordenes,
@@ -590,12 +605,15 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             f"{o['ticker']} se cerró con el plan B el {o.get('sesion')}: la "
             f"ventana de ventas de ese día se perdió.")
 
-    # --- ÁMBAR: la sesión está a punto de caducar -------------------------
-    horas = _horas_de_sesion()
-    if horas is not None and 0 < horas <= config.SESION_AVISO_HORAS:
-        ambares.append(
-            f"La sesión de XTB caduca en {horas:.1f} h. Renuévala antes de que "
-            f"un escaneo se la encuentre cerrada.")
+    # La sesión de XTB NO aparece aquí a propósito. Este aviso existía cuando se
+    # creía que renovarla exigía a una persona; el 2026-09-29 se midió que no:
+    # el TGT caduca de madrugada todas las noches y el login en frío de la
+    # mañana entra solo con la cookie de dispositivo de confianza. Avisar de
+    # algo que se arregla solo es ruido, y el ruido se come la señal.
+    #
+    # Lo único que de verdad exige a una persona es que un login FALLE, y eso
+    # ya está arriba: cualquier componente que muera con XTB_REQUIERE_CODIGO
+    # pinta rojo. La caducidad se informa en Componentes, sin color.
 
     # --- ÁMBAR: algún componente crítico no ha reportado NUNCA ------------
     # Sin esta regla un componente que nunca escribe es invisible: las reglas de
