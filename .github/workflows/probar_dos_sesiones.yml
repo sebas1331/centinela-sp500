@@ -1,0 +1,54 @@
+name: Probar dos sesiones de XTB
+
+# ---------------------------------------------------------------------------
+# Una sola pregunta, y de su respuesta depende el diseño del vigilante de
+# precios: ¿deja XTB tener dos sesiones abiertas a la vez con la misma cuenta?
+#
+# No se puede contestar leyendo documentación —XTB cerró su API oficial y lo
+# que queda es ingeniería inversa— así que se mide. Manual, solo lectura
+# (saldo y una cotización), sin mandar ninguna orden.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: ¿Dos sesiones a la vez?
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: python scripts/probar_dos_sesiones.py

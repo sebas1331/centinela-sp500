@@ -456,6 +456,59 @@ class BrokerXTB:
             for p in self._ejecutar(self._cliente.get_positions())
         ]
 
+    def cotizacion(self, ticker: str) -> dict:
+        """El bid/ask de ahora mismo, por petición.
+
+        Es el respaldo del vigilante de precios cuando el WebSocket se cae: más
+        caro que un tick empujado, pero no depende de que la suscripción siga
+        viva. Lo que se mira para vender es el BID, que es el precio al que uno
+        vende de verdad; usar el último precio o el ask daría disparos que el
+        mercado no habría pagado.
+        """
+        q = self._ejecutar(self._cliente.get_quote(ticker))
+        if q is None:
+            raise ErrorBroker(f"XTB no devolvió cotización de {ticker}.")
+        return {"ticker": ticker, "bid": float(q.bid), "ask": float(q.ask),
+                "spread": float(getattr(q, "spread", 0.0) or 0.0),
+                "cuando": getattr(q, "time", None)}
+
+    # ------------------------------------------------------------ streaming --
+    def al_recibir_tick(self, callback) -> None:
+        """Registra quién atiende cada tick. El callback recibe un dict crudo
+        del cliente; normalizarlo es cosa de quien lo use, porque el formato
+        viene de ingeniería inversa y puede cambiar sin aviso."""
+        self._cliente.on("tick", callback)
+
+    def al_perder_conexion(self, callback) -> None:
+        self._cliente.on("disconnected", callback)
+
+    def al_recuperar_conexion(self, callback) -> None:
+        self._cliente.on("connected", callback)
+
+    def suscribir_ticks(self, ticker: str) -> None:
+        """Pide a XTB que empuje los ticks de un símbolo por el WebSocket."""
+        self._ejecutar(self._cliente.subscribe_ticks(ticker))
+
+    def cancelar_ticks(self, ticker: str) -> None:
+        self._ejecutar(self._cliente.unsubscribe_ticks(ticker))
+
+    def bombear(self, segundos: float) -> None:
+        """Deja correr el event loop para que lleguen los ticks empujados.
+
+        El resto de la capa es síncrona a propósito —el ejecutor manda una
+        orden y espera—, pero un vigilante que escucha necesita ceder el hilo
+        para que el WebSocket entregue. Esto es ese hueco, y el único sitio del
+        repositorio donde el tiempo pasa esperando a XTB.
+        """
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+        self._loop.run_until_complete(asyncio.sleep(max(0.0, segundos)))
+
+    @property
+    def conectado(self) -> bool:
+        """Si el WebSocket sigue vivo según el cliente."""
+        return bool(getattr(self._cliente, "is_connected", False))
+
     def ordenes_pendientes(self) -> list[dict]:
         return [
             {"ticker": o.symbol, "acciones": float(o.volume),
