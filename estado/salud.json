@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-09-30T15:56:33.581857-04:00",
+  "actualizado": "2026-09-30T18:02:23.254499-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-09-30T15:54:38.673310-04:00",
@@ -30,11 +30,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36757800918"
     },
     "reconcilia": {
-      "cuando": "2026-09-29T18:02:30.408542-04:00",
-      "detalle": "",
-      "resultado": "ok",
-      "run": "36628179883",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36628179883"
+      "cuando": "2026-09-30T18:02:23.254499-04:00",
+      "detalle": "FICO: abierta en el simulador (cartera A) y NO en XTB. O la compra no llegó, o se cerró en el broker por su cuenta (¿saltó el stop o el take profit?) y el simulador no se enteró. | MRNA: abierta en el simulador (cartera A) y NO en XTB. O la compra no llegó, o se cerró en el broker por su cuenta (¿saltó el stop o el take profit?) y el simulador no se enteró.",
+      "resultado": "diferencias",
+      "run": "36774884273",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36774884273"
     },
     "ventas": {
       "cuando": "2026-09-29T19:53:55.134335-04:00",
