@@ -181,3 +181,9 @@ ZBH | dd=45.5% | prob=0.438 < umbral -> SIN SEÑAL
 ZTS | dd=70.2% | prob=0.474 < umbral -> SIN SEÑAL
 COHR | dd=33.6% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['FICO', 'MRNA']
+
+===== escaneo postcierre 2026-09-30 18:00:43 ET =====
+POST-CIERRE 2026-09-30
+entradas ejecutadas: ['FICO', 'MRNA']
+cambios de objetivo: 7
+cierres: [('COHR', 'B', 'tiempo', -0.0498)]
