@@ -1,7 +1,40 @@
 {
-  "actualizado": "2026-09-29T18:00:37.546954-04:00",
+  "actualizado": "2026-09-30T08:45:47.657823-04:00",
   "contador_grupo": 87,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 58.3862,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-30",
+      "notas": "prob=0.878 score_fund=77.2 sent=0.296 (n=10)",
+      "proba": 0.8776,
+      "resistencia": 1150.84,
+      "score_fundamental": 77.2,
+      "sector": "Information Technology",
+      "target_analista": 1256.4194,
+      "ticker": "FICO",
+      "timestamp_escaneo": "2026-09-30T08:45:05.001408-04:00"
+    },
+    {
+      "atr": 13.1332,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-09-30",
+      "notas": "prob=0.798 score_fund=16.3 sent=0.381 (n=10) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.7975,
+      "resistencia": 208.903,
+      "score_fundamental": 16.3,
+      "sector": "Health Care",
+      "target_analista": 119.55556,
+      "ticker": "MRNA",
+      "timestamp_escaneo": "2026-09-30T08:45:05.001408-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -270,11 +303,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36628179883"
     },
     "preapertura": {
-      "cuando": "2026-09-29T08:45:46.444762-04:00",
-      "run": "36558307517",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36558307517"
+      "cuando": "2026-09-30T08:45:47.657801-04:00",
+      "run": "36707790260",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36707790260"
     }
   },
   "ultima_postcierre": "2026-09-29",
-  "ultima_preapertura": "2026-09-29"
+  "ultima_preapertura": "2026-09-30"
 }
