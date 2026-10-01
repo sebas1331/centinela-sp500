@@ -1,6 +1,35 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-01T08:46:36.601157-04:00",
-  "ordenes": [],
+  "generado": "2026-10-01T18:01:22.619500-04:00",
+  "ordenes": [
+    {
+      "acciones": 4,
+      "cartera": "A",
+      "fecha_limite": "2026-10-02",
+      "id": "2026-10-02|A|CIEN|venta_tiempo",
+      "id_operacion": 151,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-10-02",
+      "stop": null,
+      "ticker": "CIEN",
+      "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 20,
+      "cartera": "A",
+      "fecha_limite": "2026-10-02",
+      "id": "2026-10-02|A|APH|venta_tiempo",
+      "id_operacion": 152,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-10-02",
+      "stop": null,
+      "ticker": "APH",
+      "tipo": "venta_tiempo"
+    }
+  ],
   "sesion": "2026-10-01"
 }
