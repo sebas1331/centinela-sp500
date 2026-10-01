@@ -189,3 +189,9 @@ FICO | dd=75.3% | prob=0.886 | ENTRADA DESCARTADA: ya hay posición abierta en C
 MRNA | dd=61.3% | prob=0.802 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 COHR | dd=34.6% | prob=0.797 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-10-01 18:00:40 ET =====
+POST-CIERRE 2026-10-01
+entradas ejecutadas: []
+cambios de objetivo: 6
+cierres: []
