@@ -1,35 +1,6 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-09-30T18:01:22.793019-04:00",
-  "ordenes": [
-    {
-      "acciones": 2,
-      "cartera": "A",
-      "fecha_limite": "2026-10-13",
-      "id": "2026-09-30|A|FICO|compra",
-      "id_operacion": null,
-      "objetivo": 734.64,
-      "precio_simulador": null,
-      "referencia": 617.87,
-      "sesion": "2026-09-30",
-      "stop": 543.73,
-      "ticker": "FICO",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 8,
-      "cartera": "A",
-      "fecha_limite": "2026-10-13",
-      "id": "2026-09-30|A|MRNA|compra",
-      "id_operacion": null,
-      "objetivo": 229.73,
-      "precio_simulador": null,
-      "referencia": 203.46,
-      "sesion": "2026-09-30",
-      "stop": 179.04,
-      "ticker": "MRNA",
-      "tipo": "compra"
-    }
-  ],
-  "sesion": "2026-09-30"
+  "generado": "2026-10-01T08:46:36.601157-04:00",
+  "ordenes": [],
+  "sesion": "2026-10-01"
 }
