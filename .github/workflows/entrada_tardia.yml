@@ -1,0 +1,96 @@
+name: Entrada tardía
+
+# ---------------------------------------------------------------------------
+# Reenviar una compra que XTB rechazó, dentro de la primera hora de sesión.
+#
+# POR QUÉ EXISTE. El 2026-09-30 y el 2026-10-02 el sistema decidió entradas,
+# las mandó, XTB las rechazó y nadie se enteró a tiempo. Cuando la causa se
+# arregla con el mercado todavía abierto, la decisión del día sigue siendo
+# válida y lo que falta es volver a mandarla.
+#
+# SOLO DENTRO DE LOS PRIMEROS 60 MINUTOS. Después, una compra "al open" ya no
+# es al open: el simulador mediría una cosa y el broker otra, y es mejor perder
+# la sesión que registrar algo que no fue. El propio script lo comprueba.
+#
+# Se registra con tipo propio (`entrada_tardia`) y guarda el precio de APERTURA
+# del día junto al ejecutado: la diferencia es exactamente lo que costó llegar
+# tarde, y sin esas dos cifras no habría forma de saberlo.
+#
+# Manual y con la casilla desmarcada por defecto.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      enviar:
+        description: "SÍ reenviar de verdad las órdenes rechazadas"
+        type: boolean
+        default: false
+      sesion:
+        description: "Sesión a revisar (vacío = hoy)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  reenviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar caché de precios
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: precios-
+          restore-keys: precios-
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Revisar y, si toca, reenviar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.enviar }}" = "true" ]; then ARGS="$ARGS --enviar"; fi
+          if [ -n "${{ inputs.sesion }}" ]; then ARGS="$ARGS --sesion ${{ inputs.sesion }}"; fi
+          python scripts/entrada_tardia.py $ARGS
+
+      # `always()`: si reenvió tres y falló en la cuarta, las tres tienen que
+      # quedar registradas o el siguiente intento las repetiría.
+      - name: Commit y push de lo reenviado
+        if: always()
+        run: |
+          scripts/commit_y_push.sh \
+            "entrada tardía [skip ci]" \
+            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
+            estado bitacora_broker.csv ordenes
