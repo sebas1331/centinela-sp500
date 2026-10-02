@@ -30,6 +30,22 @@ post-cierre —misma función, mismo precio de apertura, mismo objetivo— y se 
 acto seguido. El dinero de la demo se movió de verdad; una bitácora sin esa
 operación sería más limpia y más falsa.
 
+**Lo que pasó al cerrarla (14:58 ET, orden 917022383).** XTB vendió las 134 a
+**11,97**, pero el script la anotó como *rechazada* y se paró antes de la pata
+del simulador. La causa no es de este script: `ambiguas.confirmar()` solo sabe
+confirmar **compras** —da "ejecutada" si la posición *crece*— y una venta
+correcta hace justo lo contrario. Afecta igual a las ventas del vigilante de
+precios y del ejecutor de ventas; hasta hoy no había saltado porque la demo no
+había vendido nunca. Queda pendiente de decisión.
+
+Comprobado contra la cuenta (auditoría, run 37051118528): 0 posiciones, 0
+órdenes. El precio sale del saldo, no de una suposición: 28.287,90 →
+29.891,88 = 1.603,98 = 134 × 11,97, igual que el bid visto antes de mandar.
+El simulador se cerró a mano con las mismas funciones del script (A id=160 y
+B id=161, 12,385 → 11,97, −3,35 %). La fila de `bitacora_broker.csv` sigue
+diciendo *rechazada*: corregirla a mano es un cambio en el registro del broker
+que no se ha hecho sin aprobación.
+
 ### Las ventanas se declaran a mano, con evidencia
 
 `centinela/datos_erroneos.py` + `estado/datos_erroneos.json`, mismo patrón que
@@ -96,7 +112,7 @@ ejecuciones reales de la demo que se caen de «XTB vs. simulador».
 `reportes/auditoria_fiabilidad.md` sigue siendo el del universo anterior; la
 próxima ejecución del auditor ya aplicará la exclusión.
 
-512 tests.
+513 tests (uno nuevo: un registro de datos erróneos ilegible para en rojo; antes se trataba como vacío y devolvía las operaciones rotas a las cifras en silencio).
 
 ---
 

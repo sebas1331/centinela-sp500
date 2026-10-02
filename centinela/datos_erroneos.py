@@ -66,12 +66,20 @@ def cargar(ruta: Path | None = None) -> list[dict]:
     ruta = ruta or ARCHIVO
     if not ruta.exists():
         return []
+    # Un fichero ilegible NO se ignora. Si se tratara como vacío, las
+    # operaciones de las series rotas volverían a las cifras del panel sin que
+    # nada lo dijera: el win rate cambiaría hacia atrás en silencio. Mejor que
+    # el generador se pare en rojo.
     try:
         datos = json.loads(ruta.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        print("[datos_erroneos] fichero ilegible; se ignora.", flush=True)
-        return []
-    return datos.get("series", []) if isinstance(datos, dict) else []
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{ruta.name} es ilegible ({exc}). No se publica nada con las "
+            f"exclusiones a medias: hay que arreglar el fichero.") from exc
+    if not isinstance(datos, dict) or not isinstance(datos.get("series"), list):
+        raise RuntimeError(f"{ruta.name} no tiene la forma esperada "
+                           f"({{'series': [...]}}).")
+    return datos["series"]
 
 
 def guardar(series: list[dict], ruta: Path | None = None) -> None:

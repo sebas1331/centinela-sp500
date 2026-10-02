@@ -108,6 +108,17 @@ def test_sin_registro_no_se_marca_nada(tmp_path, monkeypatch):
     assert not de.marcar(bit).any()
 
 
+def test_un_registro_ilegible_para_en_rojo_y_no_se_trata_como_vacio(
+        tmp_path, monkeypatch):
+    """Tratarlo como vacío devolvería las operaciones rotas a las cifras en
+    silencio: el panel cambiaría su historia sin que nada lo dijera."""
+    monkeypatch.setattr(de, "ARCHIVO", tmp_path / "d.json")
+    de.ARCHIVO.write_text("{roto", encoding="utf-8")
+    bit = _bit([(1, "ROTA", "A", "2026-07-20", "2026-07-30", 0.05, "cerrada")])
+    with pytest.raises(RuntimeError, match="ilegible"):
+        de.marcar(bit)
+
+
 def test_una_ventana_sin_evidencia_no_se_puede_guardar(tmp_path, monkeypatch):
     """Una exclusión sin causa ni evidencia es un resultado que no gustó."""
     monkeypatch.setattr(de, "ARCHIVO", tmp_path / "d.json")
