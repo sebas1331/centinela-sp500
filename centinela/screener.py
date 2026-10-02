@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import config, ath as ath_mod, fundamentales as fu, sentimiento as se
+from . import config, continuidad, ath as ath_mod, fundamentales as fu, sentimiento as se
 from .features import features_ultima_fila, _atr
 from .objetivos import resistencia_reciente
 
@@ -33,9 +33,21 @@ def escanear(precios: dict, modelo, ath_dict: dict | None = None,
     n_universo = len(precios)
     n_drawdown = 0
 
+    n_rotas = 0
     for ticker, df in precios.items():
         if df is None or len(df) < 220:
             continue
+
+        # ANTES DE MIRAR NADA: ¿se puede confiar en esta serie? Una acción
+        # corporativa sin ajustar inventa un drawdown enorme que el modelo se
+        # cree. El 2026-10-02 CTVA entró con dd=86,2% y prob=1.000 por una
+        # escisión que yfinance no reajustó; su drawdown real era ~0%.
+        salto = continuidad.esta_rota(df)
+        if salto is not None:
+            n_rotas += 1
+            lineas.append(continuidad.motivo(ticker, salto))
+            continue
+
         cierre = float(df["Close"].iloc[-1])
         dd = ath_mod.drawdown(ticker, cierre, ath_dict)
         if dd is None or dd < config.DRAWDOWN_MINIMO:
@@ -97,6 +109,7 @@ def escanear(precios: dict, modelo, ath_dict: dict | None = None,
 
     decisiones.sort(key=lambda d: d["proba"], reverse=True)
     resumen = {"universo": n_universo, "en_drawdown": n_drawdown,
+               "series_rotas": n_rotas,
                "con_senal": len(decisiones)}
     lineas.insert(0, f"RESUMEN: universo={n_universo} drawdown>=30%={n_drawdown} "
                      f"con_senal={len(decisiones)}")

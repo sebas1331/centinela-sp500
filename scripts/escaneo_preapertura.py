@@ -108,6 +108,8 @@ def main():
     est_mod.sellar_ejecucion(estado, "preapertura")
     est_mod.guardar(estado)
 
+    if resumen.get("series_rotas"):
+        log(f"series descartadas por saltos sin ajustar: {resumen['series_rotas']}")
     log(f"resumen: universo={resumen['universo']} drawdown>=30%={resumen['en_drawdown']} "
         f"con_senal={resumen['con_senal']} decididas={len(nuevas)}")
 

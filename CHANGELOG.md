@@ -5,6 +5,75 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-02 (3) — Una escisión sin ajustar hizo comprar lo que no debía
+
+CTVA entró con un objetivo de **+103 %** cuando la estrategia busca rebotes de
+~+5 % en 10 días. Investigando de dónde salía ese número apareció algo peor que
+un objetivo raro.
+
+### La fórmula no tiene ningún bug
+
+```
+objetivo = max(+5%, min(entrada + 2×ATR, entrada + 6×ATR))
+         = 12,39 + 2 × 6,37 = 25,13
+```
+
+Funciona exactamente como está diseñada. Lo que está mal es el **ATR**: 6,37, el
+**51 % del precio**. Y está mal porque la serie tiene un agujero:
+
+```
+2026-09-30   77,65     volumen   4.034.800
+2026-10-01   12,57     volumen  88.127.300   ← ×22
+```
+
+CTVA no se desplomó un 84 %: **se escindió**, y yfinance no reajustó el
+histórico. Con 88 millones de volumen, es una acción corporativa de manual.
+
+### Lo grave: el dato provocó la entrada
+
+```
+CTVA | dd=86.2% | prob=1.000 | ENTRAR | obj_analista=92.6
+```
+
+El modelo dio **confianza máxima** a una caída del 86 % que no existe: el
+drawdown real es ~0 %, la acción vale 12,9 porque repartió el resto en otra
+compañía. Y el precio objetivo de analistas (92,6) es el de la empresa **antes**
+de escindirse.
+
+No es un caso aislado: barriendo los 28 tickers del historial apareció otro,
+**MRNA**, con un salto de ×2,77 el 19/08 (probable contrasplit). Dos de 28.
+
+### El arreglo: fuera del universo mientras la serie sea dudosa
+
+`continuidad.py` detecta saltos de un día fuera de la horquilla ×0,60–×1,70 —un
+desplome del 40 % o un +70 % pasan, porque ocurren— y el screener descarta ese
+ticker **antes de mirar el drawdown**, que es justo lo que la serie rota
+falsea. Cuando el salto sale de la ventana de 260 sesiones, el ticker vuelve
+solo.
+
+No se intenta corregir la serie. Reconstruir el factor de ajuste de una escisión
+a partir del salto es adivinar, y un error ahí no se ve: produce una serie
+plausible y mal.
+
+### El objetivo se queda como está
+
+Decisión explícita, no omisión. **109 de 146 operaciones (74,7 %)** tienen
+objetivo > +25 %: no es una anomalía, es la regla. Pero los números no dicen que
+perjudique:
+
+| Objetivo | n | Sale por objetivo | P&L medio |
+|---|---|---|---|
+| +10 a +25 % | 32 | 16 % | +2,63 % |
+| > +25 % | 105 | 11 % | **+4,51 %** |
+
+El objetivo casi nunca se alcanza, da igual lo lejos que esté: en la práctica la
+estrategia **sale por tiempo a los 10 días**. Queda documentado que el objetivo
+es, en la práctica, inerte.
+
+497 tests.
+
+---
+
 ## 2026-10-02 (2) — Incidentes resueltos: un rojo arreglado deja de gritar
 
 Los rechazos del 30/09 y del 02/10 tienen causa identificada y arreglo
