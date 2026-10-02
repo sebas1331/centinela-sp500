@@ -524,6 +524,7 @@ fetch("operativa.json", {cache:"no-cache"})
     document.getElementById("semaforo").appendChild(el("p","ok", err.message));
   });
 
+var B0 = {};
 var D_REPO = null;
 
 function iniciar(D){
@@ -548,7 +549,8 @@ function iniciar(D){
   pintarFiabilidad(D.fiabilidad || {});
   pintarComponentes(D.componentes || []);
   pintarSesionXTB(D.sesion_xtb);
-  pintarBroker(D.broker || {});
+  B0 = D.broker || {};
+  pintarBroker(B0);
   pintarPosiciones(D.posiciones || []);
   montarOrdenes(D.ordenes || []);
   pintarNiveles(D.niveles || []);
@@ -699,6 +701,32 @@ function mostrarLatido(caja, det, V, L){
     return;
   }
 
+  /* La cuenta en vivo: el latido trae la foto leída en XTB hace como mucho dos
+     minutos. Si es más nueva que la de la página, manda ella. */
+  if(L.broker && L.broker.leido && (!B0.leido || L.broker.leido > B0.leido)){
+    var pos = L.broker.posiciones || [], inv = 0, pnl = 0;
+    pos.forEach(function(p){
+      inv += (p.coste != null ? p.coste : p.acciones * p.precio_entrada);
+      pnl += (p.pnl || 0); });
+    pintarBroker({cuenta: B0.cuenta, tipo: B0.tipo, saldo: L.broker.saldo,
+      equity: L.broker.equity, invertido: inv, efectivo: L.broker.saldo,
+      pnl_abierto: pnl, pnl_abierto_pct: inv ? 100 * pnl / inv : null,
+      candado_ok: L.broker.candado_ok, leido: L.broker.leido});
+  }
+  /* El historial: ¿estuvo cubierta la sesión entera, latido a latido? */
+  var H = (L.historial || []).filter(function(h){
+    return h.cuando && h.cuando.slice(0,10) === L.cuando.slice(0,10); });
+  var cortes = [];
+  for(var i = 1; i < H.length; i++){
+    var gap = (new Date(H[i].cuando) - new Date(H[i-1].cuando)) / 60000;
+    if(H[i-1].estado !== "en-reposo" && gap > (V.corte_minutos || 10))
+      cortes.push(Math.round(gap) + " min a las " + horaEc(H[i-1].cuando).split(", ").pop());
+  }
+  if(cortes.length) ambarSemaforo("El vigilante de precios tuvo " + cortes.length
+    + " corte(s) hoy: " + cortes.join("; ") + ".");
+  if(importa && L.aviso && L.aviso.configurado === false)
+    ambarSemaforo("Sin aviso externo (healthchecks.io): si el vigilante muere, "
+      + "nadie recibe un email. Ver README, «Aviso externo».");
   var min = (ahora - new Date(L.cuando).getTime()) / 60000;
   var n = (L.vigiladas || []).length;
   /* EN REPOSO NO ES MUERTO. Un vigilante que terminó porque no había nada que
@@ -724,6 +752,8 @@ function mostrarLatido(caja, det, V, L){
   partes.push("último latido hace " + (min < 1 ? "menos de 1" : Math.round(min)) + " min");
   /* "posición" pierde la tilde en plural: concatenar "es" daba "posiciónes". */
   partes.push(n + (n === 1 ? " posición vigilada" : " posiciones vigiladas"));
+  if(H.length) partes.push(cortes.length ? cortes.length + " corte(s) hoy"
+                                          : "sin cortes hoy (" + H.length + " latidos)");
   if(L.estado && L.estado !== "vivo") partes.push(L.estado);
   det.textContent = partes.join(" · ");
 
@@ -739,6 +769,26 @@ function mostrarLatido(caja, det, V, L){
     "El vigilante de precios lleva " + Math.round(min) + " min sin latir "
     + "(más de " + V.muerto_minutos + ") y hay " + V.posiciones_a_vigilar
     + " posición(es) con nivel: pueden estar sin vigilar.");
+}
+
+/* Como empeorarSemaforo, pero hasta ámbar: un verde pasa a ámbar y un rojo se
+   queda rojo. Nunca mejora nada. */
+function ambarSemaforo(motivo){
+  var caja = document.getElementById("semaforo");
+  if(!caja) return;
+  if(caja.className.indexOf("sem-rojo") < 0){
+    caja.className = "semaforo sem-ambar";
+    var luz = caja.querySelector(".luz");
+    if(luz) luz.textContent = "Atención";
+  }
+  var ul = caja.querySelector("ul");
+  if(!ul){
+    var ok = caja.querySelector("p.ok");
+    if(ok) ok.remove();
+    ul = el("ul");
+    caja.appendChild(ul);
+  }
+  ul.appendChild(el("li","",motivo));
 }
 
 /* El semáforo ya está pintado cuando llega el latido, así que se le añade el
