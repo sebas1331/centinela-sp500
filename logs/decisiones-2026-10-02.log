@@ -188,3 +188,9 @@ ZTS | dd=70.7% | prob=0.440 < umbral -> SIN SEÑAL
 FICO | dd=72.5% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRNA | dd=62.0% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['CTVA']
+
+===== escaneo postcierre 2026-10-02 18:00:55 ET =====
+POST-CIERRE 2026-10-02
+entradas ejecutadas: []
+cambios de objetivo: 2
+cierres: [('CIEN', 'A', 'tiempo', 0.072), ('APH', 'A', 'objetivo', 0.1073), ('COHR', 'A', 'objetivo', 0.1449), ('APH', 'B', 'objetivo', 0.1073), ('COHR', 'B', 'objetivo', 0.1478)]
