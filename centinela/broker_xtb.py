@@ -446,7 +446,20 @@ class BrokerXTB:
                 "divisa": b.currency, "cuenta": int(b.account_number)}
 
     def posiciones(self) -> list[dict]:
-        """Posiciones abiertas, en el vocabulario de este repositorio."""
+        """Posiciones abiertas, en el vocabulario de este repositorio.
+
+        DEDUPLICADAS POR NÚMERO DE ORDEN (fallo del 2026-10-02). XTB devuelve
+        la misma posición más de una vez: una compra de 50 acciones aparecía
+        como "2 entradas, 100 acciones". No es que se ejecute dos veces —el
+        saldo bajó lo que cuestan 50, no 100— es que la lista viene repetida.
+        Sumarlas hacía vender el doble de lo que había.
+        """
+        vistas: dict = {}
+        for p in self._posiciones_crudas():
+            vistas.setdefault(p["orden"], p)
+        return list(vistas.values())
+
+    def _posiciones_crudas(self) -> list[dict]:
         return [
             {"ticker": p.symbol, "acciones": float(p.volume),
              "precio_entrada": float(p.open_price),
@@ -527,8 +540,21 @@ class BrokerXTB:
         no al de la víspera.
         """
         self._exigir_entero(acciones)
-        r = self._ejecutar(self._cliente.buy(
-            ticker, volume=acciones, stop_loss=stop, take_profit=objetivo))
+        # LOS NIVELES NO SE MANDAN (fallo del 2026-10-02). XTB no los acepta en
+        # acciones al contado: el 28/09 los ignoraba en silencio —una compra de
+        # F.US volvió con stop y objetivo a None— y el 02/10 pasó a RECHAZAR la
+        # orden entera. CTVA x134 con niveles: rechazada; las mismas 134 sin
+        # niveles: ejecutada, orden 916937102.
+        #
+        # Se siguen aceptando como argumento y se siguen registrando en la
+        # bitácora, porque son la decisión del simulador y hay que saber cuáles
+        # eran. Lo que no se hace es mandárselos a un broker que los rechaza.
+        # De vigilarlos se encarga el vigilante de precios, que para eso está.
+        if stop is not None or objetivo is not None:
+            print(f"[niveles] {ticker}: XTB no acepta stop ni objetivo en "
+                  f"acciones al contado; la orden va a mercado y los niveles "
+                  f"los vigila el vigilante de precios.", flush=True)
+        r = self._ejecutar(self._cliente.buy(ticker, volume=acciones))
         return self._traducir(r, ticker, "compra", acciones)
 
     def vender(self, ticker: str, acciones: int) -> Ejecucion:

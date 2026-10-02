@@ -76,7 +76,12 @@ class _ClienteFalso:
             currency, account_number = "USD", CUENTA
         return B()
 
+    posiciones_devueltas = None
+
     async def get_positions(self):
+        if self.posiciones_devueltas is not None:
+            return list(self.posiciones_devueltas)
+
         class P:
             symbol, volume, open_price, current_price = "AAPL.US", 3.0, 100.0, 105.0
             stop_loss, take_profit, side = 92.0, 115.0, "buy"
@@ -179,12 +184,45 @@ def test_rechaza_cero_acciones_con_un_mensaje_util():
         b.comprar("AAPL.US", 0)
 
 
-def test_una_compra_valida_llega_con_su_stop_y_su_objetivo():
+def _posicion_cruda(orden, acciones):
+    class P:
+        symbol, open_price, current_price = "AAPL.US", 100.0, 105.0
+        stop_loss, take_profit, side = None, None, "buy"
+        profit_net = 1.0
+    P.order_id = orden
+    P.volume = float(acciones)
+    return P()
+
+
+def test_una_compra_NO_lleva_los_niveles_a_XTB():
+    """XTB no los acepta en acciones al contado. El 28/09 los ignoraba en
+    silencio —una compra de F.US volvió con stop y objetivo a None— y el 02/10
+    pasó a RECHAZAR la orden entera: CTVA x134 con niveles, rechazada; las
+    mismas 134 sin niveles, ejecutada (orden 916937102).
+
+    Se siguen aceptando como argumento y registrando en la bitácora —son la
+    decisión del simulador y hay que saber cuáles eran— pero no se mandan.
+    """
     b = _broker(); b.conectar()
     e = b.comprar("AAPL.US", 3, objetivo=120.0, stop=92.0)
-    assert b._cliente.enviadas == [("buy", "AAPL.US", 3, 92.0, 120.0)]
+    assert b._cliente.enviadas == [("buy", "AAPL.US", 3, None, None)]
     assert e.estado == "ejecutada" and e.ok
     assert e.precio == 101.5 and e.orden == 999
+
+
+def test_una_posicion_repetida_por_XTB_se_cuenta_UNA_vez():
+    """XTB devuelve la misma posición más de una vez: una compra de 50 acciones
+    aparecía como "2 entradas, 100 acciones". No se ejecuta dos veces —el saldo
+    bajó lo que cuestan 50— pero sumarlas hacía vender el doble."""
+    b = _broker(); b.conectar()
+    b._cliente.posiciones_devueltas = [
+        _posicion_cruda(orden=1, acciones=50),
+        _posicion_cruda(orden=1, acciones=50),      # la misma, repetida
+        _posicion_cruda(orden=2, acciones=7),
+    ]
+    posiciones = b.posiciones()
+    assert len(posiciones) == 2
+    assert sum(p["acciones"] for p in posiciones) == 57
 
 
 # --------------------------------------------------------------------------- #
