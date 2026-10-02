@@ -29,7 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from centinela import (ambiguas as amb, broker_xtb as bx, calendario,  # noqa: E402
-                       config, fiabilidad, ordenes as ords)
+                       config, estado_broker, fiabilidad, ordenes as ords)
 
 #: Hasta cuándo tiene sentido una entrada tardía. Después, comprar "al open" ya
 #: no es comprar al open y el simulador mediría otra cosa.
@@ -200,6 +200,10 @@ def main() -> int:
                 problemas.append(f"{f['ticker']}: la entrada tardía acabó "
                                  f"'{real}'. {porque}.")
         ords.guardar_enviadas(registro)
+        # Todo camino que cambie posiciones vuelca el estado. Sin esto, la
+        # página se quedó media sesión diciendo "0 posiciones" con 134 acciones
+        # de CTVA abiertas en XTB.
+        estado_broker.volcar(b, candado_ok=True)
 
     if problemas:
         for p in problemas:

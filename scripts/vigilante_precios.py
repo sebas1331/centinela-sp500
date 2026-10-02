@@ -43,7 +43,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from centinela import (ambiguas as amb, calendario, config,  # noqa: E402
-                       broker_xtb as bx, latido as lat,
+                       broker_xtb as bx, estado_broker, latido as lat,
                        niveles as niv, ordenes as ords, estado as est_mod,
                        salud)
 
@@ -558,6 +558,10 @@ def main() -> int:
                     f"{ESPERA_SUCESOR_SEG // 60} minutos. Este vigilante se va "
                     f"a morir por el límite de 6 h de GitHub y no hay quien "
                     f"mire los precios.")
+
+        # Si vendió algo, la foto del broker cambió: hay que refrescarla.
+        if VENDIDAS["n"]:
+            estado_broker.volcar(broker, candado_ok=True)
 
         motivo_final = ("la sesión cerró" if not vigiladas
                         else "la sesión cerró con "

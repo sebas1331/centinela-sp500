@@ -260,3 +260,16 @@ def test_un_componente_en_rojo_sin_incidente_sigue_siendo_rojo(registro):
     s = go.semaforo(salud_datos, None, [], [], ahora)
     assert s["color"] == "rojo"
     assert any("Ventas en XTB" in m for m in s["motivos"])
+
+
+# --------------------------------------------------------------------------- #
+# 7. Todo camino que cambie posiciones refresca la foto del broker
+# --------------------------------------------------------------------------- #
+def test_los_tres_caminos_vuelcan_el_estado_del_broker():
+    """CTVA se compró por la entrada tardía, que no lo hacía, y la página
+    estuvo media sesión diciendo "0 posiciones" con 134 acciones abiertas."""
+    raiz = Path(__file__).resolve().parent.parent
+    for script in ("ejecutor_xtb.py", "entrada_tardia.py", "vigilante_precios.py"):
+        texto = (raiz / "scripts" / script).read_text(encoding="utf-8")
+        assert "estado_broker.volcar" in texto or "volcar_estado_broker" in texto, \
+            f"{script} cambia posiciones y no refresca la foto del broker"
