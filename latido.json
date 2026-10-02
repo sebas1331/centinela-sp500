@@ -1,0 +1,18 @@
+{
+ "arrancado": "2026-10-02T10:14:48.394624-04:00",
+ "cuando": "2026-10-02T15:20:26.098206-04:00",
+ "estado": "vivo",
+ "motivo": null,
+ "relevo": null,
+ "run": "37018327121",
+ "url_run": "https://github.com/sebas1331/centinela-sp500/actions/runs/37018327121",
+ "vigiladas": [
+  {
+   "acciones": 134,
+   "bid": 12.09,
+   "objetivo": 26.16,
+   "stop": 11.06,
+   "ticker": "CTVA"
+  }
+ ]
+}
