@@ -260,16 +260,20 @@ def test_ambar_si_un_componente_lleva_demasiado_sin_correr():
     assert any("no corre desde hace" in m for m in s["motivos"])
 
 
-def test_ambar_si_hubo_una_orden_rechazada_hace_poco():
+def test_una_orden_rechazada_es_ROJA():
+    """Era ámbar hasta el 2026-09-30, y ese día quedó claro que no basta: dos
+    compras rechazadas y la página en verde con 'fiabilidad 100 %'. Una orden
+    rechazada es una decisión del sistema que NO ocurrió."""
     ordenes = [{"tipo": ords.COMPRA, "ticker": "SNDK", "sesion": "2026-10-19",
                 "estado": "rechazada", "error": "sin fondos",
                 "tipo_nombre": "Compra"}]
     s = _sem(ordenes=ordenes)
-    assert s["color"] == "ambar"
-    assert any("rechazada" in m and "SNDK" in m for m in s["motivos"])
+    assert s["color"] == "rojo"
+    assert any("RECHAZÓ" in m and "SNDK" in m and "sin fondos" in m
+               for m in s["motivos"])
 
 
-def test_un_rechazo_viejo_ya_no_pinta_ambar():
+def test_un_rechazo_viejo_ya_no_pinta_nada():
     ordenes = [{"tipo": ords.COMPRA, "ticker": "SNDK", "sesion": "2026-09-01",
                 "estado": "rechazada", "error": "x", "tipo_nombre": "Compra"}]
     assert _sem(ordenes=ordenes)["color"] == "verde"
@@ -712,3 +716,44 @@ def test_la_sesion_se_informa_en_componentes_y_sin_color():
     assert ".nota-sesion{" in html and "var(--tenue)" in html
     assert "empeorarSemaforo" not in html.split("function pintarSesionXTB")[1] \
         .split("function pintarComponentes")[0]
+
+
+def test_el_reentrenamiento_lee_el_historial_de_git():
+    """Corrió el 02/08, el 01/09 y el 01/10, y la página decía "nunca ha
+    corrido" porque el registro de salud es posterior y solo guarda la última
+    vez. Si git tiene la huella, gana git."""
+    import generar_operativa as go
+    assert "reentrenamiento" in go.HUELLA_EN_GIT
+    visto = go._ultima_vez_en_git(go.HUELLA_EN_GIT["reentrenamiento"])
+    assert visto and visto.startswith("20"), "no encuentra el commit"
+
+    # Y con el registro de salud vacío, la fila sale con esa fecha.
+    ahora = datetime(2026, 10, 2, 10, 0, tzinfo=config.TZ_ET)
+    filas = {f["id"]: f for f in go.bloque_componentes({"runs": {}}, ahora)}
+    assert filas["reentrenamiento"]["cuando"] == visto
+    assert "historial del repositorio" in filas["reentrenamiento"]["detalle"]
+
+
+def test_pero_el_registro_de_salud_manda_cuando_existe():
+    """Git es el respaldo, no la fuente: el registro sabe CÓMO acabó."""
+    import generar_operativa as go
+    ahora = datetime(2026, 10, 2, 10, 0, tzinfo=config.TZ_ET)
+    salud_datos = {"runs": {"reentrenamiento": {
+        "cuando": "2026-10-01T09:05:00-04:00", "resultado": "procesado",
+        "detalle": "umbral sin cambios"}}}
+    fila = {f["id"]: f for f in go.bloque_componentes(salud_datos, ahora)}
+    assert fila["reentrenamiento"]["detalle"] == "umbral sin cambios"
+
+
+def test_una_orden_que_acaba_el_dia_en_cola_es_ROJA():
+    """"en_cola" es legítimo mientras la sesión está abierta. Si el día acaba
+    así, la orden no se ejecutó: es lo que pasó con MRNA y FICO."""
+    import generar_operativa as go
+    ahora = datetime(2026, 10, 1, 18, 0, tzinfo=config.TZ_ET)   # tras el cierre
+    orden = {"tipo": ords.COMPRA, "tipo_nombre": "Compra", "ticker": "MRNA",
+             "sesion": "2026-10-01", "estado": "en_cola"}
+    salud_ok = {"runs": {c: {"cuando": ahora.isoformat(), "resultado": "ok"}
+                         for c in go.CRITICOS}}
+    s = go.semaforo(salud_ok, None, [], [orden], ahora)
+    assert s["color"] == "rojo"
+    assert any("EN COLA" in m and "MRNA" in m for m in s["motivos"])

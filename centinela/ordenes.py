@@ -61,8 +61,15 @@ VENTA_TIEMPO_DIFERIDO = "tiempo_diferido"
 #: nombre, no habría forma de saberlo.
 VENTA_OBJETIVO_INTRADIA = "objetivo_intradia"
 VENTA_STOP_INTRADIA = "stop_intradia"
+#: Una compra que se manda DESPUÉS de la apertura porque la de la apertura no
+#: entró. Tiene nombre propio para poder medir lo que cuesta llegar tarde: su
+#: `precio_simulador` es el precio de APERTURA del día, que es el que la
+#: estrategia supone que se pagó, así que la diferencia contra el ejecutado es
+#: exactamente la factura del retraso.
+ENTRADA_TARDIA = "entrada_tardia"
 TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
-         VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA)
+         VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA,
+         ENTRADA_TARDIA)
 
 #: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
 #: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente

@@ -187,3 +187,31 @@ POST-CIERRE 2026-09-30
 entradas ejecutadas: ['FICO', 'MRNA']
 cambios de objetivo: 7
 cierres: [('COHR', 'B', 'tiempo', -0.0498)]
+
+----- nota añadida el 2026-10-01 (revisión del rechazo de XTB) -----
+SESIÓN PERDIDA. Las dos compras decididas hoy —MRNA (8 acciones, orden
+916309256) y FICO (2 acciones, orden 916309247)— se enviaron a las 08:47 ET,
+43 minutos ANTES de la apertura. XTB las aceptó y devolvió "en cola" para las
+dos; el sistema lo anotó así y no volvió a preguntar. En xStation 5 ambas
+figuran como RECHAZADO y la cuenta no tiene ninguna posición: el saldo sigue
+intacto en 29.999,80 USD.
+
+CAUSA, comprobada a propósito el 2026-10-01 a las 23:15 ET con el mercado
+cerrado: XTB acepta una orden de mercado sobre acciones fuera de horario,
+devuelve "en cola" sin ningún error, y la descarta después. La orden de prueba
+916785162 se aceptó a las 03:15 UTC y tres minutos más tarde no había ni
+posición ni orden en cola.
+
+NO SE REPONEN. Para cuando se diagnosticó ya había pasado más de una hora desde
+la apertura, y una compra fuera de esa ventana ya no es una compra al open: el
+simulador mediría una cosa y el broker otra. Las dos entradas se quedan en el
+simulador y no existirán nunca en XTB.
+
+La reconciliación ya no las denuncia como diferencia: lee de bitacora_broker.csv
+que su compra fue rechazada y nadie la repuso, y lo explica en cada run en vez
+de pintar un rojo permanente.
+
+ARREGLADO: las compras pasan a enviarse DESPUÉS de la apertura (el job espera
+dormido si llega antes) y, tras cada orden, se le pregunta a XTB por su estado
+definitivo hasta obtenerlo. "Aceptada por el servidor" ya no se anota como
+"ejecutada".

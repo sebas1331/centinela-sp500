@@ -154,8 +154,27 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
         e = ultimo = mandar()
 
         if e.ok:
-            fiabilidad.anotar(fiabilidad.CONFIRMADA, simbolo, tipo,
-                              f"{e.estado} en el intento {intento}")
+            # "Aceptada" no es "ejecutada". XTB devuelve QUEUED con el mercado
+            # cerrado y luego descarta la orden en silencio, así que se le
+            # pregunta por el estado DEFINITIVO antes de dar nada por hecho.
+            # Sin esto, el 2026-09-30 se anotaron dos compras "en_cola" que en
+            # xStation 5 figuran como rechazadas.
+            if antes_acciones is None:
+                fiabilidad.anotar(fiabilidad.CONFIRMADA, simbolo, tipo,
+                                  f"{e.estado}; no se pudo confirmar en XTB")
+                return e
+            real, porque = confirmar(broker, simbolo, antes_acciones,
+                                     dormir=dormir)
+            print(f"[confirmación] {simbolo} {tipo}: {real} — {porque}",
+                  flush=True)
+            e.estado = real
+            if real == "rechazada":
+                e.error = porque
+                fiabilidad.anotar(fiabilidad.RECHAZADA, simbolo, tipo, porque)
+            elif real == "ejecutada":
+                fiabilidad.anotar(fiabilidad.EJECUTADA, simbolo, tipo, porque)
+            else:
+                fiabilidad.anotar(fiabilidad.EN_COLA, simbolo, tipo, porque)
             return e
 
         if e.estado != "ambigua":
@@ -203,3 +222,67 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
                   flush=True)
 
     return ultimo
+
+
+#: Cuántas veces se le pregunta a XTB por el estado DEFINITIVO de una orden que
+#: dijo aceptar, y cada cuánto.
+CONFIRMACIONES = 5
+ESPERA_CONFIRMACION = 3.0
+
+#: Los estados en que una orden ya no va a cambiar. "en_cola" NO está aquí: es
+#: justo el que engañó el 2026-09-30.
+DEFINITIVOS = ("ejecutada", "rechazada")
+
+
+def confirmar(broker, simbolo: str, acciones_antes: float,
+              dormir=time.sleep) -> tuple[str, str]:
+    """El estado DEFINITIVO de una orden recién mandada, según XTB.
+
+    POR QUÉ ESTO EXISTE (fallo del 2026-09-30)
+    -------------------------------------------
+    "Aceptada por el servidor" no es "ejecutada". XTB acepta una orden de
+    mercado con el mercado cerrado, devuelve `QUEUED`, y luego la descarta en
+    silencio. El 30/09 el sistema mandó MRNA y FICO 43 minutos antes de abrir,
+    anotó "en_cola" para las dos, no volvió a preguntar, y la página dijo "todo
+    en orden" con cero compras. En xStation 5 las dos figuran como RECHAZADO.
+
+    Comprobado a propósito el 01/10 con el mercado cerrado: XTB aceptó una
+    compra de 1 acción (orden 916785162) y tres minutos después no había ni
+    posición ni orden.
+
+    Así que después de mandar se pregunta, y se pregunta VARIAS veces: una
+    orden recién aceptada tarda un momento en aparecer como posición, y
+    concluir "rechazada" demasiado pronto sería tan falso como lo contrario.
+
+    Devuelve ('ejecutada'|'rechazada'|'en_cola', explicación). `en_cola` solo
+    sale cuando XTB sigue diciendo que la orden existe y espera: eso es un
+    estado real, no una suposición.
+    """
+    ultima = "en_cola", "sin respuesta concluyente de XTB"
+    for intento in range(1, CONFIRMACIONES + 1):
+        dormir(ESPERA_CONFIRMACION)
+        try:
+            posiciones = broker.posiciones()
+            cola = broker.ordenes_pendientes()
+        except Exception as exc:  # noqa: BLE001
+            ultima = "en_cola", f"no se pudo preguntar a XTB ({exc!r})"
+            continue
+
+        ahora = sum(float(p["acciones"]) for p in posiciones
+                    if p.get("lado") == "buy" and p.get("ticker") == simbolo)
+        if ahora > acciones_antes:
+            return "ejecutada", (
+                f"XTB tiene la posición: {simbolo} pasó de {acciones_antes:g} a "
+                f"{ahora:g} acciones (intento {intento})")
+
+        if any(o.get("ticker") == simbolo for o in cola):
+            # Sigue viva y esperando. Puede acabar ejecutándose o no, pero
+            # ahora mismo existe: no se puede llamar rechazada.
+            ultima = "en_cola", (f"la orden sigue en cola en XTB "
+                                 f"(intento {intento})")
+            continue
+
+        return "rechazada", (
+            f"XTB no tiene ni posición ni orden de {simbolo} tras "
+            f"{intento} comprobación(es): la orden no existe")
+    return ultima

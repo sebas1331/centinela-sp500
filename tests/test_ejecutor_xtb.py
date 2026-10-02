@@ -216,21 +216,54 @@ def _ahora(fecha, hora):
     return datetime.fromisoformat(f"{fecha}T{hora}").replace(tzinfo=config.TZ_ET)
 
 
-def test_las_compras_solo_se_mandan_ANTES_de_la_apertura():
-    """Comprar con el mercado abierto ya no sería al precio de apertura.
+def test_las_compras_se_mandan_DESPUES_de_la_apertura():
+    """Antes se mandaban antes de abrir, contando con que XTB las encolara y
+    las ejecutara al open. XTB las encola… y luego las descarta: el 2026-09-30
+    se perdieron así las dos compras del día, y la bitácora decía "en_cola".
 
-    Es el mismo principio que hace fallar en rojo a la pre-apertura cuando
-    llega tarde: la estrategia compra al open o no compra.
+    Comprobado a propósito con el mercado cerrado: XTB aceptó una compra y
+    devolvió "en cola" (orden 916785162); tres minutos después no había ni
+    posición ni orden.
     """
-    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:00:00"))
-    assert ok
-    ok, motivo = ej.en_ventana("compras", _ahora("2026-09-25", "10:30:00"))
-    assert not ok and "apertura" in motivo
+    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:31:00"))
+    assert ok is True
+    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "10:00:00"))
+    assert ok is True
 
 
-def test_las_compras_no_se_mandan_demasiado_pronto():
-    ok, motivo = ej.en_ventana("compras", _ahora("2026-09-25", "05:00:00"))
-    assert not ok and "más de" in motivo
+def test_antes_de_abrir_NO_se_manda_pero_tampoco_se_rinde():
+    """"Todavía no" no es "no": el job debe dormir hasta que abra. La escalera
+    de crons está pensada para llegar pronto, así que aterrizar antes de la
+    apertura es lo normal."""
+    ok, motivo = ej.en_ventana("compras", _ahora("2026-09-25", "09:00:00"))
+    assert ok is ej.ESPERAR
+    assert "DESPUÉS de abrir" in motivo
+
+    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "05:00:00"))
+    assert ok is ej.ESPERAR, "madrugar tampoco es rendirse"
+
+
+def test_demasiado_tarde_ya_no_se_compra():
+    """Comprar una hora después de abrir ya no es comprar al open."""
+    ok, motivo = ej.en_ventana("compras", _ahora("2026-09-25", "11:00:00"))
+    assert ok is False and "más de" in motivo
+
+
+def test_esperar_a_la_ventana_duerme_hasta_que_abre(monkeypatch):
+    """Y no se queda dormido para siempre: tiene tope."""
+    momentos = iter([(ej.ESPERAR, "todavía no"), (ej.ESPERAR, "todavía no"),
+                     (True, "ya")])
+    monkeypatch.setattr(ej, "en_ventana", lambda *_a, **_k: next(momentos))
+    siestas = []
+    ok, motivo = ej.esperar_a_la_ventana("compras", dormir=siestas.append)
+    assert ok is True and len(siestas) == 2
+
+
+def test_pero_no_espera_para_siempre(monkeypatch):
+    monkeypatch.setattr(ej, "en_ventana", lambda *_a, **_k: (ej.ESPERAR, "no"))
+    ok, motivo = ej.esperar_a_la_ventana("compras", dormir=lambda _s: None,
+                                         maximo_min=0)
+    assert ok is False and "se agotaron" in motivo
 
 
 def test_las_ventas_por_tiempo_van_pegadas_al_cierre():

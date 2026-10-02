@@ -5,6 +5,79 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-01 — "Aceptada" no es "ejecutada": la sesión del 30/09 se perdió entera
+
+El 30 de septiembre el sistema decidió dos entradas, MRNA y FICO, y las mandó a
+XTB a las **08:47 ET: 43 minutos antes de la apertura**. XTB respondió «en cola»
+para las dos. El sistema lo anotó así, no volvió a preguntar, y la página mostró
+las dos órdenes `en_cola`, **«Fiabilidad de XTB 100 %»** y el semáforo en verde.
+
+En xStation 5 las dos figuran como **RECHAZADO**. La cuenta no tiene ninguna
+posición y el saldo sigue intacto.
+
+### La causa, comprobada a propósito
+
+El 01/10 a las 23:15 ET, con el mercado **cerrado**, se mandó una compra de 1
+acción de F.US. XTB la aceptó y devolvió «en cola» sin ningún error (orden
+916785162). Tres minutos después: ni posición, ni orden en cola, ni cambio en el
+saldo.
+
+**XTB acepta órdenes de mercado sobre acciones fuera de horario, las encola y
+las descarta.** No rechaza al enviar, que es por lo que nadie se enteró.
+
+### El arreglo
+
+**Las compras se mandan DESPUÉS de abrir.** La ventana pasa de «entre 60 y 5
+minutos antes» a «desde la apertura, hasta 60 minutos». Un disparo que aterriza
+pronto ya no se va: **duerme** hasta que abra, porque la escalera de crons está
+pensada precisamente para llegar pronto. Y si llega más de una hora tarde,
+`fallo:ventana-perdida` **en rojo** — una compra fuera de esa ventana ya no es
+una compra al open.
+
+Se pierden los segundos que van de la apertura al envío. Es el precio, y se
+mide: las entradas tardías tienen tipo propio y guardan el precio de apertura
+junto al ejecutado.
+
+**Tras cada orden se pregunta a XTB hasta tener un estado definitivo.** Cinco
+comprobaciones: si aparece la posición, ejecutada; si la orden sigue en cola,
+en cola; si no hay ni una cosa ni la otra, **rechazada**. Y no poder preguntar
+—un corte de red— no convierte una orden en rechazada: eso llevaría a comprarla
+dos veces.
+
+**Un rechazo es ROJO**, no ámbar como antes, en el job, en el semáforo y en la
+fila «Hoy», con el motivo que devuelve XTB. Una orden que termina el día en cola
+también: XTB la aceptó y no la ejecutó.
+
+**La fiabilidad se calcula sobre EJECUTADAS**, no sobre enviadas, y se desglosa
+en enviadas / ejecutadas / rechazadas / sin desenlace / ambiguas. Con el cálculo
+viejo, el 30/09 daba 100 %. Con el nuevo da **0 %**, que es la verdad.
+
+Todo esto vale igual para las ventas por tiempo y para las del vigilante de
+precios: la confirmación vive en el camino común por el que pasan las tres.
+
+### La sesión perdida
+
+No se repusieron. Para cuando se diagnosticó había pasado más de una hora desde
+la apertura, y el simulador mediría una cosa y el broker otra. Queda documentado
+en el log del día.
+
+Y la reconciliación deja de denunciarlas: lee de `bitacora_broker.csv` que su
+compra fue rechazada y nadie la repuso, lo explica en cada run y no las cuenta
+como diferencia. **No es una lista escrita a mano** —sale de los datos, así que
+se mantiene sola y no se puede olvidar de borrar una entrada cuando deje de
+aplicar.
+
+### Detalle menor
+
+La fila «Reentrenamiento» decía «nunca ha corrido» y había corrido el 02/08, el
+01/09 y el 01/10. El registro de salud solo guarda la última vez y es posterior
+a esas ejecuciones; ahora, cuando no sabe nada, se lee el historial de git, que
+sí las tiene.
+
+466 tests.
+
+---
+
 ## 2026-09-29 (4) — Dos falsos avisos menos, y la librería deja de ser prestada
 
 ### Un vigilante en reposo no es un vigilante caído

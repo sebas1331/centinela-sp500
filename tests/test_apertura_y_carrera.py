@@ -364,3 +364,60 @@ def test_sin_ordenes_que_verificar_tambien_lleva_motivo(aislado, monkeypatch):
     ej.verificar_apertura(Vacio(), {"sesion": HOY, "ordenes": []})
     r = ej.resultado_explicito("apertura", ej.motivo_de_cero("apertura"))
     assert r == "ok: 0 órdenes que verificar — no se envió ninguna orden hoy"
+
+
+# --------------------------------------------------------------------------- #
+# 7. Con el mercado cerrado no se manda nada (fallo del 2026-09-30)
+# --------------------------------------------------------------------------- #
+def test_con_el_mercado_cerrado_la_compra_NO_se_manda():
+    """XTB la aceptaría, devolvería 'en cola' y la descartaría después. El
+    30/09 se perdieron así las dos compras del día."""
+    from centinela import calendario
+    ac = calendario.apertura_cierre_et(HOY)
+    ok, motivo = ej.en_ventana("compras", ac[0] - timedelta(minutes=43))
+    assert ok is not True, "mandaría la orden con el mercado cerrado"
+    assert ok is ej.ESPERAR, "y debe esperar, no rendirse"
+
+
+def test_justo_despues_de_abrir_si_se_manda():
+    from centinela import calendario
+    ac = calendario.apertura_cierre_et(HOY)
+    ok, _ = ej.en_ventana("compras", ac[0] + timedelta(seconds=30))
+    assert ok is True
+
+
+def test_llegar_una_hora_tarde_es_ventana_perdida():
+    from centinela import calendario
+    ac = calendario.apertura_cierre_et(HOY)
+    ok, motivo = ej.en_ventana("compras", ac[0] + timedelta(minutes=61))
+    assert ok is False and "más de" in motivo
+
+
+def test_una_orden_rechazada_nunca_se_muestra_como_en_cola(aislado, monkeypatch):
+    """El estado sale de XTB, no de lo que el sistema creyó enviar."""
+    monkeypatch.setattr(ej, "datetime", _reloj(HOY, "09:35"))
+    from centinela import ambiguas as amb
+
+    class DiceQueSiPeroNoEntra:
+        def posiciones(self): return []
+        def ordenes_pendientes(self): return []
+        def comprar(self, *_a, **_k):
+            return bx.Ejecucion(ticker="MRNA.US", lado="compra", acciones=3,
+                                estado="en_cola", orden=916309256)
+
+    b = DiceQueSiPeroNoEntra()
+    e = amb.enviar_resolviendo(b, "MRNA.US", ords.COMPRA,
+                               lambda: b.comprar(), dormir=lambda _s: None)
+    assert e.estado == "rechazada"
+    assert e.estado != "en_cola", "la bitácora volvería a mentir"
+
+
+def test_el_job_del_ejecutor_tiene_margen_para_dormir():
+    """Desde que las compras se mandan DESPUÉS de abrir, un disparo que
+    aterriza pronto espera. La escalera arranca a las 00:33 UTC y la apertura es
+    a las 13:30: sin margen, el job moriría esperando."""
+    import yaml
+    d = yaml.safe_load((RAIZ / ".github/workflows/preapertura.yml")
+                       .read_text(encoding="utf-8"))
+    from centinela import config
+    assert d["jobs"]["ejecutor"]["timeout-minutes"] > config.ESPERA_VENTANA_MAX_MIN

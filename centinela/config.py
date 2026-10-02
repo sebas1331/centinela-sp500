@@ -283,15 +283,31 @@ SESION_AVISO_HORAS = 3
 #: Ventanas del ejecutor, en minutos respecto de la apertura (09:30 ET) o del
 #: cierre (16:00 ET) del mercado. Los tres momentos del día:
 #:
-#:   compras       antes de la apertura; XTB deja la orden en cola y la ejecuta
-#:                 al abrir, que es justo lo que simula la estrategia;
+#:   compras       JUSTO DESPUÉS de la apertura, nunca antes. Ver abajo.
 #:   ventas        antes del cierre, para las salidas por tiempo del día 10.
 #:                 Medido sobre las 89 salidas por tiempo del histórico: cerrar
 #:                 al cierre se desvía 0,03 pp del simulador y hacerlo a la
 #:                 apertura del día siguiente, 0,40 pp con 3,14 de dispersión
 #:                 (gap overnight que la estrategia no contempla);
 #:   reconcilia    después del cierre, cuando ya no puede moverse nada.
-EJECUTOR_COMPRAS_MIN_ANTES_APERTURA = (5, 60)      # entre 60 y 5 min antes
+#: LAS COMPRAS SE MANDAN DESPUÉS DE ABRIR, NUNCA ANTES (fallo del 2026-09-30).
+#:
+#: Antes se mandaban entre 60 y 5 minutos ANTES de la apertura, con la idea de
+#: que XTB las dejara en cola y las ejecutara al abrir — que es lo que simula la
+#: estrategia. XTB sí las encola… y luego las descarta. El 30/09 se mandaron
+#: MRNA y FICO a las 08:47 ET, XTB devolvió "en cola" para las dos, y en
+#: xStation 5 las dos figuran como RECHAZADO. El sistema anotó "en_cola" y no
+#: volvió a preguntar, así que la página dijo "todo en orden" con cero compras.
+#:
+#: Comprobado a propósito el 01/10 a las 23:15 ET, con el mercado cerrado: XTB
+#: aceptó una compra de 1 acción y devolvió "en cola" (orden 916785162); tres
+#: minutos después no había ni posición ni orden. Acepta, encola y descarta.
+#:
+#: Así que la ventana pasa a ser DESPUÉS de abrir. Se pierden los segundos que
+#: van de la apertura al envío —y eso se mide, por eso las entradas tardías
+#: tienen tipo propio— pero una orden que se ejecuta de verdad vale más que una
+#: que encaja perfecto con el simulador y no existe.
+EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (0, 60)       # desde la apertura, 60 min
 EJECUTOR_VENTAS_MIN_ANTES_CIERRE = (5, 30)         # entre 30 y 5 min antes
 EJECUTOR_RECONCILIA_MIN_DESPUES_CIERRE = 30        # al menos 30 min después
 

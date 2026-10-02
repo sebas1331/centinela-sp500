@@ -220,6 +220,12 @@ jobs:
   # desapareció, y lo otro —si el login de xStation5 funciona desde una IP de
   # datacenter— se comprobó con `probar_broker.yml`: funciona, y reutilizando
   # la sesión de la caché conecta en 2 segundos sin pedir segundo factor.
+  # Su timeout es generoso porque AHORA PUEDE DORMIR. Las compras se mandan
+  # después de la apertura (ver config: XTB acepta una orden con el mercado
+  # cerrado, devuelve "en cola" y la descarta), así que un disparo que aterriza
+  # pronto espera en vez de irse. La escalera arranca a las 00:33 UTC y la
+  # apertura es a las 13:30, de modo que el peldaño que coja el turno puede
+  # pasarse hasta dos horas esperando.
   ejecutor:
     # `needs: ordenes` NO es decorativo (fallo del 2026-09-29). Antes colgaba
     # solo del escaneo, igual que `ordenes`, así que los dos jobs arrancaban EL
@@ -231,7 +237,7 @@ jobs:
     needs: [preapertura, ordenes]
     if: needs.preapertura.result == 'success' && needs.preapertura.outputs.resultado == 'procesado' && needs.ordenes.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:

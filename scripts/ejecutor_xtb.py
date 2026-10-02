@@ -57,6 +57,12 @@ _COMPONENTE = {"compras": "compras", "ventas": "ventas", "apertura": "apertura",
                "reconcilia": "reconcilia"}
 
 
+#: Tercer valor que puede devolver `en_ventana`, además de sí y no: "todavía
+#: no". Un escaneo que llega pronto no debe morir ni trabajar: debe esperar.
+#: Sin esto, el job tendría que adivinar por el texto del motivo.
+ESPERAR = "esperar"
+
+
 def log(msg: str) -> None:
     print(f"[{datetime.now(config.TZ_ET):%Y-%m-%d %H:%M:%S ET}] {msg}", flush=True)
 
@@ -115,14 +121,19 @@ def en_ventana(momento: str, ahora=None) -> tuple[bool, str]:
     apertura, cierre = ac
 
     if momento == "compras":
-        faltan = (apertura - ahora).total_seconds() / 60
-        lo, hi = config.EJECUTOR_COMPRAS_MIN_ANTES_APERTURA
-        if faltan < lo:
-            return False, (f"faltan {faltan:.0f} min para la apertura: menos de "
-                           f"{lo}. Una compra ahora ya no sería al open.")
-        if faltan > hi:
-            return False, f"faltan {faltan:.0f} min para la apertura: más de {hi}"
-        return True, f"faltan {faltan:.0f} min para la apertura"
+        # DESPUÉS de abrir, nunca antes. XTB acepta una orden con el mercado
+        # cerrado, devuelve "en cola" y luego la descarta en silencio: el
+        # 2026-09-30 se perdieron así las dos compras del día. Ver config.
+        pasados = (ahora - apertura).total_seconds() / 60
+        lo, hi = config.EJECUTOR_COMPRAS_MIN_TRAS_APERTURA
+        if pasados < lo:
+            # No es un "no": es un "todavía no". Quien llama decide si duerme.
+            return ESPERAR, (f"faltan {-pasados:.0f} min para la apertura; "
+                             f"las compras se mandan DESPUÉS de abrir")
+        if pasados > hi:
+            return False, (f"han pasado {pasados:.0f} min de la apertura: más "
+                           f"de {hi}. Comprar ahora ya no es comprar al open.")
+        return True, f"{pasados:.0f} min tras la apertura"
 
     if momento == "ventas":
         faltan = (cierre - ahora).total_seconds() / 60
@@ -287,6 +298,27 @@ def publicar_resultado(resultado: str) -> None:
         return
     with open(salida, "a", encoding="utf-8") as fh:
         fh.write(f"resultado={resultado}\n")
+
+
+def esperar_a_la_ventana(momento: str, dormir=time.sleep,
+                         maximo_min: float | None = None) -> tuple:
+    """Duerme hasta que la ventana abra. Devuelve lo que diga `en_ventana`.
+
+    La escalera de crons está pensada para llegar PRONTO —el scheduler de
+    Actions se ha retrasado hasta diez horas en este repositorio— así que un
+    disparo que aterriza antes de la apertura es lo normal, no un error. Lo que
+    no puede hacer es mandar la orden: XTB la encola y la descarta.
+    """
+    maximo = (maximo_min if maximo_min is not None
+              else config.ESPERA_VENTANA_MAX_MIN)
+    limite = time.monotonic() + maximo * 60
+    while time.monotonic() < limite:
+        ok, motivo = en_ventana(momento)
+        if ok is not ESPERAR:
+            return ok, motivo
+        dormir(min(30.0, max(1.0, limite - time.monotonic())))
+    return False, (f"se agotaron los {maximo:.0f} min de espera sin que la "
+                   f"ventana de {momento} llegara a abrir")
 
 
 # --------------------------------------------------------------------------- #
@@ -758,6 +790,38 @@ def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
 # --------------------------------------------------------------------------- #
 # Reconciliación
 # --------------------------------------------------------------------------- #
+def _compras_rechazadas_sin_reponer(posiciones: list[dict]) -> dict:
+    """Posiciones del simulador cuya compra XTB rechazó y nadie repuso.
+
+    Se cruza la bitácora del broker con las posiciones abiertas: si para el
+    ticker y la fecha de entrada hay una compra RECHAZADA y ninguna ejecutada
+    después, esa posición existe en el simulador y no va a existir en XTB nunca.
+
+    Es una divergencia real y queda registrada —en la bitácora, en el diario de
+    fiabilidad y en el log de la sesión— pero no es un fallo que se pueda
+    arreglar reintentando: la sesión se perdió. Repetirla en cada run como rojo
+    solo enseña a ignorar los rojos.
+    """
+    por_ticker: dict[str, str] = {}
+    for pos in posiciones:
+        entrada = str(pos.get("fecha_entrada", ""))
+        if entrada < config.EJECUCION_DESDE:
+            continue
+        filas = [f for f in ords.filas_de_sesion(entrada)
+                 if f.get("ticker") == pos["ticker"]
+                 and f.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)]
+        if not filas:
+            continue
+        if any(f.get("estado") == "ejecutada" for f in filas):
+            continue                      # alguna entró: no hay nada que excusar
+        rechazos = [f for f in filas if f.get("estado") == "rechazada"]
+        if rechazos:
+            por_ticker[pos["ticker"]] = (
+                f"{entrada}, orden {rechazos[-1].get('orden_xtb') or '?'}: "
+                f"{rechazos[-1].get('error') or 'sin motivo'}")
+    return por_ticker
+
+
 def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     """Compara XTB con el estado del simulador. Devuelve las diferencias.
 
@@ -778,7 +842,18 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     # un rojo que sale siempre enseña a ignorar los rojos.
     heredadas = {p["ticker"] for p in posiciones
                  if str(p.get("fecha_entrada", "")) < config.EJECUCION_DESDE}
-    simuladas = {p["ticker"] for p in posiciones} - heredadas
+
+    # Y las que XTB RECHAZÓ y nadie repuso. También existen solo en el
+    # simulador, pero por un motivo distinto y peor: la compra se intentó y no
+    # entró. Denunciarlas cada run sería un rojo permanente por algo que ya
+    # pasó y no se puede deshacer —el 2026-09-30 MRNA y FICO dejaron la
+    # reconciliación en rojo indefinido—, así que se explican y se apartan.
+    #
+    # No es una lista escrita a mano: sale de la propia bitácora, así que se
+    # mantiene sola y no se puede olvidar de quitar una entrada cuando deje de
+    # aplicar.
+    rechazadas = _compras_rechazadas_sin_reponer(posiciones)
+    simuladas = {p["ticker"] for p in posiciones} - heredadas - set(rechazadas)
     reales = {p["ticker"].replace(".US", "").replace("-", ".")
               for p in broker.posiciones() if p["lado"] == "buy"}
 
@@ -786,6 +861,9 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
         log(f"posiciones heredadas del paper trading (anteriores a "
             f"{config.EJECUCION_DESDE}, no se exigen en XTB): "
             f"{', '.join(sorted(heredadas))}")
+    for ticker, porque in sorted(rechazadas.items()):
+        log(f"{ticker}: solo en el simulador porque XTB RECHAZÓ la compra "
+            f"({porque}). Sesión perdida, no se exige en XTB.")
 
     problemas = []
     for t in sorted(simuladas - reales):
@@ -816,7 +894,23 @@ def main() -> int:
 
     ok, motivo = (True, "forzado") if args.forzar else en_ventana(args.momento)
     log(f"momento={args.momento}: {motivo}")
+
+    # "Todavía no" no es "no". El job puede arrancar mucho antes de la apertura
+    # —la escalera de crons está pensada para llegar pronto— y lo correcto es
+    # dormir hasta que abra, no irse. Antes se iba, y las compras se mandaban
+    # con el mercado cerrado.
+    if ok is ESPERAR:
+        ok, motivo = esperar_a_la_ventana(args.momento)
+        log(f"momento={args.momento}: {motivo}")
+
     if not ok:
+        if args.momento == "compras" and "más de" in motivo:
+            # Llegar tarde a las compras NO es un día tranquilo: es una sesión
+            # de trading perdida, y tiene que verse en rojo.
+            print(f"::error::Ventana de compras perdida: {motivo}", flush=True)
+            salud.registrar("compras", "fallo:ventana-perdida", motivo)
+            publicar_resultado("fallo:ventana-perdida")
+            return 1
         return 0
 
     # Los momentos que ENVÍAN exigen la decisión del día; los que solo miran

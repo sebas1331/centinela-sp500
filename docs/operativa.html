@@ -771,10 +771,14 @@ function pintarFiabilidad(F){
   caja.appendChild(el("b","","Fiabilidad de XTB"));
   caja.appendChild(el("span","det","últimos " + F.dias + " días:"));
 
+  /* ENVIADAS y EJECUTADAS por separado, que es la lección del 2026-09-30: dos
+     compras enviadas, aceptadas por XTB, anotadas "en cola"… y rechazadas. La
+     página decía "fiabilidad 100 %". Aceptada no es ejecutada. */
   [["enviadas", F.enviadas, ""],
-   ["confirmadas", F.confirmadas, ""],
-   ["ambiguas", F.ambiguas, F.ambiguas ? "floja" : ""],
-   ["fallidas", F.fallidas, F.fallidas ? "mala" : ""]
+   ["ejecutadas", F.ejecutadas, F.ejecutadas < F.enviadas ? "floja" : ""],
+   ["rechazadas", F.rechazadas, F.rechazadas ? "mala" : ""],
+   ["sin desenlace", F.en_cola, F.en_cola ? "floja" : ""],
+   ["ambiguas", F.ambiguas, F.ambiguas ? "floja" : ""]
   ].forEach(function(par){
     var s = el("span","det", par[0] + " ");
     s.appendChild(el("span","cifra " + par[2], String(par[1])));

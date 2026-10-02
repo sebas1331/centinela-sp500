@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import subprocess
 import os
 import re
 import sys
@@ -84,6 +85,28 @@ def _proxima_sesion(desde: datetime) -> str | None:
         return None
 
 
+#: Componentes cuya huella está en el historial de git, además de en
+#: salud.json. Sirve para los que corren de uvas a peras: el registro de salud
+#: solo guarda la última vez, y si un componente lleva meses sin correr —o
+#: corrió antes de que existiera el registro— la página decía "nunca ha
+#: corrido", que es falso y además alarma.
+HUELLA_EN_GIT = {
+    "reentrenamiento": "reentrenamiento mensual del modelo",
+}
+
+
+def _ultima_vez_en_git(marca: str) -> str | None:
+    """Cuándo se vio por última vez un commit con esa marca, en ISO."""
+    try:
+        r = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", "--all", "--grep", marca],
+            cwd=str(config.BASE_DIR), capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    salida = (r.stdout or "").strip()
+    return salida or None
+
+
 def bloque_componentes(datos_salud: dict, ahora: datetime) -> list[dict]:
     """Una fila por componente: cuándo corrió, cómo acabó y cuándo toca.
 
@@ -96,7 +119,15 @@ def bloque_componentes(datos_salud: dict, ahora: datetime) -> list[dict]:
 
     filas = []
     for clave, (nombre, cada) in salud.COMPONENTES.items():
-        r = datos_salud.get("runs", {}).get(clave, {})
+        r = dict(datos_salud.get("runs", {}).get(clave, {}))
+        # Si el registro de salud no sabe nada pero git sí, gana git: el
+        # reentrenamiento corrió el 02/08, el 01/09 y el 01/10, y la página
+        # decía "nunca ha corrido" porque el registro es posterior.
+        if not r.get("cuando") and clave in HUELLA_EN_GIT:
+            visto = _ultima_vez_en_git(HUELLA_EN_GIT[clave])
+            if visto:
+                r = {"cuando": visto, "resultado": "procesado",
+                     "detalle": "visto en el historial del repositorio"}
         filas.append({
             "id": clave,
             "nombre": nombre,
@@ -221,6 +252,7 @@ NOMBRE_TIPO = {
     # que mide si vigilar tick a tick acerca la ejecución al simulador.
     ords.VENTA_STOP_INTRADIA: "Stop en vivo",
     ords.VENTA_OBJETIVO_INTRADIA: "Objetivo en vivo",
+    ords.ENTRADA_TARDIA: "Compra tardía",
 }
 #: Grupos de los chips de filtro.
 GRUPO_TIPO = {
@@ -228,6 +260,7 @@ GRUPO_TIPO = {
     ords.VENTA_TIEMPO: "ventas", ords.VENTA_TIEMPO_DIFERIDO: "ventas",
     ords.VENTA_STOP: "ventas", ords.VENTA_OBJETIVO: "ventas",
     ords.VENTA_STOP_INTRADIA: "ventas", ords.VENTA_OBJETIVO_INTRADIA: "ventas",
+    ords.ENTRADA_TARDIA: "compras",
 }
 
 
@@ -342,7 +375,8 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
                 decididas = int(m.group(1))
 
     del_dia = [o for o in ordenes
-               if o.get("sesion") == hoy and o.get("tipo") == ords.COMPRA]
+               if o.get("sesion") == hoy
+               and o.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)]
     enviadas = [o for o in del_dia if o.get("estado") != "rechazada"]
     ejecutadas = [o for o in del_dia if o.get("estado") == "ejecutada"]
     rechazadas = [o for o in del_dia if o.get("estado") == "rechazada"]
@@ -360,12 +394,12 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
         huecos.append(f"{decididas - len(del_dia)} decisión(es) sin orden en la "
                       f"bitácora: el ejecutor no llegó a enviarlas.")
     for o in rechazadas:
-        huecos.append(f"{o.get('ticker')}: orden rechazada — "
+        huecos.append(f"{o.get('ticker')}: XTB RECHAZÓ la orden — "
                       f"{o.get('error') or 'sin motivo'}.")
     pendientes_de_ejecutar = len(enviadas) - len(ejecutadas)
     if pendientes_de_ejecutar > 0:
-        huecos.append(f"{pendientes_de_ejecutar} orden(es) enviada(s) que XTB "
-                      f"todavía no ha ejecutado.")
+        huecos.append(f"{pendientes_de_ejecutar} orden(es) que XTB aceptó y "
+                      f"todavía NO ha ejecutado. Aceptada no es ejecutada.")
 
     return {
         "fecha": hoy,
@@ -642,6 +676,19 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
                 f"{salud.COMPONENTES[clave][0]} no corre desde hace "
                 f"{retraso:.0f} h.")
 
+    # --- ROJO: una orden del día aceptada y sin ejecutar -------------------
+    # "en_cola" es un estado legítimo mientras la sesión está abierta, pero una
+    # orden que termina el día en cola no se ejecutó: es justo lo que pasó con
+    # MRNA y FICO el 2026-09-30.
+    hoy_iso = ahora.date().isoformat()
+    for o in ordenes:
+        if o.get("sesion") != hoy_iso or o.get("estado") != "en_cola":
+            continue
+        if cierre_pasado(ahora):
+            rojos.append(
+                f"{o.get('ticker')}: la {o.get('tipo_nombre')} sigue EN COLA "
+                f"con la sesión cerrada. XTB la aceptó pero no la ejecutó.")
+
     # --- ÁMBAR: el broker no está aceptando órdenes -----------------------
     # El 2026-09-29 el endpoint de trading devolvió cuerpo vacío en 7 de 8
     # compras y el sistema no lo midió: se supo porque alguien estaba mirando.
@@ -650,18 +697,23 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             fia["fiabilidad_pct"] is not None and \
             fia["fiabilidad_pct"] < FIABILIDAD_MINIMA_PCT:
         ambares.append(
-            f"XTB solo confirmó {fia['confirmadas']} de {fia['enviadas']} "
+            f"XTB solo EJECUTÓ {fia['ejecutadas']} de {fia['enviadas']} "
             f"órdenes en {DIAS_FIABILIDAD} días ({fia['fiabilidad_pct']:.0f} %): "
-            f"{fia['ambiguas']} ambiguas y {fia['fallidas']} fallidas.")
+            f"{fia['rechazadas']} rechazadas, {fia['en_cola']} sin desenlace y "
+            f"{fia['ambiguas']} ambiguas.")
 
-    # --- ÁMBAR: órdenes rechazadas hace poco ------------------------------
+    # --- ROJO: una orden rechazada ----------------------------------------
+    # Era ámbar hasta el 2026-09-30, y ese día quedó claro que no basta: dos
+    # compras rechazadas y la página en verde diciendo "fiabilidad 100 %". Una
+    # orden rechazada es una decisión del sistema que NO ocurrió — la sesión se
+    # pierde entera — y eso no es un "atención", es un problema.
     rechazos = [o for o in ordenes
                 if o.get("estado") == "rechazada"
                 and _reciente(o.get("sesion"), ahora, dias=DIAS_RECHAZOS)]
     for o in rechazos:
-        ambares.append(
-            f"Orden rechazada el {o.get('sesion')}: {o.get('tipo_nombre')} de "
-            f"{o.get('ticker')} — {o.get('error') or 'sin motivo'}.")
+        rojos.append(
+            f"XTB RECHAZÓ el {o.get('sesion')} la {o.get('tipo_nombre')} de "
+            f"{o.get('ticker')}: {o.get('error') or 'sin motivo'}.")
 
     color = "rojo" if rojos else ("ambar" if ambares else "verde")
     titulo = {"rojo": "Problema", "ambar": "Atención",
@@ -669,6 +721,16 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     return {"color": color, "titulo": titulo,
             "motivos": rojos + ambares, "n_rojos": len(rojos),
             "n_ambares": len(ambares)}
+
+
+def cierre_pasado(ahora: datetime) -> bool:
+    """¿Ya cerró el mercado hoy? Una orden en cola antes de cerrar todavía
+    puede ejecutarse; después, ya no."""
+    try:
+        ac = calendario.apertura_cierre_et(ahora.date().isoformat())
+    except Exception:  # noqa: BLE001
+        return False
+    return bool(ac) and ahora > ac[1]
 
 
 def _reciente(sesion: str | None, ahora: datetime, dias: int) -> bool:
