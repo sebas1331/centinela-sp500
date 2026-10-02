@@ -1,24 +1,7 @@
 {
-  "actualizado": "2026-10-02T08:45:46.644658-04:00",
-  "contador_grupo": 90,
-  "entradas_pendientes": [
-    {
-      "atr": 6.796,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-10-02",
-      "notas": "prob=1.000 score_fund=44.0 sent=0.0 (n=0)",
-      "proba": 1.0,
-      "resistencia": 90.87,
-      "score_fundamental": 44.0,
-      "sector": "Materials",
-      "target_analista": 92.6,
-      "ticker": "CTVA",
-      "timestamp_escaneo": "2026-10-02T08:45:05.001278-04:00"
-    }
-  ],
+  "actualizado": "2026-10-02T15:01:27.415635-04:00",
+  "contador_grupo": 91,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
