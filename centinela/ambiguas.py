@@ -282,7 +282,17 @@ def confirmar(broker, simbolo: str, acciones_antes: float,
                                  f"(intento {intento})")
             continue
 
-        return "rechazada", (
+
+        # NO se concluye "rechazada" al primer vistazo. Una orden de mercado
+        # recién enviada tarda unos segundos en aparecer como posición, y
+        # declararla muerta a los tres segundos es el mismo error que darla por
+        # ejecutada sin mirar, solo que al revés. Pasó el 2026-10-02: CTVA se
+        # dio por rechazada seis segundos después de mandarla, "tras 1
+        # comprobación".
+        ultima = "rechazada", (
             f"XTB no tiene ni posición ni orden de {simbolo} tras "
-            f"{intento} comprobación(es): la orden no existe")
+            f"{intento} de {CONFIRMACIONES} comprobaciones")
+        if intento < CONFIRMACIONES:
+            continue
+        return ultima
     return ultima

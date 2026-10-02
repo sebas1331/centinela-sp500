@@ -466,3 +466,33 @@ def test_no_poder_preguntar_no_convierte_una_orden_en_rechazada(diario):
     b = Mudo([_en_cola()])
     e = amb.enviar_resolviendo(b, "F.US", "compra", b.mandar, dormir=_sin_dormir)
     assert e.estado == "en_cola", "dio por rechazada una orden sin poder mirar"
+
+
+def test_no_se_da_por_rechazada_al_primer_vistazo(diario):
+    """Una orden de mercado recién enviada tarda unos segundos en aparecer como
+    posición. Declararla muerta a los tres segundos es el mismo error que darla
+    por ejecutada sin mirar, solo que al revés.
+
+    Pasó el 2026-10-02: CTVA se dio por rechazada seis segundos después de
+    mandarla, "tras 1 comprobación".
+    """
+    class TardaEnAparecer(BrokerGuion):
+        def posiciones(self):
+            self.consultas += 1
+            # Aparece a la cuarta, como una ejecución real con latencia.
+            return [_pos()] if self.consultas >= 4 else []
+
+        def ordenes_pendientes(self):
+            return []
+
+    b = TardaEnAparecer([_ok()])
+    e = amb.enviar_resolviendo(b, "F.US", "compra", b.mandar, dormir=_sin_dormir)
+    assert e.estado == "ejecutada", "se rindió antes de que la posición apareciera"
+
+
+def test_pero_si_de_verdad_no_esta_se_concluye_rechazada(diario):
+    b = BrokerGuion([_ok()], entra=False)
+    e = amb.enviar_resolviendo(b, "F.US", "compra", b.mandar, dormir=_sin_dormir)
+    assert e.estado == "rechazada"
+    # Y habiendo mirado las veces que dice que mira.
+    assert f"de {amb.CONFIRMACIONES} comprobaciones" in (e.error or "")

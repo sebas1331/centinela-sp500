@@ -41,6 +41,10 @@ on:
         description: "Ticker para el diagnóstico"
         type: string
         default: "F"
+      acciones:
+        description: "Cuántas acciones comprar en el diagnóstico"
+        type: string
+        default: "1"
       repetir_busqueda:
         description: "Repetir la búsqueda de instrumento N veces"
         type: string
@@ -105,6 +109,7 @@ jobs:
         run: |
           ARGS="--ticker ${{ inputs.ticker }}"
           ARGS="$ARGS --repetir-busqueda ${{ inputs.repetir_busqueda }}"
+          ARGS="$ARGS --acciones ${{ inputs.acciones }}"
           if [ "${{ inputs.comprar_en_diagnostico }}" = "true" ]; then
             ARGS="$ARGS --comprar"
           fi

@@ -94,7 +94,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ticker", default="F")
     ap.add_argument("--comprar", action="store_true",
-                    help="intenta comprar 1 acción (si no, solo lee)")
+                    help="intenta comprar (si no, solo lee)")
+    ap.add_argument("--acciones", type=int, default=1,
+                    help="cuántas acciones comprar en la prueba")
     ap.add_argument("--repetir-busqueda", type=int, default=1,
                     help="repetir la búsqueda N veces, por si el id cambia")
     args = ap.parse_args()
@@ -154,8 +156,8 @@ def main() -> int:
             log("(sin --comprar: no se manda ninguna orden)")
             return 0
 
-        log(f"intentando comprar 1 acción de {simbolo}...")
-        e = b.comprar(simbolo, 1)
+        log(f"intentando comprar {args.acciones} acción(es) de {simbolo}...")
+        e = b.comprar(simbolo, args.acciones)
         log(f"  -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
             + (f" (orden {e.orden})" if e.orden else "")
             + (f" ERROR: {e.error}" if e.error else ""))
