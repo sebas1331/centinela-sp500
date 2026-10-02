@@ -778,3 +778,12 @@ def test_una_orden_que_acaba_el_dia_en_cola_es_ROJA():
     s = go.semaforo(salud_ok, None, [], [orden], ahora)
     assert s["color"] == "rojo"
     assert any("EN COLA" in m and "MRNA" in m for m in s["motivos"])
+
+
+@pytest.mark.parametrize("fichero", PUBLICAN)
+def test_el_job_de_salud_puede_escribir(fichero):
+    """Publica por el diario (un push): sin permiso de escritura moriría en
+    rojo cada vez. vigilante.yml es de solo lectura arriba y se le olvidó."""
+    wf = _wf(fichero)
+    permisos = wf["jobs"]["salud"].get("permissions") or wf.get("permissions") or {}
+    assert permisos.get("contents") == "write", f"{fichero}: salud sin escritura"

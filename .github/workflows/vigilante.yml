@@ -135,6 +135,9 @@ jobs:
     needs: [vigilar]
     if: always()
     runs-on: ubuntu-latest
+    # El workflow es de solo lectura; este job publica la salud por el diario.
+    permissions:
+      contents: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
