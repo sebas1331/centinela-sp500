@@ -532,3 +532,69 @@ def test_el_json_dice_cuantas_posiciones_hay_que_vigilar(tmp_path, monkeypatch):
            {"ticker": "SINNIVEL", "stop": None, "objetivo": None}]
     assert go.bloque_vigilante_precios(ahora, con)["posiciones_a_vigilar"] == 1
     assert go.bloque_vigilante_precios(ahora, [])["posiciones_a_vigilar"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# 8. El primer día de una posición no puede quedarse sin vigilar
+# --------------------------------------------------------------------------- #
+def test_una_compra_de_hoy_se_vigila_aunque_el_simulador_no_la_tenga(
+        aislado, monkeypatch):
+    """El simulador mueve las entradas de `entradas_pendientes` a `posiciones`
+    en el POST-CIERRE. Entre la compra de la mañana y el cierre no tienen
+    niveles en el estado, y el vigilante decía "no hay nada que vigilar" con la
+    posición recién abierta: un agujero de una sesión entera, justo el día en
+    que la posición está más lejos de su precio de entrada.
+
+    Los niveles existen desde que se generó la orden, en la bitácora.
+    """
+    import csv
+    from centinela import estado as est_mod
+    monkeypatch.setattr(est_mod, "cargar",
+                        lambda: {"posiciones": {config.CARTERA_BROKER: []}})
+
+    class R(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromisoformat(f"{HOY}T11:00:00").replace(tzinfo=tz)
+    monkeypatch.setattr(vp, "datetime", R)
+
+    fila = {c: "" for c in ords.COLUMNAS_BROKER}
+    fila.update({"id": f"{HOY}|A|CTVA|entrada_tardia", "sesion": HOY,
+                 "cartera": "A", "ticker": "CTVA", "simbolo_xtb": "CTVA.US",
+                 "tipo": ords.ENTRADA_TARDIA, "acciones": 134,
+                 "estado": "ejecutada", "objetivo": 26.16, "stop": 11.06})
+    with open(ords.ARCHIVO_BITACORA_BROKER, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ords.COLUMNAS_BROKER)
+        w.writeheader(); w.writerow(fila)
+
+    broker = BrokerFalso([_posicion("CTVA.US", 134)])
+    vigiladas = vp.cargar_vigiladas(broker)
+    assert [v["ticker"] for v in vigiladas] == ["CTVA"]
+    assert vigiladas[0]["objetivo"] == 26.16 and vigiladas[0]["stop"] == 11.06
+
+
+def test_pero_si_el_simulador_ya_la_tiene_manda_el_simulador(aislado, monkeypatch):
+    """La bitácora es el respaldo, no la fuente: el estado es quien recalcula
+    el objetivo cada día."""
+    import csv
+    from centinela import estado as est_mod
+    monkeypatch.setattr(est_mod, "cargar", lambda: {"posiciones": {
+        config.CARTERA_BROKER: [{"ticker": "CTVA", "fecha_entrada": HOY,
+                                 "objetivo": 30.0, "stop": 10.0, "id": 1}]}})
+
+    class R(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromisoformat(f"{HOY}T11:00:00").replace(tzinfo=tz)
+    monkeypatch.setattr(vp, "datetime", R)
+
+    fila = {c: "" for c in ords.COLUMNAS_BROKER}
+    fila.update({"id": "x", "sesion": HOY, "cartera": "A", "ticker": "CTVA",
+                 "simbolo_xtb": "CTVA.US", "tipo": ords.COMPRA, "acciones": 134,
+                 "estado": "ejecutada", "objetivo": 26.16, "stop": 11.06})
+    with open(ords.ARCHIVO_BITACORA_BROKER, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ords.COLUMNAS_BROKER)
+        w.writeheader(); w.writerow(fila)
+
+    vigiladas = vp.cargar_vigiladas(BrokerFalso([_posicion("CTVA.US", 134)]))
+    assert vigiladas[0]["objetivo"] == 30.0, "la bitácora pisó al simulador"

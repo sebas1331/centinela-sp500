@@ -85,6 +85,41 @@ def log(msg: str) -> None:
 # --------------------------------------------------------------------------- #
 # Qué se vigila
 # --------------------------------------------------------------------------- #
+def _niveles_de_las_compras_de_hoy(ya_conocidas: dict) -> dict:
+    """Objetivo y stop de lo comprado hoy, leídos de la bitácora del broker.
+
+    Solo para lo que el estado del simulador todavía no conoce: si la posición
+    ya está ahí, manda el estado, que es la fuente.
+    """
+    hoy = datetime.now(config.TZ_ET).date().isoformat()
+    fuera = {}
+    for f in ords.filas_de_sesion(hoy):
+        if f.get("tipo") not in (ords.COMPRA, ords.ENTRADA_TARDIA):
+            continue
+        if f.get("estado") != "ejecutada" or f.get("ticker") in ya_conocidas:
+            continue
+        objetivo = _num(f.get("objetivo"))
+        stop = _num(f.get("stop"))
+        if objetivo is None and stop is None:
+            continue
+        fuera[f["ticker"]] = {
+            "ticker": f["ticker"], "fecha_entrada": hoy,
+            "objetivo": objetivo, "stop": stop, "id": None,
+        }
+        log(f"  {f['ticker']}: niveles leídos de la orden de hoy (el simulador "
+            f"aún no la ha convertido en posición)")
+    return fuera
+
+
+def _num(v):
+    if v in (None, "", "None"):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 def cargar_vigiladas(broker) -> list[dict]:
     """Las posiciones que XTB tiene de verdad, con sus niveles de la víspera.
 
@@ -100,6 +135,17 @@ def cargar_vigiladas(broker) -> list[dict]:
     simuladas = {p["ticker"]: p
                  for p in estado.get("posiciones", {}).get(cartera, [])
                  if str(p.get("fecha_entrada", "")) >= config.EJECUCION_DESDE}
+
+    # LAS COMPRAS DE HOY TODAVÍA NO SON POSICIONES. El simulador las mueve de
+    # `entradas_pendientes` a `posiciones` en el post-cierre, así que entre la
+    # compra de la mañana y el cierre no tienen niveles en el estado — y el
+    # vigilante decía "no hay nada que vigilar" con la posición recién abierta.
+    # Era un agujero de una sesión entera, justo el día en que la posición está
+    # más lejos de su precio de entrada.
+    #
+    # Los niveles SÍ existen: se decidieron al generar la orden y están en la
+    # bitácora del broker. De ahí se leen.
+    simuladas.update(_niveles_de_las_compras_de_hoy(simuladas))
 
     vigiladas = []
     for real in broker.posiciones():
