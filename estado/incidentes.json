@@ -36,7 +36,7 @@
    "arreglado": "2026-10-02",
    "arreglo": "La confirmación mira el lado de la orden: compra si la posición crece, venta si baja o desaparece; la venta parcial es ejecutada con lo que se movió. El registro de CTVA se corrigió a mano con la evidencia del saldo.",
    "causa": "ambiguas.confirmar() solo reconocía compras: daba una orden por buena si la posición CRECÍA. La venta de CTVA (134 a 11,97, orden 917022383) hizo desaparecer la posición y se anotó 'rechazada'. Afectaba a toda venta: vigilante, ventas por tiempo y plan B.",
-   "commit": "8d3faf9",
+   "commit": "d1232e5",
    "componentes": [],
    "fecha": "2026-10-02",
    "ordenes": [
@@ -48,7 +48,7 @@
    "arreglado": "2026-10-02",
    "arreglo": "Un solo grupo de concurrencia (centinela-operativa) en pagina_operativa.yml, que regenera sobre el origin nuevo si el push choca. Todo lo del broker y la salud se publica por un diario local aplicado sobre el origin nuevo, sin rebase.",
    "causa": "Cada workflow republicaba la página de operativa con su propio grupo de concurrencia y con rebase. Dos workflows escribiendo a la vez docs/operativa.json o estado/salud.json chocaban en el rebase: 13 runs en rojo entre el 29/09 y el 02/10. Ninguno llevaba una venta, pero el commit de cierre de sesión del vigilante sí podía llevarla.",
-   "commit": "8d3faf9",
+   "commit": "d1232e5",
    "componentes": [],
    "fecha": "2026-09-29",
    "ordenes": [],

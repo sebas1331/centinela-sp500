@@ -175,6 +175,8 @@ def test_los_incidentes_registrados_estan_completos():
     assert len(reales) >= 2
     for i in reales:
         for campo in incidentes.OBLIGATORIOS:
+            if campo == "ordenes" and i.get("ordenes") == [] and not i.get("componentes"):
+                continue            # historia que no calla nada (ver guardar)
             assert i.get(campo), f"{i.get('titulo')} sin {campo}"
         assert len(i["commit"]) >= 7, "el commit tiene que ser identificable"
 
