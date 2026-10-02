@@ -4,4 +4,4 @@ cuando,sesion,id,simbolo,tipo,estado,detalle
 2026-10-02T09:30:22.922267-04:00,2026-10-02,2026-10-02|A|CTVA|compra,CTVA.US,compra,rechazada,XTB no tiene ni posición ni orden de CTVA.US tras 1 comprobación(es): la orden no existe
 2026-10-02T10:05:58.989056-04:00,2026-10-02,2026-10-02|A|CTVA|compra,CTVA.US,compra,fallida,"XTB no tiene ni posición ni orden de CTVA.US: la orden 916925310 no existe, se rechazó"
 2026-10-02T10:06:05.953772-04:00,2026-10-02,2026-10-02|A|CTVA|entrada_tardia,CTVA.US,entrada_tardia,ejecutada,XTB tiene la posición: CTVA.US pasó de 0 a 134 acciones (intento 1)
-2026-10-02T14:58:22.212984-04:00,2026-10-02,2026-10-02|A|CTVA|venta_dato_erroneo,CTVA.US,venta_dato_erroneo,rechazada,XTB no tiene ni posición ni orden de CTVA.US tras 5 de 5 comprobaciones
+2026-10-02T14:58:22.212984-04:00,2026-10-02,2026-10-02|A|CTVA|venta_dato_erroneo,CTVA.US,venta_dato_erroneo,ejecutada,corregido a mano el 2026-10-02: XTB la ejecutó a 11.97 (0 posiciones tras la venta)
