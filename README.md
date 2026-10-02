@@ -638,6 +638,12 @@ poniéndole un nivel pegado al precio, disparó por **objetivo** (bid 12,29 cruz
 12,27) y por **stop** (bid 12,30 cruzó 12,32), las dos veces en **menos de dos
 segundos** entre ver el cruce y tener la orden en el broker.
 
+> **Los niveles no se mandan a XTB.** No los acepta en acciones al contado: el
+> 28/09 los ignoraba en silencio y el 02/10 pasó a **rechazar la orden entera**
+> —CTVA × 134 con niveles, rechazada; las mismas 134 sin niveles, ejecutada—.
+> Se siguen registrando en la bitácora, porque son la decisión del simulador,
+> pero quien los vigila es el vigilante de precios.
+
 > **Ojo con los CFD.** XTB ofrece muchos símbolos por partida doble: la acción al
 > contado y su CFD, con el mismo nombre. El cliente no oficial resolvía el
 > símbolo cogiendo «el primero que coincida», y el orden de esa lista cambia

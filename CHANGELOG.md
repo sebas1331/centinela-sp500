@@ -5,6 +5,77 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-02 — No era el horario: eran los niveles. Y XTB cuenta doble
+
+El arreglo de ayer funcionó en las dos mitades que se podían probar:
+
+```
+08:47 ET  faltan 42 min para la apertura; las compras se mandan DESPUÉS de abrir
+09:30:03  0 min tras la apertura          ← durmió 43 minutos y despertó al abrir
+09:30:16  enviando compra CTVA x134...
+09:30:22  rechazada — XTB no tiene ni posición ni orden    ← y murió en rojo
+```
+
+El job esperó a la apertura en vez de mandar antes, y la confirmación detectó el
+rechazo en vez de anotar «en_cola» y callarse. Pero **la orden se rechazó
+igual**, con el mercado abierto. La hipótesis del horario no bastaba.
+
+### La causa de verdad: los niveles
+
+Con el mercado abierto, el mismo instrumento, el mismo minuto:
+
+| Orden | Objetivo y stop | Resultado |
+|---|---|---|
+| CTVA × 134 | 26,16 / 11,06 | **rechazada** |
+| CTVA × 1 | — | ejecutada |
+| CTVA × 50 | — | ejecutada |
+| CTVA × 134 | — | **ejecutada** (orden 916937102) |
+
+No es el volumen: son los niveles. Ya se sabía desde el 28/09 que XTB no acepta
+stop ni take profit en acciones al contado —entonces los **ignoraba en
+silencio**, y la posición volvía con los dos a `None`— y en algún momento pasó a
+**rechazar la orden entera**.
+
+Se siguen aceptando como argumento y registrando en la bitácora, porque son la
+decisión del simulador y hay que saber cuáles eran. Lo que no se hace es
+mandárselos a un broker que los rechaza.
+
+### Y XTB devuelve la misma posición repetida
+
+Una compra de 50 acciones aparecía como «2 entradas, 100 acciones»; una de 134,
+como 268. No se ejecuta dos veces —el saldo bajó lo que cuestan 50, no 100— es
+la lista que viene duplicada. Sumarlas hacía **vender el doble de lo que había**.
+Se deduplica por número de orden.
+
+### El primer día de una posición estaba sin vigilar
+
+Con CTVA ya comprada, el vigilante de precios arrancó diciendo «no hay ninguna
+posición con nivel que vigilar». El simulador mueve las entradas de
+`entradas_pendientes` a `posiciones` en el **post-cierre**, así que entre la
+compra de la mañana y el cierre no tienen niveles en el estado.
+
+Un agujero de una sesión entera, y justo el día en que la posición está más
+lejos de su precio de entrada. Los niveles existen desde que se generó la orden
+y están en la bitácora: de ahí se leen mientras el estado no los tenga.
+
+### La sesión de hoy, recuperada
+
+CTVA se reenvió como **entrada tardía** a las 10:06 ET, dentro de la primera
+hora, y se confirmó contra XTB: 134 acciones a **12,71**, orden 916943840,
+«pasó de 0 a 134 acciones». El precio de apertura era 12,385, así que **llegar
+36 minutos tarde costó un 2,62 %**. Está registrado con los dos precios, que
+para eso tiene tipo propio.
+
+Y un fallo del arreglo de ayer, corregido sobre la marcha: `confirmar()`
+concluía «rechazada» en la **primera** comprobación, seis segundos después de
+mandar. Una orden recién enviada tarda en aparecer como posición, así que
+declararla muerta tan pronto es el mismo error que darla por ejecutada sin
+mirar, solo que al revés. Ahora agota las cinco comprobaciones.
+
+471 tests.
+
+---
+
 ## 2026-10-01 — "Aceptada" no es "ejecutada": la sesión del 30/09 se perdió entera
 
 El 30 de septiembre el sistema decidió dos entradas, MRNA y FICO, y las mandó a
