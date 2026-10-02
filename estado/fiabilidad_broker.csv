@@ -3,3 +3,4 @@ cuando,sesion,simbolo,tipo,estado,detalle
 2026-09-30T08:47:40.605994-04:00,2026-09-30,MRNA.US,compra,confirmada,en_cola en el intento 1
 2026-10-01T23:26:01.514813-04:00,2026-10-01,MRNA.US,compra,rechazada,XTB la aceptó como 'en cola' con el mercado cerrado (mandada 43 min antes de la apertura) y la descartó después. En xStation 5 figura como RECHAZADO.
 2026-10-01T23:26:01.515243-04:00,2026-10-01,FICO.US,compra,rechazada,XTB la aceptó como 'en cola' con el mercado cerrado (mandada 43 min antes de la apertura) y la descartó después. En xStation 5 figura como RECHAZADO.
+2026-10-02T09:30:22.922267-04:00,2026-10-02,CTVA.US,compra,rechazada,XTB no tiene ni posición ni orden de CTVA.US tras 1 comprobación(es): la orden no existe
