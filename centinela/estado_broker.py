@@ -7,7 +7,9 @@ vigilante de precios— y vivía dentro de uno. El 2026-10-02 eso se notó: CTVA
 compró por la entrada tardía, que no lo llamaba, y la página estuvo media sesión
 diciendo "0 posiciones" con 134 acciones abiertas en XTB.
 
-Regla simple: todo camino que cambie posiciones vuelca el estado al terminar.
+Regla: se vuelca tras cada compra, cada venta, cada entrada tardía y en cada
+latido del vigilante de precios. Y si no se puede leer, REVIENTA: una página que
+enseña la cuenta de ayer sin decirlo es peor que una página en rojo.
 """
 from __future__ import annotations
 
@@ -18,8 +20,10 @@ import pandas as pd
 
 from . import config, cuenta
 
+ARCHIVO = config.ESTADO_DIR / "broker.json"
 
-def volcar(broker, candado_ok: bool = True) -> None:
+
+def volcar(broker, candado_ok: bool = True) -> dict:
     """Deja en estado/broker.json lo que XTB dice de la cuenta ahora mismo.
 
     Lo consume la página de operativa, que es estática y no puede preguntarle
@@ -30,12 +34,12 @@ def volcar(broker, candado_ok: bool = True) -> None:
     devuelve: el broker da precio de entrada y volumen, y multiplicar los dos
     ignoraría las fricciones que la cuenta sí modela.
     """
-    try:
-        saldo = broker.saldo()
-        posiciones = broker.posiciones()
-    except Exception as exc:  # noqa: BLE001
-        print(f"no se pudo volcar el estado del broker: {exc!r}")
-        return
+    # SIN try. Antes un fallo aquí se imprimía y se seguía, y la página se
+    # quedaba enseñando la cuenta de ayer como si fuera la de ahora: el
+    # 2026-10-02 dijo "0 posiciones" durante toda la vida de CTVA. Quien llama
+    # decide qué hacer con el error; lo que no puede pasar es que nadie lo vea.
+    saldo = broker.saldo()
+    posiciones = broker.posiciones()
 
     # La misma vista limpia que el panel: sin duplicadas y sin las decididas
     # sobre una serie rota. Si cada página se filtrara a su manera, el coste de
@@ -58,8 +62,12 @@ def volcar(broker, candado_ok: bool = True) -> None:
             for p in posiciones if p["lado"] == "buy"
         ],
     }
-    ruta = config.ESTADO_DIR / "broker.json"
+    ruta = ARCHIVO
     ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2,
                                sort_keys=True) + "\n", encoding="utf-8")
+    if ruta == config.ESTADO_DIR / "broker.json":
+        from . import diario
+        diario.anotar("broker", datos=datos)
     print(f"estado del broker volcado: {len(datos['posiciones'])} posiciones",
           flush=True)
+    return datos

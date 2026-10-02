@@ -1,0 +1,67 @@
+name: Página de operativa
+
+# ---------------------------------------------------------------------------
+# Regenera docs/operativa.json y la publica. La llaman todos los workflows que
+# tocan el broker o la salud del sistema, al terminar.
+#
+# UN SOLO GRUPO DE CONCURRENCIA PARA TODOS (incidente del 2026-10-02). Antes
+# cada workflow tenía el suyo (`operativa-<workflow>`), así que dos workflows
+# distintos republicaban la página a la vez, el rebase no sabía juntar dos
+# versiones del mismo JSON generado y el run moría con "could not apply ...
+# operativa": 13 veces en la semana del 28/09.
+#
+# Ahora todas las regeneraciones hacen cola en `centinela-operativa`, y además
+# el script nunca rebasa: si el push choca, regenera sobre el origin nuevo.
+#
+# Si GitHub cancela una regeneración que esperaba turno (solo deja una en
+# espera por grupo), no se pierde nada: este job no registra ninguna salud —eso
+# lo hace cada componente en su propio job y lo publica por el diario— y la
+# regeneración que queda parte de lo más nuevo.
+# ---------------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      mensaje:
+        description: "Mensaje del commit"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  pagina:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: centinela-operativa
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # Solo para LEER la caducidad de la sesión: `cache/restore`, nunca
+      # `cache`, porque un job que no habla con el broker no debe poder pisar
+      # su sesión al terminar.
+      - name: Leer la caducidad de la sesión de XTB
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-
+          restore-keys: xtb-sesion-
+
+      - name: Regenerar y publicar la página
+        run: |
+          python scripts/publicar_operativa.py --mensaje "${{ inputs.mensaje }}"

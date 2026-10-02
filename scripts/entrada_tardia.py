@@ -106,7 +106,7 @@ def main() -> int:
     problemas: list[str] = []
     with bx.BrokerXTB(bx.credenciales_del_entorno_o_llavero(), demo=True) as b:
         saldo = b.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO): saldo {saldo['saldo']:,.2f}")
+        log(f"cuenta DEMO verificada: saldo {saldo['saldo']:,.2f}")
         log(f"apertura de hoy: {apertura:%H:%M ET} | ahora: {ahora:%H:%M ET} "
             f"({minutos:+.0f} min)")
         log("")

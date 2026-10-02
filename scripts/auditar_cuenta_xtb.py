@@ -61,7 +61,7 @@ def main() -> int:
     problemas: list[str] = []
     with bx.BrokerXTB(bx.credenciales_del_entorno_o_llavero(), demo=True) as b:
         saldo = b.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO)")
+        log(f"cuenta DEMO verificada")
         log(f"  saldo   {saldo['saldo']:,.2f} {saldo['divisa']}")
         log(f"  equity  {saldo['equity']:,.2f}")
 

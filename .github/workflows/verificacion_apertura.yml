@@ -90,25 +90,23 @@ jobs:
       # `always()`: la verificación corrige precios en la bitácora. Si encuentra
       # un problema y muere en rojo, las correcciones que ya hizo tienen que
       # quedar guardadas igual.
-      - name: Commit y push de lo verificado
+      # Por el diario, sin rebase: no puede chocar ni perderse.
+      - name: Publicar lo verificado (diario, sin rebase)
         if: always()
         run: |
-          scripts/commit_y_push.sh \
-            "verificación de la apertura [skip ci]" \
-            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
-            estado bitacora_broker.csv ordenes
+          python scripts/publicar_diario.py --mensaje "verificación de la apertura [skip ci]"
 
   # La página, para que el resultado de la apertura se vea EL MISMO DÍA y no
   # haya que esperar al post-cierre. Job aparte y grupo propio, como en los
   # demás: publicar no puede competir con lo que escribe la bitácora.
-  operativa:
-    needs: verificar
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
+    needs: [verificar]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: operativa-${{ github.workflow }}
-      cancel-in-progress: false
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,30 +120,24 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Leer la caducidad de la sesión de XTB
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.centinela_xtb_session
-            ~/.centinela_xtb_ticket.json
-            ~/.centinela_xtb_cookies.json
-          key: xtb-sesion-
-          restore-keys: xtb-sesion-
-
       - name: Registrar el estado de la verificación
         run: |
           python scripts/registrar_salud.py apertura \
             --salida "${{ needs.verificar.outputs.resultado }}" \
             --job "${{ needs.verificar.result }}" --solo-si-falta
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: republicada tras verificar la apertura [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: verificación de la apertura [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: republicada tras verificar la apertura [skip ci]"

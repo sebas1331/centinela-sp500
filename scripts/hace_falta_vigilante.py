@@ -73,7 +73,12 @@ def main() -> int:
         subprocess.run(["git", "remote", "add", "origin",
                         lat.remoto_autenticado()], cwd=str(trabajo), check=True)
 
-    forzado = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    # Forzado SOLO si se pide (casilla `forzar`) o es un relevo. Antes cualquier
+    # `workflow_dispatch` forzaba, y como el pre-apertura lo llamaba en cada
+    # peldaño de la escalera, el 02/10 hubo once vigilantes en cola cancelados
+    # uno detrás de otro. Ahora un dispatch sin forzar mira el latido como los
+    # crons de respaldo: si hay uno vivo, no arranca otro.
+    forzado = bool(os.environ.get("FORZAR") or os.environ.get("RELEVO_DE"))
     arrancar, motivo = decidir(lat.leer(trabajo),
                                datetime.now(config.TZ_ET), forzado)
     return _salida(arrancar, motivo)

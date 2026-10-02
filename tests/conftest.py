@@ -27,10 +27,32 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 
+#: La cuenta de los tests. NO es la de verdad: el número real ya no está en el
+#: repositorio (solo su huella, en config.CUENTA_DEMO_HUELLA). La huella de esta
+#: se calcula una vez —scrypt es caro a propósito— y se pone en cada test.
+CUENTA_PRUEBA = 12345678
+_HUELLA_PRUEBA = None
+
+
+def huella_prueba() -> str:
+    global _HUELLA_PRUEBA
+    if _HUELLA_PRUEBA is None:
+        from centinela import config
+        _HUELLA_PRUEBA = config.huella_cuenta(CUENTA_PRUEBA)
+    return _HUELLA_PRUEBA
+
+
 @pytest.fixture(autouse=True)
 def nada_toca_el_estado_real(tmp_path, monkeypatch):
     """Redirige a un temporal todo lo que se escribe fuera de docs/."""
-    from centinela import config, datos_erroneos, fiabilidad, latido, ordenes, salud
+    from centinela import (config, datos_erroneos, diario, estado_broker,
+                           fiabilidad, latido, ordenes, salud)
+
+    # El diario local (ver centinela/diario.py) y la foto de la cuenta. Sin
+    # esto, cualquier test que registre una orden escribiría en la caché local
+    # del repositorio y en estado/broker.json de verdad.
+    monkeypatch.setattr(diario, "ARCHIVO", tmp_path / "diario.jsonl")
+    monkeypatch.setattr(estado_broker, "ARCHIVO", tmp_path / "broker.json")
 
     # La bitácora y el estado del simulador. Un test que cierre una posición
     # —el cierre por dato erróneo lo hace— escribiría si no la bitácora REAL
@@ -54,4 +76,16 @@ def nada_toca_el_estado_real(tmp_path, monkeypatch):
     monkeypatch.setattr(latido, "publicar",
                         lambda *_a, **_k: pytest.fail(
                             "un test intentó publicar el latido de verdad"))
+    # Ni leerlo: sería un fetch real a GitHub en mitad de un test.
+    monkeypatch.setattr(latido, "leer", lambda *_a, **_k: None)
+    # El diario se publica con push a main. Los tests que lo prueban usan
+    # `diario.publicar_de_verdad` contra un remoto temporal propio.
+    monkeypatch.setattr(diario, "publicar",
+                        lambda *_a, **_k: pytest.fail(
+                            "un test intentó publicar el diario de verdad"))
+    # La cuenta permitida, en los tests, es la de prueba.
+    monkeypatch.setattr(config, "CUENTA_DEMO_HUELLA", huella_prueba())
+    # Y nada de pings a healthchecks.io.
+    monkeypatch.delenv("HEALTHCHECKS_PING_URL", raising=False)
+    monkeypatch.delenv("HEALTHCHECKS_API_KEY", raising=False)
     return tmp_path

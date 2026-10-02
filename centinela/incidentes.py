@@ -49,7 +49,18 @@ def cargar(ruta: Path | None = None) -> list[dict]:
 def guardar(incidentes: list[dict], ruta: Path | None = None) -> None:
     ruta = ruta or ARCHIVO
     for i in incidentes:
-        faltan = [c for c in OBLIGATORIOS if not i.get(c)]
+        # `ordenes` tiene que ESTAR, pero puede estar vacía: un incidente de
+        # publicación (los choques de push del 2026-10-02) no afecta a ninguna
+        # orden. Vacía no apaga nada, que es lo que hace segura la excepción:
+        # solo se callan las órdenes que se listan una a una.
+        #
+        # Pero solo si tampoco excusa componentes: un incidente sin órdenes que
+        # excusara el rojo de un componente callaría algo sin decir qué.
+        sin_ordenes_ok = (isinstance(i.get("ordenes"), list)
+                          and not i.get("componentes"))
+        faltan = [c for c in OBLIGATORIOS
+                  if (not (i.get(c) or sin_ordenes_ok) if c == "ordenes"
+                      else not i.get(c))]
         if faltan:
             raise ValueError(
                 f"Incidente sin {', '.join(faltan)}: {i.get('titulo') or i}. "

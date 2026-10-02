@@ -19,6 +19,7 @@ sys.path.insert(0, str(RAIZ / "scripts"))
 
 from centinela import (config, latido as lat, niveles as niv,  # noqa: E402
                        ordenes as ords, broker_xtb as bx)
+from conftest import CUENTA_PRUEBA  # noqa: E402
 import vigilante_precios as vp  # noqa: E402
 import hace_falta_vigilante as hfv  # noqa: E402
 
@@ -51,7 +52,7 @@ class BrokerFalso:
 
     def saldo(self):
         return {"saldo": 30000.0, "equity": 30000.0, "divisa": "USD",
-                "cuenta": config.CUENTA_DEMO}
+                "cuenta": CUENTA_PRUEBA}
 
     def cotizacion(self, simbolo):
         return {"ticker": simbolo, "bid": 100.0, "ask": 100.1, "spread": 0.1}
@@ -241,7 +242,7 @@ def test_el_latido_no_lleva_ni_un_dato_de_sesion():
     d = lat.construir("2026-10-15T09:30:00-04:00", [_vigilada()])
     texto = json.dumps(d, ensure_ascii=False)
     for prohibido in ("tgt", "TGT", "CASTGC", "password", "cookie", "token",
-                      str(config.CUENTA_DEMO)):
+                      str(CUENTA_PRUEBA)):
         assert prohibido not in texto
 
 
@@ -475,7 +476,7 @@ def test_sin_posiciones_el_vigilante_queda_en_reposo_y_lo_dice(aislado, monkeypa
     muerto — 'lleva 62 min sin latir' sin una sola posición que vigilar."""
     publicados = []
     monkeypatch.setattr(vp, "latir", lambda d, _t: publicados.append(d))
-    monkeypatch.setattr(vp, "cargar_vigiladas", lambda _b: [])
+    monkeypatch.setattr(vp, "cargar_vigiladas", lambda *_a: [])
     monkeypatch.setattr(vp.bx, "credenciales_del_entorno_o_llavero",
                         lambda: object())
     monkeypatch.setattr(vp.bx, "BrokerXTB", lambda *_a, **_k: BrokerFalso())

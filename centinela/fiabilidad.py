@@ -66,19 +66,25 @@ def anotar(estado: str, simbolo: str, tipo: str, detalle: str = "",
         ruta.parent.mkdir(parents=True, exist_ok=True)
         nuevo = not ruta.exists()
         ahora = datetime.now(config.TZ_ET)
+        fila = {
+            "cuando": ahora.isoformat(),
+            "sesion": ahora.date().isoformat(),
+            "id": id_orden,
+            "simbolo": simbolo,
+            "tipo": tipo,
+            "estado": estado,
+            "detalle": (detalle or "")[:300],
+        }
         with open(ruta, "a", encoding="utf-8", newline="") as f:
             w = csv.DictWriter(f, fieldnames=COLUMNAS)
             if nuevo:
                 w.writeheader()
-            w.writerow({
-                "cuando": ahora.isoformat(),
-                "sesion": ahora.date().isoformat(),
-                "id": id_orden,
-                "simbolo": simbolo,
-                "tipo": tipo,
-                "estado": estado,
-                "detalle": (detalle or "")[:300],
-            })
+            w.writerow(fila)
+        # Y al diario local, que es lo que se publica sin rebase: si el push
+        # del job choca, la fila no se pierde (ver centinela/diario.py).
+        if ruta == ARCHIVO:
+            from . import diario
+            diario.anotar("fiabilidad", fila=fila)
     except OSError as exc:
         print(f"[fiabilidad] no se pudo anotar ({exc!r}); se sigue.", flush=True)
 

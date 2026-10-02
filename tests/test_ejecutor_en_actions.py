@@ -128,12 +128,13 @@ def test_lo_ya_ejecutado_se_commitea_aunque_el_job_muera(fichero, job):
     """Si mandó tres órdenes y falló en la cuarta, las tres tienen que quedar
     registradas o el siguiente disparo las repetiría."""
     pasos = _wf(fichero)["jobs"][job]["steps"]
-    commit = [p for p in pasos if "commit_y_push" in str(p.get("run", ""))]
-    assert commit, f"{fichero}: el ejecutor no persiste lo que hizo"
-    assert "always()" in commit[0]["if"]
-    assert "bitacora_broker.csv" in commit[0]["run"]
-    # NO commitea la bitácora del simulador: esa la escribe el escaneo.
-    assert "bitacora.csv " not in commit[0]["run"]
+    # Por el DIARIO, no por commit_y_push (2026-10-02): un rebase que choca
+    # pierde lo que el broker hizo; el diario se aplica sobre el origin nuevo.
+    publica = [p for p in pasos if "publicar_diario.py" in str(p.get("run", ""))]
+    assert publica, f"{fichero}: el ejecutor no persiste lo que hizo"
+    assert "always()" in publica[0]["if"]
+    assert not [p for p in pasos if "commit_y_push" in str(p.get("run", ""))], \
+        f"{fichero}: lo del broker se publica por el diario, nunca por rebase"
 
 
 # --------------------------------------------------------------------------- #
@@ -141,6 +142,8 @@ def test_lo_ya_ejecutado_se_commitea_aunque_el_job_muera(fichero, job):
 # --------------------------------------------------------------------------- #
 def test_la_cuenta_permitida_vive_en_el_codigo_y_no_en_un_secret():
     """Un secret se cambia desde una web sin dejar diff; esto exige un commit."""
+    import re
     fuente = (RAIZ / "centinela" / "config.py").read_text(encoding="utf-8")
-    assert f"CUENTA_DEMO = {config.CUENTA_DEMO}" in fuente
+    # La HUELLA, versionada; el número real no está en el repositorio.
+    assert re.search(r'^CUENTA_DEMO_HUELLA = "[0-9a-f]{64}"$', fuente, re.M)
     assert 'TIPO_CUENTA_BROKER = "demo"' in fuente

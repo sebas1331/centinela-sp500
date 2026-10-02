@@ -5,6 +5,102 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-02 (5) — Las ventas, de verdad; y un semáforo que no miente
+
+La auditoría del día dio «no listo»: las compras funcionaban, pero **las ventas
+no eran fiables** y **el semáforo no reflejaba la realidad**. Nada de esto toca
+la decisión (modelo, umbral 0.79, features, objetivos, stop).
+
+### Las ventas
+
+- **`confirmar()` reconoce ventas.** Daba una orden por buena solo si la posición
+  CRECÍA, así que toda venta correcta salía «rechazada» (CTVA, 134 × 11,97).
+  Ahora: compra si crece, venta si baja o desaparece, y una venta **parcial** es
+  ejecutada con lo que de verdad se movió (columna `acciones`, nota `PARCIAL`).
+  Lo mismo en la resolución de órdenes ambiguas.
+- **Ventas por tiempo dentro del vigilante de precios**, 15 min antes del cierre.
+  El cron de ventas no llegó a su ventana ni una vez en la semana del 28/09
+  (llega 4-7 h tarde) y queda de **respaldo**, con el mismo identificador de
+  orden: si el vigilante ya vendió, no repite. Si ninguno llega, plan B en la
+  apertura siguiente (`tiempo_diferido`), como antes.
+- **El vigilante arranca cada sesión con posiciones**, lo lanza el job de compras
+  según lo que XTB tenga (`posiciones_xtb`), no solo cuando hubo compras. Antes
+  vigilar el pre-mercado era posible; ahora espera a la apertura o se va en reposo.
+- **Relee XTB cada 3 min y tras cada venta**: el latido ya no anuncia posiciones
+  vendidas (el 02/10 siguió anunciando CTVA seis minutos después de venderla).
+- **Precio real de cada orden.** Si XTB no lo devuelve: en compras, el de
+  apertura de la posición nueva; en ventas, deducido del cambio de saldo. Hay dos
+  modelos de saldo posibles y las lecturas del 02/10 no los distinguen (los dos
+  dan 11,97 para CTVA), así que se calculan los dos y se elige el que cuadra con
+  el bid previo; sin referencia, el precio se queda vacío. Columna nueva
+  `precio_fuente` (`xtb`, `posicion`, `saldo-caja`, `saldo-pnl`, `manual`). La
+  prueba real del lunes deja medido cuál usa XTB.
+- **Una venta no se pierde al publicar** (`centinela/diario.py`). Todo lo que el
+  broker hace se anota primero en un diario local y se publica APLICÁNDOLO sobre
+  el origin más nuevo, en un árbol aparte y sin rebase: no puede chocar. Y la
+  **reconciliación cuadra las acciones de XTB contra `bitacora_broker.csv`**: una
+  venta en XTB que no esté registrada (un push perdido, un cierre a mano) es rojo.
+
+### El semáforo
+
+- **Un solo grupo de concurrencia** (`centinela-operativa`) para regenerar la
+  página, en el workflow reutilizable `pagina_operativa.yml`, que además regenera
+  sobre el origin nuevo si el push choca. La salud la registra cada workflow en
+  un job propio y la publica por el diario. Fin de los «could not apply …
+  operativa» (13 en la semana del 28/09).
+- **Estado del broker siempre actual**: se lee tras cada compra, venta, entrada
+  tardía y en cada latido; viaja en el latido y la página lo prefiere si es más
+  nuevo. `estado_broker.volcar()` ya no se traga los errores.
+- **«ok» con significado** en ventas: `ok: N vendidas`, `ok: nada que vender`,
+  `fuera-de-ventana: nada que vender` y, si quedaban ventas por hacer,
+  `fallo:fuera-de-ventana` (rojo). El respaldo tardío no pisa el resultado del
+  vigilante.
+- **Latido con historial** (~240): se ve si la sesión estuvo cubierta entera; un
+  corte de más de 10 min pinta ámbar.
+- Compras: agotar la espera a la apertura ya no termina en verde sin comprar
+  (`EJECUTOR_COMPRAS_ESPERA_MAX_MIN` = 250, por encima de las 4 h que puede
+  adelantarse el pre-apertura).
+
+### Aviso externo
+
+`centinela/aviso.py`: ping a **healthchecks.io** cada minuto mientras haya
+posiciones con el mercado abierto; si se cortan más de 5 min, email. Al terminar
+la sesión el check se **pausa** (vuelve solo con el primer ping del día
+siguiente). Sin configurar, la página lo dice en ámbar. Procedimiento manual de
+emergencia en el README.
+
+### Limpieza
+
+- CTVA en `bitacora_broker.csv` y en el diario de fiabilidad: la venta (orden
+  917022383) **ejecutada** a 11,97; la entrada tardía a **12,71** (slippage
+  +2,62 % sobre los 12,385 del simulador). `precio_fuente = manual`.
+- `commit_y_push.sh` sin ningún `|| true`: cada fallo del bucle se dice y decide
+  el bucle. El test de shells ya no tiene excepciones.
+- **El número de cuenta fuera del código**: `config.CUENTA_DEMO_HUELLA` es un
+  scrypt con sal (n=2^17) y el número real llega por el secret `XTB_CUENTA`. Los
+  logs y la página ya no lo imprimen. **Sigue en el historial de git** (4
+  commits, el primero `b1d0862`); no se ha reescrito.
+
+### Fallos encontrados por el camino
+
+- **El relevo del vigilante no podía funcionar**: sucesor y saliente estaban en el
+  mismo grupo de concurrencia y se esperaban el uno al otro. El relevo va ahora
+  en su propio grupo.
+- `niveles.sigue_abierta` miraba solo la primera entrada del símbolo; con dos
+  compras del mismo ticker decía «ya no está».
+- Cualquier `workflow_dispatch` forzaba un vigilante nuevo: el 02/10 hubo once en
+  cola, cancelados uno tras otro. Ahora solo fuerza la casilla `forzar` o un
+  relevo.
+- El respaldo de ventas vendía las acciones de la cuenta simulada, no las de XTB.
+
+Simulación de una sesión entera con un XTB de mentira
+(`tests/test_sesion_simulada.py`): compra tras la apertura, venta por objetivo
+con un **choque de push real** contra un remoto temporal, vigilante caído 15 min y
+relanzado (el historial lo registra como corte), venta por stop, venta por
+tiempo 15 min antes del cierre, pausa del aviso y reconciliación final.
+
+---
+
 ## 2026-10-02 (4) — Lo que decidió el dato roto deja de contar
 
 La entrada anterior arregló el futuro: el screener ya no mira una serie con una

@@ -206,7 +206,7 @@ MIN_OPERACIONES_PARA_CAMBIO = 30  # sin <30 cierres nuevos, no se cambia nada
 # de trading ni en el backtest.
 # --------------------------------------------------------------------------- #
 #: Capital de partida de cada cartera. Es el SALDO REAL de la cuenta demo de
-#: XTB (22770385), leído el 2026-09-25, para que el simulador y el broker
+#: XTB, leído el 2026-09-25, para que el simulador y el broker
 #: partan del mismo dinero y la comparación entre los dos signifique algo.
 #:
 #: Las DOS carteras usan la misma cifra aunque solo la A se opere en el broker:
@@ -255,7 +255,39 @@ CARTERA_BROKER = "A"
 #: PARA PASAR A DINERO REAL NO BASTA CON CAMBIAR ESTO. Ver el apartado "Antes de
 #: pasar a dinero real" del README: son varios pasos deliberados y ninguno de
 #: ellos debe poder hacerse por accidente.
-CUENTA_DEMO = 22770385
+#:
+#: UNA HUELLA, NO EL NÚMERO (2026-10-02). El repositorio es público y el número
+#: de la cuenta no tiene por qué estarlo. Aquí vive su huella —scrypt con sal—
+#: y el número real llega por el secret `XTB_CUENTA`, que ya se usaba para el
+#: login. El candado sigue anclado a un commit: cambiar el secret a otra cuenta
+#: no sirve de nada sin cambiar también esta huella en el código.
+#:
+#: Por qué scrypt y no un hash rápido: un número de 8 cifras son 10^8
+#: candidatos, y con SHA-256 se recorren en segundos. Con este coste (n=2^17,
+#: ~0,2 s y 128 MB por intento) son del orden de 800 días de CPU. No es secreto
+#: absoluto —nada que se pueda enumerar lo es—, pero deja de ser gratis.
+#:
+#: Para calcular la huella de otra cuenta:
+#:   python -c "from centinela import config; print(config.huella_cuenta(N))"
+SAL_CUENTA = b"centinela-sp500/candado-de-cuenta/v1"
+CUENTA_DEMO_HUELLA = "faa853bbda9d5f5a52b68a70ae80f0f0a85bfd3383925c35603da7f41a5df99b"
+
+
+def huella_cuenta(numero) -> str:
+    """La huella de un número de cuenta, para compararla con CUENTA_DEMO_HUELLA."""
+    import hashlib
+    return hashlib.scrypt(str(int(numero)).encode("ascii"), salt=SAL_CUENTA,
+                          n=2 ** 17, r=8, p=1, dklen=32,
+                          maxmem=2 ** 28).hex()
+
+
+def es_cuenta_demo(numero) -> bool:
+    """¿Es este número la cuenta demo permitida? Comparación en tiempo constante."""
+    import hmac
+    try:
+        return hmac.compare_digest(huella_cuenta(numero), CUENTA_DEMO_HUELLA)
+    except (TypeError, ValueError):
+        return False
 
 #: Interruptor separado del número. Que el sistema opere en real exige cambiar
 #: LAS DOS cosas, en el mismo commit y a conciencia: un despiste con una sola
@@ -308,8 +340,33 @@ SESION_AVISO_HORAS = 3
 #: tienen tipo propio— pero una orden que se ejecuta de verdad vale más que una
 #: que encaja perfecto con el simulador y no existe.
 EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (0, 60)       # desde la apertura, 60 min
+#: Cuánto puede dormir el ejecutor de compras esperando a que abra. El
+#: pre-apertura procesa hasta 4 h antes de la apertura (PREAPERTURA_MAX_ANTES),
+#: y su ejecutor es el ÚNICO que compra ese día: los peldaños siguientes de la
+#: escalera salen "ya procesado" y no lo relanzan. Con los 120 min de los
+#: escaneos, un pre-apertura de las 06:00 ET agotaba la espera a las 08:00 y el
+#: día se quedaba sin compras — en verde. 250 cubre las 4 h con margen; el job
+#: tiene un timeout por encima.
+EJECUTOR_COMPRAS_ESPERA_MAX_MIN = 250
 EJECUTOR_VENTAS_MIN_ANTES_CIERRE = (5, 30)         # entre 30 y 5 min antes
 EJECUTOR_RECONCILIA_MIN_DESPUES_CIERRE = 30        # al menos 30 min después
+
+#: LAS VENTAS POR TIEMPO LAS HACE EL VIGILANTE DE PRECIOS (2026-10-02). El
+#: workflow de ventas por cron no llegó NI UNA VEZ a su ventana en la semana
+#: del 28/09: los crons de este repositorio llegan con 4 a 7 horas de retraso.
+#: El vigilante está vivo toda la sesión, así que no depende de ningún cron:
+#: vende a esta distancia del cierre, dentro de la ventana de arriba. El cron
+#: queda de respaldo y solo actúa si el vigilante no lo hizo.
+VIGILANTE_TIEMPO_MIN_ANTES_CIERRE = 15
+#: Cada cuánto relee el vigilante las posiciones de XTB, además de tras cada
+#: venta. El 2026-10-02 el latido siguió anunciando CTVA seis minutos después
+#: de venderla porque la lista solo se leía al arrancar.
+VIGILANTE_REFRESCO_SEG = 180
+#: Un vigilante que arranca antes de la apertura espera a que abra solo si
+#: falta menos que esto; si falta más, se va en reposo y lo arranca el job de
+#: compras, que corre después de abrir. Vigilar el pre-mercado no sirve: XTB
+#: encola las órdenes de mercado con la sesión cerrada y luego las descarta.
+VIGILANTE_ESPERA_APERTURA_MAX_MIN = 45
 
 #: Ventana de la verificación posterior a la apertura, en minutos DESPUÉS de
 #: abrir. No decide nada: mira si se ejecutó lo que se mandó y a qué precio.

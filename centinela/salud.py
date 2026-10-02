@@ -97,6 +97,11 @@ def registrar(componente: str, resultado: str, detalle: str = "") -> dict:
     datos["runs"][componente] = entrada
     datos["actualizado"] = entrada["cuando"]
     guardar(datos)
+    # Al diario también: un resultado que se pierde en un push que choca deja
+    # la página contando la versión de ayer (ver centinela/diario.py).
+    if ARCHIVO == config.ESTADO_DIR / "salud.json":
+        from . import diario
+        diario.anotar("salud", componente=componente, entrada=entrada)
     return datos
 
 

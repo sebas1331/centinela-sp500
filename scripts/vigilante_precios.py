@@ -22,6 +22,21 @@ LO QUE NO HACE
 No decide nada. Los niveles son los que el simulador calculó la víspera y se
 leen del estado tal cual. No los recalcula, no los ajusta y no inventa ninguno.
 
+TAMBIÉN VENDE POR TIEMPO (2026-10-02)
+-------------------------------------
+Las salidas por tiempo del día 10 se hacen aquí, unos minutos antes del cierre
+(`config.VIGILANTE_TIEMPO_MIN_ANTES_CIERRE`). El workflow de ventas por cron no
+llegó a su ventana ni una vez en la semana del 28/09 —los crons de este
+repositorio llegan con horas de retraso—, y este proceso está vivo toda la
+sesión. El cron queda de respaldo: usa el mismo identificador de orden, así que
+si el vigilante ya vendió, el respaldo lo ve y no repite.
+
+LO QUE ANUNCIA ES LO QUE HAY
+----------------------------
+Relee las posiciones de XTB cada `VIGILANTE_REFRESCO_SEG` y tras cada venta, y
+vuelca la foto de la cuenta en cada latido. El latido nunca anuncia una
+posición que ya no existe durante más de esos pocos minutos.
+
 CÓMO SE PROTEGE DE VENDER DOS VECES
 -----------------------------------
 El candado real no es un fichero: es XTB. Antes de cada venta se releen las
@@ -42,8 +57,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (ambiguas as amb, calendario, config,  # noqa: E402
-                       broker_xtb as bx, estado_broker, latido as lat,
+from centinela import (ambiguas as amb, aviso, calendario, config,  # noqa: E402
+                       broker_xtb as bx, diario, estado_broker, latido as lat,
                        niveles as niv, ordenes as ords, estado as est_mod,
                        salud)
 
@@ -85,13 +100,14 @@ def log(msg: str) -> None:
 # --------------------------------------------------------------------------- #
 # Qué se vigila
 # --------------------------------------------------------------------------- #
-def _niveles_de_las_compras_de_hoy(ya_conocidas: dict) -> dict:
+def _niveles_de_las_compras_de_hoy(ya_conocidas: dict,
+                                   hoy: str | None = None) -> dict:
     """Objetivo y stop de lo comprado hoy, leídos de la bitácora del broker.
 
     Solo para lo que el estado del simulador todavía no conoce: si la posición
     ya está ahí, manda el estado, que es la fuente.
     """
-    hoy = datetime.now(config.TZ_ET).date().isoformat()
+    hoy = hoy or datetime.now(config.TZ_ET).date().isoformat()
     fuera = {}
     for f in ords.filas_de_sesion(hoy):
         if f.get("tipo") not in (ords.COMPRA, ords.ENTRADA_TARDIA):
@@ -120,16 +136,32 @@ def _num(v):
         return None
 
 
-def cargar_vigiladas(broker) -> list[dict]:
+def ventas_por_tiempo_de_hoy(hoy: str) -> dict[str, ords.Orden]:
+    """Las salidas por tiempo decididas para HOY, por ticker.
+
+    Las decide el post-cierre de la víspera y las deja en `pendientes.json`,
+    el mismo fichero que lee el ejecutor de ventas por cron. Una sola fuente
+    para los dos: si el vigilante y el respaldo leyeran listas distintas,
+    podrían no ponerse de acuerdo en qué había que vender.
+    """
+    pendientes = ords.cargar_pendientes()
+    return {o.ticker: o for o in pendientes.get("ordenes", [])
+            if o.tipo == ords.VENTA_TIEMPO and o.sesion == hoy
+            and o.cartera == config.CARTERA_BROKER}
+
+
+def cargar_vigiladas(broker, hoy: str | None = None) -> list[dict]:
     """Las posiciones que XTB tiene de verdad, con sus niveles de la víspera.
 
     Se cruzan dos fuentes porque ninguna lo sabe todo: XTB conoce el símbolo y
     el volumen; el simulador conoce el objetivo vigente y el stop. Solo se
-    vigila lo que está en las dos.
+    vigila lo que está en las dos — y lo que sale hoy por tiempo, aunque no
+    tenga nivel, porque alguien tiene que venderlo antes del cierre.
 
     Las heredadas del paper trading (anteriores a EJECUCION_DESDE) se quedan
     fuera: nunca existieron en el broker.
     """
+    hoy = hoy or datetime.now(config.TZ_ET).date().isoformat()
     estado = est_mod.cargar()
     cartera = config.CARTERA_BROKER
     simuladas = {p["ticker"]: p
@@ -140,30 +172,39 @@ def cargar_vigiladas(broker) -> list[dict]:
     # `entradas_pendientes` a `posiciones` en el post-cierre, así que entre la
     # compra de la mañana y el cierre no tienen niveles en el estado — y el
     # vigilante decía "no hay nada que vigilar" con la posición recién abierta.
-    # Era un agujero de una sesión entera, justo el día en que la posición está
-    # más lejos de su precio de entrada.
-    #
     # Los niveles SÍ existen: se decidieron al generar la orden y están en la
     # bitácora del broker. De ahí se leen.
-    simuladas.update(_niveles_de_las_compras_de_hoy(simuladas))
+    simuladas.update(_niveles_de_las_compras_de_hoy(simuladas, hoy))
+    tiempo = ventas_por_tiempo_de_hoy(hoy)
 
-    vigiladas = []
+    # Una entrada por SÍMBOLO, sumando: XTB enseña una posición por orden de
+    # apertura, y dos compras del mismo ticker no son dos cosas que vigilar.
+    reales: dict[str, float] = {}
     for real in broker.posiciones():
         if real["lado"] != "buy":
             continue
-        ticker = real["ticker"].replace(".US", "").replace("-", ".")
+        reales[real["ticker"]] = reales.get(real["ticker"], 0.0) + float(real["acciones"])
+
+    vigiladas = []
+    for simbolo, acciones in reales.items():
+        ticker = simbolo.replace(".US", "").replace("-", ".")
         sim = simuladas.get(ticker)
-        if sim is None:
+        sale_hoy = ticker in tiempo
+        if sim is None and not sale_hoy:
             continue
-        if sim.get("stop") is None and sim.get("objetivo") is None:
+        objetivo = sim.get("objetivo") if sim else None
+        stop = sim.get("stop") if sim else None
+        if stop is None and objetivo is None and not sale_hoy:
             continue                       # nada que vigilar
         vigiladas.append({
             "ticker": ticker,
-            "simbolo": real["ticker"],
-            "acciones": int(real["acciones"]),
-            "objetivo": sim.get("objetivo"),
-            "stop": sim.get("stop"),
-            "id_operacion": sim.get("id"),
+            "simbolo": simbolo,
+            "acciones": int(acciones),
+            "objetivo": objetivo,
+            "stop": stop,
+            "id_operacion": (sim.get("id") if sim
+                             else tiempo[ticker].id_operacion),
+            "sale_hoy": sale_hoy,
             "bid": None,
         })
     return vigiladas
@@ -189,7 +230,7 @@ def vigiladas_de_prueba(broker, spec: str) -> list[dict]:
             "acciones": int(p["acciones"]),
             "objetivo": float(objetivo) if objetivo else None,
             "stop": float(stop) if stop else None,
-            "id_operacion": None, "bid": None,
+            "id_operacion": None, "bid": None, "sale_hoy": False,
         }]
     raise RuntimeError(
         f"Modo prueba: XTB no tiene ninguna posición abierta de {ticker}. "
@@ -233,7 +274,7 @@ def vender_por_nivel(broker, registro: dict, v: dict, disparo: str,
     e = amb.enviar_resolviendo(
         broker, v["simbolo"], tipo,
         lambda: broker.vender(v["simbolo"], v["acciones"]),
-        id_orden=id_orden)
+        id_orden=id_orden, referencia=float(bid))
     latencia = time.monotonic() - t0
     log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
         + (f" (orden {e.orden})" if e.orden else "")
@@ -259,38 +300,90 @@ def vender_por_nivel(broker, registro: dict, v: dict, disparo: str,
         f"cruzado.")
 
 
+#: Si hay algo del diario sin publicar. Se reintenta en cada vuelta del bucle
+#: hasta que sube; el paso final del workflow lo intenta otra vez con todos sus
+#: reintentos y, si tampoco puede, rompe en rojo.
+PENDIENTE = {"si": False}
+
+
 def publicar_venta(ticker: str, tipo: str) -> None:
-    """Commit y push de la venta, para que el resto del sistema se entere.
+    """Publica la venta en el repositorio, para que el resto del sistema se entere.
 
     Importa que sea inmediato y no al final: el ejecutor de ventas por tiempo
     hace `git pull` antes de trabajar, y si esta venta no está publicada cuando
-    él mire, intentará vender unas acciones que ya no existen.
+    él mire, intentará vender unas acciones que ya no existen (no podrá: relee
+    XTB antes, pero lo apuntaría como algo raro).
+
+    SIN REBASE (fallo de la semana del 28/09). Antes era commit + push +
+    rebase, y un rebase que choca pierde la venta. Ahora la venta ya está en el
+    diario local antes de llegar aquí, y publicar es aplicar ese diario sobre
+    el origin más nuevo: no puede chocar. Si el push falla igualmente (red), se
+    deja pendiente y el bucle lo reintenta cada minuto.
     """
-    for orden in (("add", "--", "bitacora_broker.csv", "ordenes"),
-                  ("-c", "user.name=centinela-bot",
-                   "-c", "user.email=actions@users.noreply.github.com",
-                   "commit", "-q", "-m",
-                   f"vigilante de precios: {tipo} de {ticker} [skip ci]")):
-        r = subprocess.run(["git", *orden], cwd=str(config.BASE_DIR),
-                           capture_output=True, text=True)
-        if r.returncode != 0 and "nothing to commit" not in (r.stdout + r.stderr):
-            raise RuntimeError(f"git {' '.join(orden)}: "
-                               f"{(r.stderr or r.stdout).strip()[:200]}")
-    # El push se reintenta rebasando: otro workflow puede haber escrito mientras.
-    for intento in (1, 2, 3):
-        r = subprocess.run(["git", "push", "origin", "HEAD:main"],
-                           cwd=str(config.BASE_DIR), capture_output=True, text=True)
-        if r.returncode == 0:
-            log(f"    venta publicada en el repositorio.")
-            return
-        log(f"    push rechazado (intento {intento}/3); rebase y reintento.")
-        subprocess.run(["git", "fetch", "origin", "main"],
-                       cwd=str(config.BASE_DIR), capture_output=True, text=True)
-        subprocess.run(["git", "rebase", "origin/main"],
-                       cwd=str(config.BASE_DIR), capture_output=True, text=True)
-    raise RuntimeError(
-        "La venta se ejecutó en XTB pero NO se pudo publicar en el "
-        "repositorio tras 3 intentos. El resto del sistema no lo sabe.")
+    try:
+        diario.publicar(f"vigilante de precios: {tipo} de {ticker} [skip ci]",
+                        intentos=2, log=log)
+        PENDIENTE["si"] = False
+    except RuntimeError as exc:
+        PENDIENTE["si"] = True
+        print(f"::warning::la venta de {ticker} está en el diario local pero "
+              f"aún no en el repositorio ({exc}). Se reintenta cada minuto.",
+              flush=True)
+
+
+def reintentar_publicacion() -> None:
+    if not PENDIENTE["si"]:
+        return
+    try:
+        diario.publicar("vigilante de precios: publicación pendiente [skip ci]",
+                        intentos=1, log=log)
+        PENDIENTE["si"] = False
+    except RuntimeError as exc:
+        log(f"la publicación pendiente sigue sin subir ({exc}); otra vuelta.")
+
+
+# --------------------------------------------------------------------------- #
+# Las salidas por tiempo
+# --------------------------------------------------------------------------- #
+def vender_por_tiempo(broker, registro: dict, v: dict, orden_dia: ords.Orden,
+                      hoy: str) -> str:
+    """Vende por tiempo una posición. Devuelve 'vendida', 'ya-estaba' o el error.
+
+    Mismo identificador que el ejecutor de ventas por cron
+    (`fecha|cartera|ticker|venta_tiempo`): el que llegue segundo lo encuentra
+    en el registro, o encuentra la posición cerrada en XTB, y no repite.
+    """
+    id_orden = orden_dia.id
+    if ords.ya_enviada(registro, id_orden):
+        log(f"  {v['ticker']}: la venta por tiempo ya se envió hoy.")
+        return "ya-estaba"
+    if not niv.sigue_abierta(broker, v["simbolo"], v["acciones"]):
+        log(f"  {v['ticker']}: XTB ya no tiene la posición; no se vende.")
+        return "ya-estaba"
+    orden = ords.Orden(
+        id=id_orden, tipo=ords.VENTA_TIEMPO, cartera=config.CARTERA_BROKER,
+        ticker=v["ticker"], acciones=int(v["acciones"]), sesion=hoy,
+        fecha_limite=orden_dia.fecha_limite,
+        id_operacion=v.get("id_operacion") or orden_dia.id_operacion,
+        referencia=v.get("bid"))
+    log(f"  {v['ticker']}: salida por tiempo -> vendiendo {v['acciones']} "
+        f"acciones a mercado (bid {v.get('bid')})...")
+    e = amb.enviar_resolviendo(
+        broker, v["simbolo"], ords.VENTA_TIEMPO,
+        lambda: broker.vender(v["simbolo"], int(v["acciones"])),
+        id_orden=id_orden, referencia=v.get("bid"))
+    log(f"    -> {e.estado}" + (f" a {e.precio} ({e.precio_fuente})" if e.precio else "")
+        + (f" (orden {e.orden})" if e.orden else "")
+        + (f" ERROR: {e.error}" if e.error else ""))
+    ords.registrar_ejecucion(orden, e)
+    if not e.ok:
+        return f"{e.estado}: {e.error or 'sin motivo'}"
+    ords.marcar_enviada(registro, id_orden, {"estado": e.estado, "orden": e.orden,
+                                             "por": "vigilante de precios"})
+    ords.guardar_enviadas(registro)
+    if not en_prueba():
+        publicar_venta(v["ticker"], ords.VENTA_TIEMPO)
+    return "vendida"
 
 
 # --------------------------------------------------------------------------- #
@@ -318,7 +411,8 @@ def lanzar_sucesor() -> bool:
 
 
 def esperar_sucesor(trabajo: Path, mi_run: str, broker, registro,
-                    vigiladas: list[dict], arrancado: str) -> bool:
+                    vigiladas: list[dict], arrancado: str,
+                    construir=None) -> bool:
     """Sigue vigilando hasta que el sucesor confirme que está vivo.
 
     LA CLAVE DE QUE NO HAYA HUECO. El saliente no se va cuando pide el relevo:
@@ -334,8 +428,13 @@ def esperar_sucesor(trabajo: Path, mi_run: str, broker, registro,
             log(f"el sucesor (run {actual['run']}) está latiendo. Testigo "
                 f"entregado; me retiro.")
             return True
-        lat.publicar(lat.construir(arrancado, vigiladas, estado=lat.ESPERANDO_RELEVO,
-                                   relevo=mi_run), trabajo)
+        # Con `construir` (el de la sesión) el latido de espera lleva el
+        # historial: si no, el sucesor lo heredaría vacío y no se podría
+        # comprobar que el relevo no dejó hueco.
+        lat.publicar(construir() if construir else
+                     lat.construir(arrancado, vigiladas,
+                                   estado=lat.ESPERANDO_RELEVO, relevo=mi_run),
+                     trabajo)
     return False
 
 
@@ -420,6 +519,252 @@ def suscribir_todo(broker, vigiladas: list[dict]) -> None:
         + ", ".join(v["simbolo"] for v in vigiladas))
 
 
+class Sesion:
+    """Una sesión de vigilancia: el bucle, con el reloj y el broker inyectables.
+
+    Separado de `main` para poder SIMULAR una sesión entera en los tests —
+    compra, objetivo, stop, venta por tiempo, caída, relevo— con un reloj que
+    avanza a voluntad y un XTB de mentira, sin esperar seis horas ni tocar la
+    cuenta.
+    """
+
+    def __init__(self, broker, registro: dict, *, trabajo: Path, arrancado: str,
+                 cierre: datetime, mi_run: str = "local", prueba: str = "",
+                 reloj=None, mono=time.monotonic, historial: list | None = None):
+        self.broker = broker
+        self.registro = registro
+        self.trabajo = trabajo
+        self.arrancado = arrancado
+        self.cierre = cierre
+        self.mi_run = mi_run
+        self.prueba = prueba
+        self.reloj = reloj or (lambda: datetime.now(config.TZ_ET))
+        self.mono = mono
+        self.historial = list(historial or [])
+        self.precios = Precios()
+        broker._precios = self.precios        # lo lee vigilar_un_rato
+        self.vigiladas: list[dict] = []
+        self.suscritos: set[str] = set()
+        self.caido = {"si": False}
+        self.tiempos_hechos = False
+        self.ventas_tiempo = 0
+        self.foto_broker: dict | None = None
+        self.error_broker: str | None = None
+        self.ultima_foto_ok = mono()
+        self.ultimo_latido_ok = mono()
+        self.aviso_ok: bool | None = None
+        ahora = mono()
+        self.proximo_latido = ahora
+        self.proximo_respaldo = ahora + RESPALDO_SEGUNDOS
+        self.proximo_refresco = ahora + config.VIGILANTE_REFRESCO_SEG
+        self.proximo_ping = ahora
+        self.proximo_reintento = ahora + 60
+        self.relevo_a_las = ahora + RELEVO_TRAS_HORAS * 3600
+
+    @property
+    def hoy(self) -> str:
+        return self.reloj().date().isoformat()
+
+    # --- qué se vigila ---------------------------------------------------
+    def refrescar(self, motivo: str = "") -> None:
+        """Relee XTB. Lo que ya no está deja de vigilarse y de anunciarse."""
+        if self.prueba:
+            # En modo prueba la posición se vende a propósito: que ya no esté
+            # después es el éxito de la prueba, no un error. Al ARRANCAR sí se
+            # exige que esté (lo comprueba main antes de llegar aquí).
+            try:
+                nuevas = vigiladas_de_prueba(self.broker, self.prueba)
+            except RuntimeError:
+                log("modo prueba: la posición ya no está en XTB (vendida).")
+                nuevas = []
+        else:
+            nuevas = cargar_vigiladas(self.broker, self.hoy)
+        antes = {v["simbolo"] for v in self.vigiladas}
+        for v in nuevas:
+            v["bid"] = self.precios.bid.get(v["simbolo"])
+        for simbolo in sorted({v["simbolo"] for v in nuevas} - self.suscritos):
+            self.broker.suscribir_ticks(simbolo)
+            self.suscritos.add(simbolo)
+        ahora = {v["simbolo"] for v in nuevas}
+        if ahora != antes and motivo:
+            log(f"posiciones releídas ({motivo}): "
+                + (", ".join(sorted(ahora)) or "ninguna")
+                + (f" — ya no están: {', '.join(sorted(antes - ahora))}"
+                   if antes - ahora else ""))
+        self.vigiladas = nuevas
+        self.proximo_refresco = self.mono() + config.VIGILANTE_REFRESCO_SEG
+
+    # --- la foto de la cuenta ----------------------------------------------
+    def fotografiar(self) -> None:
+        """Lee la cuenta en XTB y la vuelca. Si falla, se dice en voz alta.
+
+        Un fallo aislado no mata al vigilante —dejaría de mirar precios, que es
+        peor—, pero queda en el latido y en el log como error; y si la cuenta
+        lleva más de `MUERTO_MINUTOS` sin poder leerse, el vigilante se retira
+        en rojo: algo serio pasa con XTB y hay que mirarlo.
+        """
+        if self.prueba:
+            return
+        try:
+            self.foto_broker = estado_broker.volcar(self.broker, candado_ok=True)
+            self.error_broker = None
+            self.ultima_foto_ok = self.mono()
+        except Exception as exc:  # noqa: BLE001 — se dice, y si dura, se muere
+            self.error_broker = repr(exc)[:200]
+            perdidos = (self.mono() - self.ultima_foto_ok) / 60.0
+            print(f"::error::no se pudo leer la cuenta en XTB ({exc!r}); "
+                  f"{perdidos:.1f} min sin foto.", flush=True)
+            if perdidos > lat.MUERTO_MINUTOS:
+                raise RuntimeError(
+                    f"Llevo {perdidos:.0f} min sin poder leer la cuenta en XTB. "
+                    f"No se puede vigilar lo que no se ve.") from exc
+
+    # --- ventas por tiempo -------------------------------------------------
+    def minutos_al_cierre(self) -> float:
+        return (self.cierre - self.reloj()).total_seconds() / 60.0
+
+    def toca_vender_por_tiempo(self) -> bool:
+        if self.tiempos_hechos or self.prueba:
+            return False
+        lo, _hi = config.EJECUTOR_VENTAS_MIN_ANTES_CIERRE
+        faltan = self.minutos_al_cierre()
+        return lo <= faltan <= config.VIGILANTE_TIEMPO_MIN_ANTES_CIERRE
+
+    def vender_tiempos(self) -> str:
+        """Hace las salidas por tiempo de hoy y deja escrito qué pasó."""
+        self.refrescar("antes de las ventas por tiempo")
+        decididas = ventas_por_tiempo_de_hoy(self.hoy)
+        hora = self.reloj().strftime("%H:%M ET")
+        vendidas, ya, fallos = 0, 0, []
+        for ticker, o in sorted(decididas.items()):
+            v = next((x for x in self.vigiladas if x["ticker"] == ticker), None)
+            if v is None:
+                log(f"  {ticker}: sale hoy por tiempo y XTB no la tiene (la "
+                    f"cerró otro, o nunca se compró). Nada que vender.")
+                ya += 1
+                continue
+            r = vender_por_tiempo(self.broker, self.registro, v, o, self.hoy)
+            if r == "vendida":
+                vendidas += 1
+            elif r == "ya-estaba":
+                ya += 1
+            else:
+                fallos.append(f"{ticker}: {r}")
+        self.tiempos_hechos = True
+        self.ventas_tiempo = vendidas
+        if not decididas:
+            resultado, detalle = "ok: nada que vender", f"vigilante de precios, {hora}"
+        elif fallos:
+            resultado = f"fallo:venta-no-entro ({len(fallos)} de {len(decididas)})"
+            detalle = " | ".join(fallos)
+            for f in fallos:
+                print(f"::error::venta por tiempo que NO entró: {f}", flush=True)
+        else:
+            resultado = f"ok: {vendidas} vendidas"
+            detalle = (f"vigilante de precios, {hora}"
+                       + (f"; {ya} ya estaban cerradas" if ya else ""))
+        log(f"ventas por tiempo: {resultado} — {detalle}")
+        salud.registrar("ventas", resultado, detalle)
+        if vendidas:
+            self.refrescar("tras las ventas por tiempo")
+            self.fotografiar()
+        return resultado
+
+    # --- latido y aviso ----------------------------------------------------
+    def construir_latido(self, estado: str = lat.VIVO, motivo: str = "",
+                         relevo: str | None = None) -> dict:
+        datos = lat.construir(
+            self.arrancado, self.vigiladas, estado=estado, motivo=motivo,
+            relevo=relevo, historial=self.historial, broker=self.foto_broker,
+            aviso={"configurado": aviso.configurado(), "ultimo_ping_ok": self.aviso_ok,
+                   "error_broker": self.error_broker})
+        self.historial = datos["historial"]
+        return datos
+
+    def latir(self) -> None:
+        self.fotografiar()
+        datos = self.construir_latido()
+        if en_prueba():
+            latir(datos, self.trabajo)
+        else:
+            self.ultimo_latido_ok = lat.publicar_tolerante(
+                datos, self.trabajo, self.ultimo_latido_ok, self.mono())
+        self.proximo_latido = self.mono() + lat.CADA_SEGUNDOS
+
+    def avisar(self) -> None:
+        """Ping a healthchecks mientras haya posiciones y la sesión esté abierta."""
+        if self.vigiladas and self.reloj() < self.cierre:
+            self.aviso_ok = aviso.ping(f"{len(self.vigiladas)} posición(es)")
+        self.proximo_ping = self.mono() + aviso.CADA_SEGUNDOS
+
+    # --- una vuelta --------------------------------------------------------
+    def paso(self) -> None:
+        vigilar_un_rato(self.broker, self.registro, self.vigiladas, segundos=1,
+                        precios=self.precios)
+        if VENDIDAS["n"] != getattr(self, "_vendidas_vistas", 0):
+            self._vendidas_vistas = VENDIDAS["n"]
+            self.refrescar("tras una venta por nivel")
+            self.fotografiar()
+        ahora = self.mono()
+        if self.toca_vender_por_tiempo():
+            self.vender_tiempos()
+        if ahora >= self.proximo_refresco:
+            self.refrescar("relectura periódica")
+        mudo = ahora - self.precios.ultimo_tick > SILENCIO_SOSPECHOSO_SEG
+        if (self.caido["si"] or mudo) and ahora >= self.proximo_respaldo:
+            if mudo and not self.caido["si"]:
+                log(f"sin ticks desde hace {ahora - self.precios.ultimo_tick:.0f} "
+                    f"s; se pregunta por petición mientras tanto.")
+            respaldo_por_peticion(self.broker, self.vigiladas, self.precios)
+            self.proximo_respaldo = ahora + RESPALDO_SEGUNDOS
+            if not self.caido["si"] and self.broker.conectado:
+                suscribir_todo(self.broker, self.vigiladas)
+                self.precios.ultimo_tick = ahora
+        if ahora >= self.proximo_ping:
+            self.avisar()
+        if ahora >= self.proximo_latido:
+            self.latir()
+        if ahora >= self.proximo_reintento:
+            reintentar_publicacion()
+            self.proximo_reintento = ahora + 60
+
+    def sigue(self) -> bool:
+        """¿Queda trabajo? Mientras la sesión esté abierta y haya algo que
+        vigilar, o una venta por tiempo que todavía no tocaba."""
+        if self.reloj() >= self.cierre:
+            return False
+        return bool(self.vigiladas)
+
+    def terminar(self) -> str:
+        """Último latido, en reposo y diciendo por qué; y el aviso, pausado.
+
+        Pausar el check de healthchecks es lo que evita que el silencio de la
+        noche mande un email: vuelve solo con el primer ping de mañana.
+        """
+        self.fotografiar()
+        quedan = len(self.vigiladas)
+        motivo = ("la sesión cerró" if not quedan and self.reloj() >= self.cierre
+                  else "no queda nada que vigilar" if not quedan
+                  else f"la sesión cerró con {quedan} posición(es) abiertas")
+        latir(self.construir_latido(estado=lat.EN_REPOSO, motivo=motivo),
+              self.trabajo)
+        if not en_prueba():
+            aviso.pausar(motivo)
+        return motivo
+
+    def arrancar(self) -> None:
+        self.refrescar()
+        for v in self.vigiladas:
+            log(f"  {v['ticker']} x{v['acciones']}: objetivo {v['objetivo']} | "
+                f"stop {v['stop']}" + (" | SALE HOY por tiempo" if v.get("sale_hoy") else ""))
+        respaldo_por_peticion(self.broker, self.vigiladas, self.precios)
+        self.fotografiar()
+        datos = self.construir_latido()
+        latir(datos, self.trabajo)             # el primero sí es mortal
+        self.proximo_latido = self.mono() + lat.CADA_SEGUNDOS
+        self.avisar()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--relevo-de", default="",
@@ -448,19 +793,23 @@ def main() -> int:
     hoy = ahora.date()
     arrancado = ahora.isoformat()
     trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
+    if not aviso.configurado():
+        print("::warning::sin HEALTHCHECKS_PING_URL: no hay aviso externo si "
+              "este vigilante muere. Ver README, «Aviso externo».", flush=True)
 
     def reposo(motivo: str, resultado: str) -> int:
-        """Terminar bien, dejándolo dicho.
+        """Terminar bien, dejándolo dicho — y callando el aviso externo.
 
-        Antes estas salidas no publicaban nada, y un latido viejo de la sesión
-        anterior se quedaba ahí envejeciendo hasta que la página lo daba por
-        muerto: "lleva 62 min sin latir" con la cuenta vacía y nada que vigilar.
-        Un vigilante que se va porque no hay trabajo tiene que decirlo.
+        Un vigilante que se va porque no hay trabajo tiene que decirlo: si no,
+        un latido viejo envejece hasta que la página lo da por muerto. Y tiene
+        que pausar el check de healthchecks, o su silencio mandaría un email.
         """
         log(motivo)
         latir(lat.construir(arrancado, [], estado=lat.EN_REPOSO, motivo=motivo),
              trabajo)
-        salud.registrar("vigilante_precios", resultado)
+        if not en_prueba():
+            aviso.pausar(motivo)
+            salud.registrar("vigilante_precios", resultado)
         return 0
 
     if not args.forzar and not calendario.es_dia_de_mercado(hoy):
@@ -475,83 +824,64 @@ def main() -> int:
     if not args.forzar and ahora >= cierre:
         return reposo("la sesión ya cerró", "omitido:fuera-de-sesion")
 
+    # ANTES DE ABRIR NO SE VIGILA. XTB encola las órdenes de mercado con la
+    # sesión cerrada y luego las descarta, así que un disparo en el pre-mercado
+    # sería una venta que no ocurre. Si falta poco, se espera; si falta mucho,
+    # se va en reposo y lo arranca el job de compras, que corre tras abrir.
+    if not args.forzar and ahora < apertura:
+        faltan = (apertura - ahora).total_seconds() / 60.0
+        if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
+            return reposo(f"faltan {faltan:.0f} min para la apertura; lo "
+                          f"arrancará el job de compras tras abrir",
+                          "omitido:antes-de-apertura")
+        log(f"faltan {faltan:.0f} min para la apertura: se espera.")
+        time.sleep(max(0.0, faltan * 60.0))
+
     mi_run = os.environ.get("GITHUB_RUN_ID", "local")
-    relevo_a_las = time.monotonic() + RELEVO_TRAS_HORAS * 3600
     credenciales = bx.credenciales_del_entorno_o_llavero()
     VENDIDAS["n"] = 0
 
     with bx.BrokerXTB(credenciales, demo=True) as broker:
         saldo = broker.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO): equity {saldo['equity']:,.2f}")
-
-        if args.prueba:
-            vigiladas = vigiladas_de_prueba(broker, args.prueba)
-        else:
-            vigiladas = cargar_vigiladas(broker)
+        log(f"cuenta DEMO verificada: equity {saldo['equity']:,.2f}")
         registro = {"enviadas": {}} if args.prueba else ords.cargar_enviadas()
-        if not vigiladas:
-            return reposo("no hay ninguna posición con nivel que vigilar",
-                          "ok: 0 posiciones — ninguna con objetivo ni stop")
-
-        for v in vigiladas:
-            log(f"  {v['ticker']} x{v['acciones']}: objetivo {v['objetivo']} | "
-                f"stop {v['stop']}")
-
-        precios = Precios()
-        broker._precios = precios          # lo lee vigilar_un_rato
-        caido = {"si": False}
-
-        broker.al_recibir_tick(precios.encajar)
+        anterior = None if args.prueba else lat.leer(trabajo)
+        sesion = Sesion(broker, registro, trabajo=trabajo, arrancado=arrancado,
+                        cierre=cierre, mi_run=mi_run, prueba=args.prueba,
+                        historial=lat.historial_de_hoy(anterior, hoy.isoformat()))
+        broker.al_recibir_tick(sesion.precios.encajar)
         broker.al_perder_conexion(
-            lambda *_a: (caido.__setitem__("si", True),
+            lambda *_a: (sesion.caido.__setitem__("si", True),
                          log("WebSocket caído; el cliente reconecta solo y "
                              "mientras tanto se pregunta por petición.")))
         broker.al_recuperar_conexion(
-            lambda *_a: (caido.__setitem__("si", False),
+            lambda *_a: (sesion.caido.__setitem__("si", False),
                          log("WebSocket recuperado.")))
 
-        suscribir_todo(broker, vigiladas)
-        respaldo_por_peticion(broker, vigiladas, precios)   # foto inicial
-        latir(lat.construir(arrancado, vigiladas), trabajo)
+        if args.prueba:
+            vigiladas_de_prueba(broker, args.prueba)   # revienta si no está
+        sesion.refrescar()
+        if not sesion.vigiladas:
+            sesion.fotografiar()
+            return reposo("no hay ninguna posición que vigilar (ni con nivel ni "
+                          "con salida por tiempo hoy)",
+                          "ok: 0 posiciones — nada que vigilar")
+        sesion.arrancar()
+        n_inicial = len(sesion.vigiladas)
 
-        ultimo_latido_ok = time.monotonic()
-        proximo_latido = time.monotonic() + lat.CADA_SEGUNDOS
-        proximo_respaldo = time.monotonic() + RESPALDO_SEGUNDOS
-        n_inicial = len(vigiladas)
-
-        while datetime.now(config.TZ_ET) < cierre and vigiladas:
-            vigilar_un_rato(broker, registro, vigiladas, segundos=1,
-                            precios=precios)
-            ahora_mono = time.monotonic()
-            mudo = ahora_mono - precios.ultimo_tick > SILENCIO_SOSPECHOSO_SEG
-            if (caido["si"] or mudo) and ahora_mono >= proximo_respaldo:
-                if mudo and not caido["si"]:
-                    log(f"sin ticks desde hace "
-                        f"{ahora_mono - precios.ultimo_tick:.0f} s; se pregunta "
-                        f"por petición mientras tanto.")
-                respaldo_por_peticion(broker, vigiladas, precios)
-                proximo_respaldo = ahora_mono + RESPALDO_SEGUNDOS
-                if not caido["si"] and broker.conectado:
-                    suscribir_todo(broker, vigiladas)
-                    precios.ultimo_tick = ahora_mono
-
-            if ahora_mono >= proximo_latido:
-                if en_prueba():
-                    latir(lat.construir(arrancado, vigiladas), trabajo)
-                else:
-                    ultimo_latido_ok = lat.publicar_tolerante(
-                        lat.construir(arrancado, vigiladas), trabajo,
-                        ultimo_latido_ok, ahora_mono)
-                proximo_latido = ahora_mono + lat.CADA_SEGUNDOS
-
-            if ahora_mono >= relevo_a_las:
+        while sesion.sigue():
+            sesion.paso()
+            if sesion.mono() >= sesion.relevo_a_las:
                 log("5 h 45 min: es hora del relevo.")
                 if lanzar_sucesor() and esperar_sucesor(
-                        trabajo, mi_run, broker, registro, vigiladas, arrancado):
+                        trabajo, mi_run, broker, registro, sesion.vigiladas,
+                        arrancado, construir=lambda: sesion.construir_latido(
+                            estado=lat.ESPERANDO_RELEVO, relevo=mi_run)):
                     salud.registrar(
                         "vigilante_precios",
                         f"ok: relevado tras {RELEVO_TRAS_HORAS} h, "
-                        f"{VENDIDAS['n']} venta(s)")
+                        f"{VENDIDAS['n']} venta(s) por nivel, "
+                        f"{sesion.ventas_tiempo} por tiempo")
                     return 0
                 raise RuntimeError(
                     "El relevo falló: el sucesor no llegó a latir en "
@@ -559,19 +889,18 @@ def main() -> int:
                     f"a morir por el límite de 6 h de GitHub y no hay quien "
                     f"mire los precios.")
 
-        # Si vendió algo, la foto del broker cambió: hay que refrescarla.
-        if VENDIDAS["n"]:
-            estado_broker.volcar(broker, candado_ok=True)
+        sesion.terminar()
+        quedan = len(sesion.vigiladas)
 
-        motivo_final = ("la sesión cerró" if not vigiladas
-                        else "la sesión cerró con "
-                             f"{len(vigiladas)} posición(es) todavía abiertas")
-        latir(lat.construir(arrancado, vigiladas, estado=lat.EN_REPOSO,
-                            motivo=motivo_final), trabajo)
-
-    resultado = (f"ok: {VENDIDAS['n']} venta(s) por nivel, {len(vigiladas)} de "
-                 f"{n_inicial} posición(es) siguen abiertas")
-    salud.registrar("vigilante_precios", resultado)
+    cortes = lat.huecos(sesion.historial)
+    resultado = (f"ok: {VENDIDAS['n']} venta(s) por nivel, "
+                 f"{sesion.ventas_tiempo} por tiempo, {quedan} de {n_inicial} "
+                 f"posición(es) siguen abiertas"
+                 + (f"; {len(cortes)} corte(s) en el latido" if cortes else ""))
+    if not en_prueba():
+        salud.registrar("vigilante_precios", resultado,
+                        "; ".join(f"{c['minutos']} min sin latir desde "
+                                  f"{c['desde'][11:16]}" for c in cortes))
     log(f"✅ {resultado}")
     return 0
 

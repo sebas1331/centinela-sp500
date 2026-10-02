@@ -290,13 +290,14 @@ jobs:
       # Se commitea SIEMPRE que el ejecutor haya escrito algo, aunque terminara
       # en rojo: si mandó tres órdenes y falló en la cuarta, las tres primeras
       # tienen que quedar registradas o el siguiente disparo las repetiría.
-      - name: Commit y push de lo ejecutado
+      # POR EL DIARIO, NO POR REBASE (incidente del 2026-10-02). Lo que el
+      # broker hizo se aplica sobre el origin más nuevo y se reintenta desde
+      # cero si otro empujó entretanto: no puede chocar ni perderse. Siempre,
+      # aunque el paso anterior muriera: lo que sí salió tiene que quedar.
+      - name: Publicar lo ejecutado (diario, sin rebase)
         if: always()
         run: |
-          scripts/commit_y_push.sh \
-            "ejecutor XTB: reconcilia [skip ci]" \
-            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
-            estado bitacora_broker.csv ordenes
+          python scripts/publicar_diario.py --mensaje "ejecutor XTB: reconcilia [skip ci]"
 
   # LA PÁGINA DE OPERATIVA. Mismo razonamiento que en la pre-apertura: job
   # aparte, el último de todos, con `needs` para no poder tocar nada de lo ya
@@ -304,7 +305,10 @@ jobs:
   #
   # Depende también del `dashboard` porque los dos escriben en docs/: así se
   # empujan en fila y no se pelean por la punta de la rama.
-  operativa:
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
     needs: [postcierre, dashboard, ejecutor]
     if: always()
     runs-on: ubuntu-latest
@@ -322,43 +326,29 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      # Las tres rutas, IDÉNTICAS a las de los jobs que sí hablan con el
-      # broker. GitHub calcula la versión de una caché a partir de la lista de
-      # rutas y una clave solo casa dentro de su versión: pedir aquí solo el
-      # fichero de sesión daba una versión distinta, así que este paso no
-      # habría acertado nunca y el aviso de caducidad se habría quedado mudo.
-      - name: Leer la caducidad de la sesión de XTB
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.centinela_xtb_session
-            ~/.centinela_xtb_ticket.json
-            ~/.centinela_xtb_cookies.json
-          key: xtb-sesion-
-          restore-keys: xtb-sesion-
-
       - name: Registrar el estado del escaneo
         run: |
           python scripts/registrar_salud.py postcierre \
             --salida "${{ needs.postcierre.outputs.resultado }}" \
             --job "${{ needs.postcierre.result }}"
 
-      # La reconciliación es la que dice si XTB y el simulador siguen contando
-      # lo mismo. Se registra a sí misma con el detalle de las diferencias;
-      # aquí solo se cubre el caso de que el job muriera antes.
       - name: Registrar el estado de la reconciliación
         run: |
           python scripts/registrar_salud.py reconcilia \
             --job "${{ needs.ejecutor.result }}" --solo-si-falta
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: republicada tras el post-cierre [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: post-cierre [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: republicada tras el post-cierre [skip ci]"

@@ -19,6 +19,7 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 from centinela import config, salud, broker_xtb as bx, ordenes as ords  # noqa: E402
+from conftest import CUENTA_PRUEBA  # noqa: E402
 import generar_operativa as go  # noqa: E402
 
 
@@ -79,7 +80,8 @@ def test_el_JSON_publicado_no_contiene_NINGUN_secreto(tmp_path, monkeypatch):
     texto = json.dumps(datos, ensure_ascii=False)
 
     prohibidos = [
-        str(config.CUENTA_DEMO),          # el número entero de la cuenta
+        str(CUENTA_PRUEBA),               # el número entero de la cuenta
+        "•••",                            # ni siquiera sus últimos dígitos
         "tgt", "TGT", "CASTGC",           # la sesión
         "password", "contrasena", "secret", "token", "cookie",
         "XTB_EMAIL", "XTB_PASSWORD", "xtb_password",
@@ -108,7 +110,7 @@ def test_el_latido_se_pide_en_vivo_y_no_viaja_en_el_json(datos):
     v = datos["vigilante_precios"]
     assert set(v) == {"url_latido", "muerto_minutos", "cada_segundos",
                       "sesion_abre", "sesion_cierra", "es_sesion",
-                      "posiciones_a_vigilar"}
+                      "posiciones_a_vigilar", "corte_minutos"}
     assert "cuando" not in v, "el latido no puede viajar aquí dentro"
     assert v["url_latido"].startswith("https://raw.githubusercontent.com/")
     assert "token" not in v["url_latido"]
@@ -363,11 +365,29 @@ def _wf(nombre: str) -> dict:
 
 @pytest.mark.parametrize("fichero", PUBLICAN)
 def test_cada_workflow_que_toca_XTB_republica_la_pagina(fichero):
+    """Por el workflow reutilizable, que es el ÚNICO que regenera la página y
+    lo hace en un solo grupo de concurrencia para todos (incidente de los
+    "could not apply ... operativa", 2026-10-02)."""
     jobs = _wf(fichero)["jobs"]
     assert "operativa" in jobs, f"{fichero} no republica la operativa"
-    pasos = " ".join(str(p.get("run", "")) for p in jobs["operativa"]["steps"])
-    assert "scripts/generar_operativa.py" in pasos
-    assert "commit_y_push.sh" in pasos
+    assert jobs["operativa"].get("uses") == "./.github/workflows/pagina_operativa.yml"
+    # Y la salud se publica antes, por el diario, en un job sin grupo.
+    assert "salud" in jobs and "salud" in jobs["operativa"]["needs"]
+    pasos = " ".join(str(p.get("run", "")) for p in jobs["salud"]["steps"])
+    assert "publicar_diario.py" in pasos and "commit_y_push" not in pasos
+
+
+def test_la_pagina_se_regenera_en_un_solo_grupo_y_sin_rebase():
+    pagina = _wf("pagina_operativa.yml")["jobs"]["pagina"]
+    assert pagina["concurrency"]["group"] == "centinela-operativa"
+    pasos = " ".join(str(p.get("run", "")) for p in pagina["steps"])
+    assert "publicar_operativa.py" in pasos
+    assert "commit_y_push" not in pasos
+    # Ningún otro workflow regenera la página por su cuenta.
+    for f in WORKFLOWS.glob("*.yml"):
+        if f.name == "pagina_operativa.yml":
+            continue
+        assert "generar_operativa.py" not in f.read_text(encoding="utf-8"), f.name
 
 
 @pytest.mark.parametrize("fichero", PUBLICAN)
@@ -394,12 +414,11 @@ def test_la_publicacion_no_silencia_errores(fichero):
 def test_el_job_que_publica_no_puede_sobrescribir_la_sesion_de_XTB():
     """Lee la caducidad con `cache/restore`, nunca con `cache`: un job que no
     habla con el broker no debe poder pisar su sesión al terminar."""
-    for fichero in PUBLICAN:
-        for paso in _wf(fichero)["jobs"]["operativa"]["steps"]:
-            usa = str(paso.get("uses", ""))
-            if "actions/cache" in usa:
-                assert usa.startswith("actions/cache/restore@"), \
-                    f"{fichero}: la operativa usa {usa}, que además GUARDA"
+    for paso in _wf("pagina_operativa.yml")["jobs"]["pagina"]["steps"]:
+        usa = str(paso.get("uses", ""))
+        if "actions/cache" in usa:
+            assert usa.startswith("actions/cache/restore@"), \
+                f"la página usa {usa}, que además GUARDA"
 
 
 def test_los_componentes_criticos_los_registra_alguien():
@@ -574,7 +593,7 @@ def test_solo_guardan_cache_los_que_hablan_con_el_broker():
                 if not str(paso.get("with", {}).get("key", "")).startswith("xtb-"):
                     continue
                 guarda = not usa.startswith("actions/cache/restore@")
-                assert guarda == (nombre != "operativa"), \
+                assert guarda == (nombre not in ("operativa", "pagina")), \
                     f"{fichero.name}/{nombre} usa {usa}"
 
 

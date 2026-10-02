@@ -85,11 +85,15 @@ def sigue_abierta(broker, simbolo: str, acciones: int) -> bool:
     al broker es un hecho, y es la misma fuente para los dos. El que llega
     segundo se encuentra la posición cerrada y se calla.
     """
+    # SE SUMAN todas las entradas del símbolo. XTB enseña una posición por
+    # orden de apertura, así que dos compras del mismo ticker son dos entradas;
+    # mirar solo la primera daba "ya no está" con las acciones ahí.
+    total = 0.0
     for p in broker.posiciones():
         if p.get("lado") != "buy" or p.get("ticker") != simbolo:
             continue
         try:
-            return int(p["acciones"]) >= int(acciones)
+            total += float(p["acciones"])
         except (TypeError, ValueError, KeyError):
             return False
-    return False
+    return total >= int(acciones) and total > 0

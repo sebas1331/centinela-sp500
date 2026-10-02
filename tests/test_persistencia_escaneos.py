@@ -188,13 +188,12 @@ def test_resultado_desconocido_no_pasa_por_legitimo():
 def test_scripts_de_shell_no_silencian_errores():
     """Prohibido `|| true`, `2>/dev/null`, `set +e` y `continue-on-error`.
 
-    Un fallo escondido devuelve el sistema al punto de partida. La única
-    excepción tolerada está marcada y justificada en commit_y_push.sh, donde los
-    `|| true` del bucle de reintentos existen para que el bucle llegue a su
-    mensaje de error en vez de morir con un `fatal:` de git.
+    Un fallo escondido devuelve el sistema al punto de partida. Sin
+    excepciones desde el 2026-10-02: el bucle de reintentos de commit_y_push.sh,
+    que era la única, ahora dice cada fallo con `if !` y decide el bucle.
     """
     sospechosos = (r"\|\|\s*true", r"2>\s*/dev/null", r"set \+e", r"continue-on-error")
-    permitidos = {"scripts/commit_y_push.sh"}
+    permitidos: set[str] = set()
 
     for ruta in list(RAIZ.glob(".github/workflows/*.yml")) + list(RAIZ.glob("scripts/*.sh")):
         rel = str(ruta.relative_to(RAIZ))

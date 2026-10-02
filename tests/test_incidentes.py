@@ -22,6 +22,16 @@ from centinela import config, fiabilidad, incidentes, ordenes as ords  # noqa: E
 import generar_operativa as go  # noqa: E402
 
 
+
+@pytest.fixture(autouse=True)
+def _libro_aparte(monkeypatch):
+    """Estos tests miden la reconciliación SIMULADOR contra XTB. La otra mitad
+    —el libro de acciones de bitacora_broker.csv contra XTB— tiene sus propios
+    tests (test_ventas_y_diario.py) y aquí se aparta, porque los brokers falsos
+    de este fichero enseñan posiciones sin haber escrito sus compras."""
+    import ejecutor_xtb as _ej
+    monkeypatch.setattr(_ej, "cuadrar_libro", lambda _b: [])
+
 @pytest.fixture
 def registro(tmp_path, monkeypatch):
     ruta = tmp_path / "incidentes.json"
@@ -54,7 +64,16 @@ def test_sin_causa_tampoco(registro):
 def test_sin_las_ordenes_afectadas_tampoco(registro):
     """Sin la lista no se puede distinguir el fallo viejo del nuevo."""
     with pytest.raises(ValueError, match="ordenes"):
-        incidentes.guardar([_incidente(ordenes=[])], ruta=registro)
+        incidentes.guardar([_incidente(ordenes=[], componentes=["compras"])],
+                           ruta=registro)
+
+
+def test_un_incidente_sin_ordenes_ni_componentes_es_historia_y_no_calla_nada(registro):
+    """Los choques de push del 2026-10-02 no afectaron a ninguna orden: se
+    registran para que conste, y por eso mismo no pueden apagar ningún rojo."""
+    incidentes.guardar([_incidente(ordenes=[], componentes=[])], ruta=registro)
+    assert incidentes.ordenes_resueltas(ruta=registro) == set()
+    assert not incidentes.excusa_componente("compras", "2026-10-02", ruta=registro)
 
 
 def test_un_incidente_bien_formado_se_guarda_y_se_lee(registro):

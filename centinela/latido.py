@@ -86,8 +86,15 @@ def url_publica() -> str:
     return URL.format(repo=repo)
 
 
+#: Cuántos latidos se guardan en el historial. Una sesión entera a uno cada
+#: dos minutos son ~195; con 240 cabe la sesión y el relevo.
+HISTORIAL_MAX = 240
+
+
 def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
-              relevo: str | None = None, motivo: str = "") -> dict:
+              relevo: str | None = None, motivo: str = "",
+              historial: list[dict] | None = None,
+              broker: dict | None = None, aviso: dict | None = None) -> dict:
     """El contenido del latido. Sin un solo dato de sesión: es público.
 
     `motivo` solo tiene sentido con `en-reposo`, y ahí es obligatorio de hecho:
@@ -102,8 +109,24 @@ def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
         raise ValueError(
             "Un vigilante en reposo tiene que decir POR QUÉ. Sin motivo se lee "
             "igual que uno caído.")
+    cuando = datetime.now(config.TZ_ET).isoformat()
+    run = os.environ.get("GITHUB_RUN_ID")
+    # EL HISTORIAL. Un solo latido dice "estoy vivo ahora"; no dice si hubo
+    # un corte a las 11:40 que se arregló solo. Con los últimos ~240 se puede
+    # comprobar después que la sesión estuvo cubierta entera, latido a latido.
+    hist = list(historial or [])
+    hist.append({"cuando": cuando, "estado": estado, "run": run,
+                 "n": len(vigiladas)})
+    hist = hist[-HISTORIAL_MAX:]
     return {
-        "cuando": datetime.now(config.TZ_ET).isoformat(),
+        "cuando": cuando,
+        "historial": hist,
+        # La foto de la cuenta, leída en este latido. La página la prefiere a
+        # la de estado/broker.json cuando es más nueva: así la cuenta que se
+        # ve tiene como mucho la edad del latido, no la del último commit.
+        "broker": broker,
+        # Si el aviso externo (healthchecks.io) está montado y responde.
+        "aviso": aviso,
         "arrancado": arrancado,
         "estado": estado,
         "motivo": motivo or None,
@@ -117,7 +140,7 @@ def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
         "vigiladas": [
             {"ticker": v["ticker"], "acciones": v.get("acciones"),
              "objetivo": v.get("objetivo"), "stop": v.get("stop"),
-             "bid": v.get("bid")}
+             "bid": v.get("bid"), "sale_hoy": bool(v.get("sale_hoy"))}
             for v in vigiladas
         ],
     }
@@ -158,6 +181,17 @@ def _git(*args: str, cwd: Path | None = None) -> str:
     return r.stdout.strip()
 
 
+def preparar(trabajo: Path) -> None:
+    """El repositorio mínimo donde vive la rama del latido, si no existe ya."""
+    trabajo.mkdir(parents=True, exist_ok=True)
+    if not (trabajo / ".git").exists():
+        _git("init", "-q", "-b", RAMA, cwd=trabajo)
+        _git("config", "user.name", "centinela-bot", cwd=trabajo)
+        _git("config", "user.email", "actions@users.noreply.github.com",
+             cwd=trabajo)
+        _git("remote", "add", "origin", remoto_autenticado(), cwd=trabajo)
+
+
 def publicar(datos: dict, trabajo: Path) -> None:
     """Reescribe la rama del latido con un único commit.
 
@@ -166,17 +200,10 @@ def publicar(datos: dict, trabajo: Path) -> None:
     nunca se toca, ni siquiera temporalmente, y un vigilante que muera a mitad
     no puede dejar el repositorio de trabajo en un estado raro.
     """
-    trabajo.mkdir(parents=True, exist_ok=True)
+    preparar(trabajo)
     (trabajo / ARCHIVO).write_text(
         json.dumps(datos, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
         encoding="utf-8")
-
-    if not (trabajo / ".git").exists():
-        _git("init", "-q", "-b", RAMA, cwd=trabajo)
-        _git("config", "user.name", "centinela-bot", cwd=trabajo)
-        _git("config", "user.email", "actions@users.noreply.github.com",
-             cwd=trabajo)
-        _git("remote", "add", "origin", remoto_autenticado(), cwd=trabajo)
 
     _git("add", ARCHIVO, cwd=trabajo)
     # `--amend` con `--allow-empty`: la rama se queda SIEMPRE en un commit.
@@ -228,6 +255,7 @@ def leer(trabajo: Path) -> dict | None:
     sucesor antes de soltar el testigo.
     """
     try:
+        preparar(trabajo)
         _git("fetch", "-q", "--depth", "1", "origin", RAMA, cwd=trabajo)
         crudo = _git("show", f"FETCH_HEAD:{ARCHIVO}", cwd=trabajo)
     except RuntimeError:
@@ -253,3 +281,39 @@ def minutos_desde(latido: dict | None, ahora: datetime | None = None) -> float |
         return None
     ahora = ahora or datetime.now(visto.tzinfo or config.TZ_ET)
     return (ahora - visto).total_seconds() / 60.0
+
+
+def historial_de_hoy(latido: dict | None, hoy: str) -> list[dict]:
+    """Los latidos de HOY de un latido anterior, para seguir su historial.
+
+    Lo usa el vigilante al arrancar —sea el primero del día o un relevo— para
+    no empezar el historial desde cero y poder demostrar continuidad entre uno
+    y otro.
+    """
+    if not latido:
+        return []
+    return [h for h in latido.get("historial") or []
+            if str(h.get("cuando", ""))[:10] == hoy]
+
+
+def huecos(historial: list[dict], max_minutos: float = MUERTO_MINUTOS) -> list[dict]:
+    """Los cortes: tramos de más de `max_minutos` entre dos latidos seguidos.
+
+    Solo cuenta mientras el vigilante estaba VIVO: un tramo que empieza en un
+    latido "en-reposo" no es un corte, es que no había nada que vigilar.
+    """
+    cortes = []
+    previo = None
+    for h in sorted(historial, key=lambda x: str(x.get("cuando", ""))):
+        try:
+            t = datetime.fromisoformat(str(h["cuando"]))
+        except (KeyError, ValueError):
+            continue
+        if previo is not None and previo[1] != EN_REPOSO:
+            minutos = (t - previo[0]).total_seconds() / 60.0
+            if minutos > max_minutos:
+                cortes.append({"desde": previo[0].isoformat(),
+                               "hasta": t.isoformat(),
+                               "minutos": round(minutos, 1)})
+        previo = (t, h.get("estado"))
+    return cortes

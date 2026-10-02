@@ -71,8 +71,11 @@ jobs:
   # pero sí aparece en la lista de la página, y un componente que no reporta
   # nunca se queda con un «nunca» perpetuo que no distingue «no tocaba» de
   # «lleva medio año roto».
-  operativa:
-    needs: reentrenar
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
+    needs: [reentrenar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -94,14 +97,18 @@ jobs:
           python scripts/registrar_salud.py reentrenamiento \
             --job "${{ needs.reentrenar.result }}"
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: republicada tras el reentrenamiento [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: reentrenamiento [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: republicada tras el reentrenamiento [skip ci]"

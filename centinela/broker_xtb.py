@@ -236,6 +236,11 @@ class Ejecucion:
     orden: int | None = None     # número de orden de XTB
     error: str | None = None
     cuando: str = ""
+    #: Lo que XTB movió DE VERDAD, visto en sus posiciones al confirmar. Puede
+    #: ser menos que `acciones` (ejecución parcial). None = no se pudo mirar.
+    acciones_hechas: int | None = None
+    #: De dónde sale `precio`: xtb | posicion | saldo (ver ordenes.py).
+    precio_fuente: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -405,17 +410,19 @@ class BrokerXTB:
                 "confirmación no se opera.") from exc
         # Contra la CONFIGURACIÓN, no contra las credenciales. Las credenciales
         # viven en secrets que se pueden cambiar desde una web sin dejar diff;
-        # `config.CUENTA_DEMO` exige un commit. Si alguien apunta los secrets a
-        # otra cuenta —aunque esté vacía, aunque sea suya— aquí se para.
-        esperada = int(config.CUENTA_DEMO)
-        if numero != esperada:
+        # `config.CUENTA_DEMO_HUELLA` exige un commit. Si alguien apunta los
+        # secrets a otra cuenta —aunque esté vacía, aunque sea suya— aquí se
+        # para. Los mensajes NO llevan el número: los logs de un repositorio
+        # público se leen desde fuera.
+        if not config.es_cuenta_demo(numero):
             raise CuentaNoDemo(
-                f"Conectado a la cuenta {numero}, pero el sistema solo opera la "
-                f"{esperada} (config.CUENTA_DEMO). No se envía ninguna orden.")
+                f"Conectado a una cuenta (•••{str(numero)[-3:]}) cuya huella no "
+                f"es la de config.CUENTA_DEMO_HUELLA: el sistema solo opera la "
+                f"cuenta demo permitida. No se envía ninguna orden.")
         if numero != self._cred.cuenta:
             raise CuentaNoDemo(
-                f"Las credenciales dicen cuenta {self._cred.cuenta} y la sesión "
-                f"conectó a la {numero}. No se envía ninguna orden.")
+                "Las credenciales (secret XTB_CUENTA) y la sesión conectada son "
+                "cuentas distintas. No se envía ninguna orden.")
 
     def _url_del_socket(self) -> str:
         """La URL del WebSocket al que el cliente se ha conectado de verdad.

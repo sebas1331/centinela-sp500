@@ -41,7 +41,7 @@ def main() -> int:
     a.conectar()
     saldo_a = a.saldo()
     _log(f"   A conectada en {time.monotonic() - t0:.1f} s | cuenta "
-         f"{str(saldo_a['cuenta'])[-3:].rjust(6, '•')} | saldo "
+         f"DEMO | saldo "
          f"{saldo_a['saldo']:,.2f}")
 
     _log("== sesión B: conectando SIN cerrar A…")

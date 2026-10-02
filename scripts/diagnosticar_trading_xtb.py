@@ -106,7 +106,7 @@ def main() -> int:
 
     with bx.BrokerXTB(bx.credenciales_del_entorno_o_llavero(), demo=True) as b:
         saldo = b.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO): saldo {saldo['saldo']:,.2f}")
+        log(f"cuenta DEMO verificada: saldo {saldo['saldo']:,.2f}")
         log(f"posiciones abiertas: {len([p for p in b.posiciones() if p['lado'] == 'buy'])}")
 
         q = b.cotizacion(simbolo)

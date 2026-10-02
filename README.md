@@ -333,6 +333,53 @@ de semana.
 > de precios lleva la fecha (una al día, no ~17) y los jobs que solo leen la
 > caché no la guardan.
 
+## 🆘 Emergencia: cerrar las posiciones a mano desde xStation 5
+
+Si el sistema falla con posiciones abiertas —el vigilante no late, llega el
+email de healthchecks.io, la página está en rojo y no sabes por qué—, **las
+posiciones no tienen stop en XTB** (no lo acepta en acciones al contado). Ciérralas
+tú:
+
+1. **Entra en xStation 5** (web `xstation5.xtb.com` o la app móvil de XTB) y, en
+   el selector de cuenta de arriba, elige la **cuenta DEMO** del sistema, no la
+   real.
+2. **Abre las posiciones abiertas** (panel inferior *Posiciones abiertas* en la
+   web; *Cartera* en el móvil) y **cierra cada una entera**: botón **×** /
+   *Cerrar posición* de la fila → confirma. Comprueba al final que la lista
+   queda vacía.
+3. **Deja constancia**: lanza *Actions → Auditar y diagnosticar XTB* sin marcar
+   ninguna casilla. Debe decir `POSICIONES ABIERTAS EN XTB: 0`. La siguiente
+   reconciliación saldrá **en rojo** con «una VENTA en XTB que el sistema no
+   tiene registrada»: es a propósito —un cierre a mano nunca pasa
+   desapercibido— y se apaga cuando la venta se anota en `bitacora_broker.csv`.
+
+## 📨 Aviso externo: healthchecks.io
+
+Si el vigilante de precios muere con posiciones abiertas, nadie lo vigila: los
+crons de este repositorio llegan con horas de retraso y la página solo lo dice a
+quien la mire. **healthchecks.io** avisa por email: el vigilante le hace *ping*
+cada minuto mientras tenga posiciones con el mercado abierto, y si los pings se
+cortan **más de 5 minutos**, te llega un correo. Al terminar la sesión el
+vigilante **pausa** el check, así que el silencio de la noche no avisa; el
+primer ping de la sesión siguiente lo reactiva solo (`centinela/aviso.py`).
+
+Montarlo (una vez, plan gratuito):
+
+1. Crea una cuenta en <https://healthchecks.io> (*Sign Up*, con tu correo).
+2. *Add Check* → nombre `centinela-vigilante` → *Schedule*: **Simple**,
+   *Period* **1 minute**, *Grace Time* **4 minutes** → *Save*. Comprueba en
+   *Integrations* del check que el **Email** está activado.
+3. Copia la **Ping URL** del check (`https://hc-ping.com/…`).
+4. *Project Settings → API Access → Create API key* (la de lectura y escritura)
+   y cópiala. Solo se usa para pausar el check fuera de sesión.
+5. Guárdalas como secrets del repositorio (*Settings → Secrets and variables →
+   Actions*) con estos nombres: `HEALTHCHECKS_PING_URL` y
+   `HEALTHCHECKS_API_KEY`.
+6. Para el email de prueba: *Integrations → Email → Test!*.
+
+Sin la URL el vigilante funciona igual, pero lo dice en su log y la página pasa
+a **ámbar** («Sin aviso externo») mientras haya posiciones que vigilar.
+
 ## 🚨 Antes de pasar a dinero real
 
 **Este sistema opera una cuenta DEMO y no está preparado para otra cosa.** Lo
@@ -343,14 +390,22 @@ El candado está deliberadamente repartido en **dos constantes versionadas** de
 `centinela/config.py`:
 
 ```python
-TIPO_CUENTA_BROKER = "demo"   # interruptor
-CUENTA_DEMO = 22770385        # qué cuenta concreta
+TIPO_CUENTA_BROKER = "demo"          # interruptor
+CUENTA_DEMO_HUELLA = "faa853bb…"     # qué cuenta concreta (scrypt con sal)
 ```
 
 Las dos viven en el código y no en los secrets, así que cambiarlas exige un
 commit —con su diff y su historia— y no editar un campo en una página web.
 Cambiar solo una no sirve de nada: el ejecutor comprueba las dos en cada
 conexión y se para si no cuadran.
+
+El número de la cuenta **no está en el repositorio**: solo su huella (scrypt
+con sal). El número real llega por el secret `XTB_CUENTA`, y el candado exige
+que la sesión conectada tenga esa huella. Para la huella de otra cuenta:
+
+```
+python -c "from centinela import config; print(config.huella_cuenta(NUMERO))"
+```
 
 ### Los pasos, en orden
 
@@ -616,11 +671,36 @@ y saber si de verdad acerca la ejecución al simulador.
 | **Si el WebSocket cae** | el cliente reconecta con backoff; mientras tanto se pregunta por petición cada 20 s y al volver se resuscribe todo. |
 | **Cuesta** | ~6,5 h de runner por sesión. Este repositorio es **público**, y ahí los runners estándar son gratis y sin límite. En uno privado serían ~140 h al mes y habría que repensarlo. |
 
+**También vende por tiempo** (desde el 2026-10-02). Las salidas del día 10 las
+hace este proceso **15 minutos antes del cierre**. El workflow de ventas por
+cron no llegó a su ventana ni una vez en la semana del 28/09 —los crons llegan
+con 4 a 7 h de retraso— y queda como **respaldo**: mismo identificador de
+orden, así que si el vigilante ya vendió, el respaldo lo ve y no repite. Si
+ninguno llega, el plan B cierra en la apertura siguiente (`tiempo_diferido`).
+
 **Cómo no se vende dos veces.** Al final de la sesión hay dos procesos que pueden
-querer cerrar la misma posición: este y el ejecutor de ventas por tiempo. Corren
+querer cerrar la misma posición: este y el respaldo de ventas por tiempo. Corren
 en máquinas que no se ven. El candado no es un fichero —entre que uno lo escribe
 y el otro lo lee caben segundos y un `push`— sino **XTB**: antes de vender, los
 dos releen la posición, y el que llega segundo se la encuentra cerrada y se calla.
+
+**Lo que anuncia es lo que hay.** Relee las posiciones de XTB cada 3 minutos y
+tras cada venta, y lee la cuenta en cada latido: la página enseña esa foto (como
+mucho de hace dos minutos) en vez de la del último commit. El latido guarda
+además su **historial** (~240 latidos), así que se puede comprobar después que
+la sesión estuvo cubierta sin cortes; un corte de más de 10 minutos pinta ámbar.
+
+**Una venta no se pierde al publicar.** Todo lo que hace el broker se anota
+primero en un diario local (`centinela/diario.py`) y se publica **aplicándolo
+sobre el origin más nuevo**, nunca rebasando: no puede chocar. Y la
+reconciliación cuadra las acciones de XTB contra `bitacora_broker.csv`, así que
+una venta que existiera en XTB y no en el registro saldría en rojo.
+
+**Confirmar una venta.** Una compra se confirma porque la posición CRECE; una
+venta, porque BAJA o desaparece (hasta el 02/10 solo se miraba lo primero, y la
+venta de CTVA se anotó «rechazada» estando ejecutada). Si XTB no devuelve el
+precio, se toma el de apertura de la posición (compras) o se deduce del cambio
+de saldo (ventas); la columna `precio_fuente` dice de dónde salió.
 
 **El latido.** Cada 2 minutos publica una señal de vida en la rama `latido`, que
 tiene siempre **un solo commit** reescrito por *force-push*: así `main` no se
@@ -630,8 +710,9 @@ tener hasta 7 minutos —nunca da falso rojo, pero un vigilante muerto tarda 10-
 minutos en verse ahí—. Quien lo comprueba **sin margen** es el Vigilante general,
 que lee la rama directamente y es el que relanza.
 
-**Si no está activo**, la venta programada antes del cierre sigue evaluando
-objetivo y stop como red de seguridad. Nunca se queda nadie mirando.
+**Si no está activo**, el respaldo de ventas sigue evaluando objetivo y stop
+cuando llega —que puede ser tarde—, healthchecks.io te avisa por email y la
+página se pone en rojo. Si hay que cerrar a mano, ver «🆘 Emergencia».
 
 **Probado contra XTB con el mercado abierto** (2026-09-29): comprando 1 acción y
 poniéndole un nivel pegado al precio, disparó por **objetivo** (bid 12,29 cruzó
@@ -656,9 +737,9 @@ segundos** entre ver el cruce y tener la orden en el broker.
 
 | Momento | Qué hace | Cuándo (ET) |
 |---|---|---|
-| `compras` | Manda las compras; XTB las deja en cola y las ejecuta **al abrir** | 60–5 min antes de la apertura |
+| `compras` | Manda las compras **después de abrir** (XTB descarta las encoladas con el mercado cerrado) y arranca el vigilante si hay posiciones | 0–60 min tras la apertura |
 | `apertura` | **No decide nada**: comprueba que se ejecutó lo que se mandó | 30–90 min tras la apertura |
-| `ventas` | Cierra las posiciones que cumplen su décima sesión | 30–5 min antes del cierre |
+| `ventas` | Las hace el **vigilante de precios** 15 min antes del cierre; el cron es respaldo y dice «ok: N vendidas», «ok: nada que vender» o «fuera de ventana» | 30–5 min antes del cierre |
 | `reconcilia` | Compara XTB con el simulador y rompe en rojo si difieren | ≥30 min tras el cierre |
 
 El de la apertura nació del 2026-09-29: hasta entonces nadie miraba el resultado

@@ -151,7 +151,9 @@ def bloque_componentes(datos_salud: dict, ahora: datetime) -> list[dict]:
 def bloque_cuenta_broker(estado_broker: dict | None) -> dict:
     """Lo que dice XTB de la cuenta. None cuando aún no se ha leído nunca."""
     base = {
-        "cuenta": enmascarar_cuenta(config.CUENTA_DEMO),
+        # Sin dígitos: el número ya no está ni en el código (solo su huella),
+        # y la página no tiene por qué saber más que el código.
+        "cuenta": "demo",
         "tipo": config.TIPO_CUENTA_BROKER,
         "candado_ok": None,
         "saldo": None, "equity": None, "invertido": None,
@@ -452,9 +454,17 @@ def bloque_vigilante_precios(ahora: datetime, posiciones: list[dict]) -> dict:
         # nada que vigilar: 62 minutos sin latir con la cuenta vacía se leía
         # igual que 62 minutos sin latir con tres posiciones y sus stops al
         # aire, y no son lo mismo ni de lejos.
+        #
+        # Y las que salen HOY por tiempo, aunque no tengan nivel: desde el
+        # 2026-10-02 esas ventas las hace el vigilante antes del cierre, así
+        # que sin vigilante se quedan sin vender.
         "posiciones_a_vigilar": sum(
             1 for p in posiciones
-            if p.get("stop") is not None or p.get("objetivo") is not None),
+            if p.get("stop") is not None or p.get("objetivo") is not None
+            or p.get("fecha_limite") == hoy.isoformat()),
+        # El umbral de un corte en el historial del latido: el mismo que el de
+        # "muerto". La página lo usa para decir si la sesión estuvo cubierta.
+        "corte_minutos": lat.MUERTO_MINUTOS,
     }
 
 

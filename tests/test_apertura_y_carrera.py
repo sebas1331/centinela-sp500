@@ -420,4 +420,4 @@ def test_el_job_del_ejecutor_tiene_margen_para_dormir():
     d = yaml.safe_load((RAIZ / ".github/workflows/preapertura.yml")
                        .read_text(encoding="utf-8"))
     from centinela import config
-    assert d["jobs"]["ejecutor"]["timeout-minutes"] > config.ESPERA_VENTANA_MAX_MIN
+    assert d["jobs"]["ejecutor"]["timeout-minutes"] > config.EJECUTOR_COMPRAS_ESPERA_MAX_MIN

@@ -51,7 +51,7 @@ def main() -> int:
     simbolo = ords.simbolo_xtb(args.ticker)
     with bx.BrokerXTB(bx.credenciales_del_entorno_o_llavero(), demo=True) as b:
         saldo = b.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO): equity {saldo['equity']:,.2f}")
+        log(f"cuenta DEMO verificada: equity {saldo['equity']:,.2f}")
 
         abiertas = [p for p in b.posiciones()
                     if p["lado"] == "buy" and p["ticker"] == simbolo]
@@ -130,6 +130,19 @@ def main() -> int:
             raise RuntimeError(
                 f"La compra de prueba no entró en 3 intentos: {e.error}. El "
                 f"endpoint de trading de XTB está devolviendo cuerpo vacío.")
+
+        # QUÉ MODELO DE SALDO USA XTB. Si el saldo BAJA lo que costó la acción,
+        # es "caja"; si no se mueve, es "pnl". Las lecturas del 2026-10-02 no lo
+        # distinguían (ver ambiguas.deducir_precio_venta): esto lo deja medido.
+        time.sleep(3)
+        despues = b.saldo()
+        nueva = [p for p in b.posiciones()
+                 if p["lado"] == "buy" and p["ticker"] == simbolo]
+        log(f"MODELO DE SALDO: saldo {saldo['saldo']:,.2f} -> "
+            f"{despues['saldo']:,.2f} (Δ {despues['saldo'] - saldo['saldo']:+.2f}) | "
+            f"equity {saldo['equity']:,.2f} -> {despues['equity']:,.2f} | "
+            f"apertura de la posición: "
+            + ", ".join(str(p["precio_entrada"]) for p in nueva))
 
         # El nivel se pone del lado que dispara, con margen: el objetivo por
         # DEBAJO del bid (se vende cuando bid >= objetivo) y el stop por encima.

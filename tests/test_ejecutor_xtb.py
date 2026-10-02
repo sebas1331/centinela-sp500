@@ -65,6 +65,16 @@ class BrokerFalso:
         return self._ejecutar(ticker, "venta", acciones)
 
 
+
+@pytest.fixture(autouse=True)
+def _libro_aparte(monkeypatch):
+    """Estos tests miden la reconciliación SIMULADOR contra XTB. La otra mitad
+    —el libro de acciones de bitacora_broker.csv contra XTB— tiene sus propios
+    tests (test_ventas_y_diario.py) y aquí se aparta, porque los brokers falsos
+    de este fichero enseñan posiciones sin haber escrito sus compras."""
+    import ejecutor_xtb as _ej
+    monkeypatch.setattr(_ej, "cuadrar_libro", lambda _b: [])
+
 @pytest.fixture
 def aislado(tmp_path, monkeypatch):
     """Ficheros del ejecutor redirigidos a un temporal."""

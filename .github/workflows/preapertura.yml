@@ -237,7 +237,11 @@ jobs:
     needs: [preapertura, ordenes]
     if: needs.preapertura.result == 'success' && needs.preapertura.outputs.resultado == 'procesado' && needs.ordenes.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # Por encima de config.EJECUTOR_COMPRAS_ESPERA_MAX_MIN (250): el pre-apertura
+    # puede procesar hasta 4 h antes de abrir y este job duerme hasta la apertura.
+    timeout-minutes: 290
+    outputs:
+      posiciones_xtb: ${{ steps.ejecutor.outputs.posiciones_xtb }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -280,13 +284,14 @@ jobs:
       # Se commitea SIEMPRE que el ejecutor haya escrito algo, aunque terminara
       # en rojo: si mandó tres órdenes y falló en la cuarta, las tres primeras
       # tienen que quedar registradas o el siguiente disparo las repetiría.
-      - name: Commit y push de lo ejecutado
+      # POR EL DIARIO, NO POR REBASE (incidente del 2026-10-02). Lo que el
+      # broker hizo se aplica sobre el origin más nuevo y se reintenta desde
+      # cero si otro empujó entretanto: no puede chocar ni perderse. Siempre,
+      # aunque el paso anterior muriera: lo que sí salió tiene que quedar.
+      - name: Publicar lo ejecutado (diario, sin rebase)
         if: always()
         run: |
-          scripts/commit_y_push.sh \
-            "ejecutor XTB: compras [skip ci]" \
-            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
-            estado bitacora_broker.csv ordenes
+          python scripts/publicar_diario.py --mensaje "ejecutor XTB: compras [skip ci]"
 
   # LA PÁGINA DE OPERATIVA (docs/operativa.html). JOB APARTE, el último, con
   # `needs` e `if: always()`. Cada una de las tres cosas está ahí por un motivo:
@@ -299,7 +304,10 @@ jobs:
   #                 permanente, que es peor que no tener página.
   #   el último  -> el ejecutor ya escribió y empujó su parte de salud.json, así
   #                 que este checkout la trae.
-  operativa:
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
     needs: [preapertura, ejecutor]
     if: always()
     runs-on: ubuntu-latest
@@ -317,51 +325,33 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      # Solo para saber CUÁNDO caduca la sesión y poder avisar antes. Se usa
-      # `cache/restore` y no `cache` a propósito: un job que no habla con el
-      # broker no debe poder sobrescribir la sesión al terminar.
-      # Las tres rutas, IDÉNTICAS a las de los jobs que sí hablan con el
-      # broker. GitHub calcula la versión de una caché a partir de la lista de
-      # rutas y una clave solo casa dentro de su versión: pedir aquí solo el
-      # fichero de sesión daba una versión distinta, así que este paso no
-      # habría acertado nunca y el aviso de caducidad se habría quedado mudo.
-      - name: Leer la caducidad de la sesión de XTB
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.centinela_xtb_session
-            ~/.centinela_xtb_ticket.json
-            ~/.centinela_xtb_cookies.json
-          key: xtb-sesion-
-          restore-keys: xtb-sesion-
-
-      # El escaneo no se registra a sí mismo: lo hace este job, que ve su
-      # `result` aunque el runner se muriera sin que el script dijera nada.
       - name: Registrar el estado del escaneo
         run: |
           python scripts/registrar_salud.py preapertura \
             --salida "${{ needs.preapertura.outputs.resultado }}" \
             --job "${{ needs.preapertura.result }}"
 
-      # El ejecutor SÍ se registra a sí mismo y con mucho más detalle (candado,
-      # sesión caducada, diferencias). `--solo-si-falta` respeta su versión y
-      # solo escribe cuando murió antes de poder contarla.
       - name: Registrar el estado del ejecutor
         run: |
           python scripts/registrar_salud.py compras \
             --job "${{ needs.ejecutor.result }}" --solo-si-falta
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: republicada tras la pre-apertura [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: pre-apertura [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: republicada tras la pre-apertura [skip ci]"
+
 
   # ARRANCA EL VIGILANTE DE PRECIOS, que mira los niveles tick a tick durante
   # toda la sesión. Se lanza desde aquí y no desde un cron a propósito: el
@@ -369,11 +359,16 @@ jobs:
   # vigilante que llega a mediodía se ha perdido media sesión. Encadenarlo a las
   # compras lo pone en marcha justo cuando hay algo que vigilar.
   #
-  # `always()`: arranca aunque hoy no se comprara nada, porque puede haber
-  # posiciones de días anteriores con su objetivo y su stop vivos.
+  # Arranca aunque hoy no se comprara nada, porque puede haber posiciones de
+  # días anteriores con su objetivo, su stop o su salida por tiempo de hoy. Lo
+  # decide lo que XTB tiene DE VERDAD, que el ejecutor deja en su salida
+  # `posiciones_xtb`; si el ejecutor murió antes de saberlo (salida vacía), se
+  # arranca igual: mejor un vigilante que se va en reposo que una posición sin
+  # vigilar. Solo desde el run que ejecutó las compras —ya con el mercado
+  # abierto—: los peldaños "ya procesado" de la escalera no lo relanzan.
   arrancar_vigilante:
     needs: [preapertura, ejecutor]
-    if: always()
+    if: always() && needs.ejecutor.result != 'skipped' && needs.ejecutor.outputs.posiciones_xtb != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

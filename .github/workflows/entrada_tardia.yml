@@ -87,10 +87,31 @@ jobs:
 
       # `always()`: si reenvió tres y falló en la cuarta, las tres tienen que
       # quedar registradas o el siguiente intento las repetiría.
-      - name: Commit y push de lo reenviado
+      # POR EL DIARIO, NO POR REBASE (incidente del 2026-10-02). Lo que el
+      # broker hizo se aplica sobre el origin más nuevo y se reintenta desde
+      # cero si otro empujó entretanto: no puede chocar ni perderse. Siempre,
+      # aunque el paso anterior muriera: lo que sí salió tiene que quedar.
+      - name: Publicar lo ejecutado (diario, sin rebase)
         if: always()
         run: |
-          scripts/commit_y_push.sh \
-            "entrada tardía [skip ci]" \
-            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
-            estado bitacora_broker.csv ordenes
+          python scripts/publicar_diario.py --mensaje "entrada tardía [skip ci]"
+
+  # Una entrada tardía abre una posición con la sesión ya en marcha: si el
+  # vigilante se había ido en reposo (no había nada que vigilar), hay que
+  # levantarlo. Si ya hay uno vivo, su `hace_falta` lo ve y no arranca otro.
+  arrancar_vigilante:
+    needs: reenviar
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Llamar al vigilante de precios
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run vigilante_precios.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}"
+          echo "vigilante de precios llamado."

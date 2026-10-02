@@ -128,26 +128,14 @@ jobs:
   #
   # El job de arriba es de SOLO LECTURA a propósito; los permisos de escritura
   # viven aquí y solo aquí.
-  operativa:
-    needs: vigilar
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
+    needs: [vigilar]
     if: always()
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    # GRUPO PROPIO, NO el de escritura de los escaneos. El primer intento fue
-    # meterlo en `centinela-escritura` y duró una tarde: el 2026-09-28 el
-    # post-cierre de las 21:11 tomó el turno, este job se puso en cola a las
-    # 21:22, a las 21:53 llegó un segundo post-cierre y GitHub —que solo guarda
-    # UN run en cola por grupo— canceló el más viejo, o sea este.
-    #
-    # Publicar una página no puede competir con escaneos que retienen el turno
-    # hasta 160 minutos. Si dos publicaciones coinciden, commit_y_push.sh las
-    # resuelve con fetch+rebase, que es para lo que tiene reintentos: los
-    # ficheros que toca este job no los toca ningún escaneo.
-    concurrency:
-      group: operativa-${{ github.workflow }}
-      cancel-in-progress: false
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -161,21 +149,6 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      # Las tres rutas, IDÉNTICAS a las de los jobs que sí hablan con el
-      # broker. GitHub calcula la versión de una caché a partir de la lista de
-      # rutas y una clave solo casa dentro de su versión: pedir aquí solo el
-      # fichero de sesión daba una versión distinta, así que este paso no
-      # habría acertado nunca y el aviso de caducidad se habría quedado mudo.
-      - name: Leer la caducidad de la sesión de XTB
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.centinela_xtb_session
-            ~/.centinela_xtb_ticket.json
-            ~/.centinela_xtb_cookies.json
-          key: xtb-sesion-
-          restore-keys: xtb-sesion-
-
       - name: Registrar el estado del Vigilante
         run: |
           python scripts/registrar_salud.py vigilante \
@@ -183,14 +156,18 @@ jobs:
             --job "${{ needs.vigilar.result }}" \
             --detalle "${{ needs.vigilar.outputs.detalle }}"
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: pulso diario del vigilante [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: Vigilante [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: pulso diario del vigilante [skip ci]"

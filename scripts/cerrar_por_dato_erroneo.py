@@ -242,7 +242,7 @@ def main() -> int:
 
     with bx.BrokerXTB(bx.credenciales_del_entorno_o_llavero(), demo=True) as broker:
         saldo = broker.saldo()
-        log(f"cuenta {saldo['cuenta']} (DEMO): equity {saldo['equity']:,.2f}")
+        log(f"cuenta DEMO verificada: equity {saldo['equity']:,.2f}")
         pos = posicion_en_xtb(broker, ticker)
         if pos is None:
             raise RuntimeError(

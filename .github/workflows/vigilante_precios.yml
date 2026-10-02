@@ -61,8 +61,15 @@ permissions:
 # turno de Actions, es XTB: antes de vender se relee la posición y si ya no
 # está, no se vende. El grupo propio de abajo evita el caso tonto de dos
 # vigilantes arrancados a la vez por dos peldaños de la escalera.
+#
+# EL RELEVO VA EN OTRO GRUPO (fallo latente encontrado el 2026-10-02). Con un
+# solo grupo, el sucesor que llama el saliente a las 5 h 45 min se quedaba en
+# cola hasta que el saliente terminara — y el saliente no termina hasta VER
+# latir al sucesor. Se esperaban el uno al otro diez minutos y el relevo
+# fallaba en rojo. Un vigilante que arranca con la sesión ya abierta llega al
+# cierre antes de necesitar relevo, así que el relevo de un relevo no existe.
 concurrency:
-  group: vigilante-precios
+  group: vigilante-precios${{ inputs.relevo_de && '-relevo' || '' }}
   cancel-in-progress: false
 
 jobs:
@@ -87,6 +94,9 @@ jobs:
 
       - name: ¿Hay ya un vigilante vivo?
         id: mirar
+        env:
+          FORZAR: ${{ inputs.forzar && 'si' || '' }}
+          RELEVO_DE: ${{ inputs.relevo_de }}
         run: python scripts/hace_falta_vigilante.py
 
   vigilar:
@@ -129,6 +139,10 @@ jobs:
           XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Aviso externo (ver centinela/aviso.py). Sin ellos el vigilante
+          # funciona igual, pero lo dice: nadie recibiría un email si muere.
+          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+          HEALTHCHECKS_API_KEY: ${{ secrets.HEALTHCHECKS_API_KEY }}
         run: |
           ARGS=""
           if [ -n "${{ inputs.relevo_de }}" ]; then ARGS="$ARGS --relevo-de ${{ inputs.relevo_de }}"; fi
@@ -136,25 +150,22 @@ jobs:
           if [ -n "${{ inputs.minutos }}" ]; then ARGS="$ARGS --minutos ${{ inputs.minutos }}"; fi
           python scripts/vigilante_precios.py $ARGS
 
-      # El vigilante publica cada venta en cuanto la hace, para que el ejecutor
-      # de ventas por tiempo la vea. Esto solo recoge lo que quedara suelto si
-      # murió a mitad.
-      - name: Commit y push de lo que quedara suelto
+      # Por el diario, sin rebase. El vigilante publica cada venta en cuanto la
+      # hace; esto recoge lo que quedara pendiente si murió a mitad, con
+      # todos los reintentos. Si ni así sube, ROJO.
+      - name: Publicar lo que quedara pendiente (diario, sin rebase)
         if: always()
         run: |
-          scripts/commit_y_push.sh \
-            "vigilante de precios: cierre de sesión [skip ci]" \
-            "$(git diff --quiet -- estado bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
-            estado bitacora_broker.csv ordenes
+          python scripts/publicar_diario.py --mensaje "vigilante de precios: cierre de sesión [skip ci]"
 
-  operativa:
+  # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
+  # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
+  # cancelar por estar esperando turno (ver centinela/diario.py).
+  salud:
     needs: [hace_falta, vigilar]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: operativa-${{ github.workflow }}
-      cancel-in-progress: false
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -168,29 +179,23 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Leer la caducidad de la sesión de XTB
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.centinela_xtb_session
-            ~/.centinela_xtb_ticket.json
-            ~/.centinela_xtb_cookies.json
-          key: xtb-sesion-
-          restore-keys: xtb-sesion-
-
       - name: Registrar el estado del vigilante
         run: |
           python scripts/registrar_salud.py vigilante_precios \
             --job "${{ needs.vigilar.result }}" --solo-si-falta
 
-      - name: Generar la página de operativa
-        id: op
-        run: python scripts/generar_operativa.py
-
-      - name: Commit y push de la operativa
-        if: steps.op.outputs.cambios == 'si'
+      - name: Publicar la salud (diario, sin rebase)
         run: |
-          scripts/commit_y_push.sh \
-            "operativa: republicada tras el vigilante de precios [skip ci]" \
-            "procesado" \
-            docs estado
+          python scripts/publicar_diario.py --mensaje "salud: vigilante de precios [skip ci]"
+
+  # LA PÁGINA, regenerada en el grupo ÚNICO `centinela-operativa` que comparten
+  # todos los workflows (ver pagina_operativa.yml). Antes cada workflow tenía
+  # el suyo y chocaban entre sí: 13 rojos "could not apply" en una semana.
+  operativa:
+    needs: [salud]
+    if: always()
+    permissions:
+      contents: write
+    uses: ./.github/workflows/pagina_operativa.yml
+    with:
+      mensaje: "operativa: republicada tras el vigilante de precios [skip ci]"

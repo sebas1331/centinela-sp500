@@ -43,8 +43,8 @@ def main() -> int:
                     help="además de leer, abre y cierra 1 acción")
     args = ap.parse_args()
 
-    log(f"cuenta permitida por configuración: {config.CUENTA_DEMO} "
-        f"({config.TIPO_CUENTA_BROKER})")
+    log(f"cuenta permitida por configuración: huella "
+        f"{config.CUENTA_DEMO_HUELLA[:8]}… ({config.TIPO_CUENTA_BROKER})")
     try:
         cred = bx.credenciales_del_entorno_o_llavero()
     except bx.ErrorBroker as exc:
@@ -57,7 +57,7 @@ def main() -> int:
             log("CONECTADO — candado de cuenta demo superado")
             s = b.saldo()
             log(f"SALDO {s['saldo']:,.2f} {s['divisa']} | equity {s['equity']:,.2f} "
-                f"| cuenta {s['cuenta']}")
+                f"| cuenta DEMO verificada")
             pos = b.posiciones()
             log(f"POSICIONES ABIERTAS: {len(pos)}")
             for p in pos:

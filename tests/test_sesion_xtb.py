@@ -19,6 +19,7 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 from centinela import broker_xtb as bx, config  # noqa: E402
+from conftest import CUENTA_PRUEBA  # noqa: E402
 import vigilante  # noqa: E402
 
 
@@ -68,7 +69,7 @@ def test_conectar_traduce_el_error_del_cliente(monkeypatch):
             pass
 
     b = bx.BrokerXTB(
-        bx.Credenciales(email="x@y.z", cuenta=config.CUENTA_DEMO, password="p"),
+        bx.Credenciales(email="x@y.z", cuenta=CUENTA_PRUEBA, password="p"),
         cliente=_ClienteQueExigeCodigo())
     with pytest.raises(bx.SesionCaducada) as exc:
         b.conectar()
@@ -83,7 +84,7 @@ def test_un_fallo_normal_de_conexion_sigue_saliendo_tal_cual(monkeypatch):
             pass
 
     b = bx.BrokerXTB(
-        bx.Credenciales(email="x@y.z", cuenta=config.CUENTA_DEMO, password="p"),
+        bx.Credenciales(email="x@y.z", cuenta=CUENTA_PRUEBA, password="p"),
         cliente=_ClienteSinRed())
     with pytest.raises(ConnectionError):
         b.conectar()

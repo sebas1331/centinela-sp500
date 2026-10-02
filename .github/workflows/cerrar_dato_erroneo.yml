@@ -95,3 +95,11 @@ jobs:
             "cierre por dato erróneo de ${{ inputs.ticker }} [skip ci]" \
             "$(git diff --quiet -- estado bitacora.csv bitacora.sqlite bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
             estado bitacora.csv bitacora.sqlite bitacora_broker.csv ordenes
+
+      # Y por el diario, por si el commit de arriba chocó: lo que el broker hizo
+      # (la venta) no puede depender de que un rebase salga bien. Si el commit
+      # ya lo subió todo, esto no encuentra nada nuevo y no hace nada.
+      - name: Publicar lo del broker (diario, sin rebase)
+        if: always()
+        run: |
+          python scripts/publicar_diario.py --mensaje "cierre por dato erróneo de ${{ inputs.ticker }}: broker [skip ci]"

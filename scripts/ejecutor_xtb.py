@@ -33,6 +33,7 @@ segunda vez no se manda nada.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import subprocess
@@ -249,6 +250,18 @@ def resultado_explicito(momento: str, motivo_cero: str = "") -> str:
     r = ENVIADAS.get(tipo)
     if r is None:
         return "ok: no se llegó a mirar la cola de órdenes"
+    if momento == "ventas":
+        # Tres respuestas que no se pueden confundir: vendí N, no había nada,
+        # o lo había hecho ya el vigilante de precios (que es el camino normal
+        # desde el 2026-10-02; este cron es el respaldo).
+        if r["decididas"] == 0:
+            return "ok: nada que vender"
+        if r["enviadas"] == 0:
+            return (f"ok: nada que vender — las {r['ya_estaban']} salidas de hoy "
+                    f"ya las había hecho el vigilante de precios")
+        return (f"ok: {r['enviadas']} vendidas"
+                + (f" ({r['ya_estaban']} ya las había hecho el vigilante)"
+                   if r["ya_estaban"] else ""))
     cubiertas = r["enviadas"] + r["ya_estaban"]
     if r["decididas"] == 0:
         return f"ok: 0 órdenes — {motivo_cero or 'no se decidió ninguna entrada'}"
@@ -310,7 +323,7 @@ def esperar_a_la_ventana(momento: str, dormir=time.sleep,
     no puede hacer es mandar la orden: XTB la encola y la descarta.
     """
     maximo = (maximo_min if maximo_min is not None
-              else config.ESPERA_VENTANA_MAX_MIN)
+              else config.EJECUTOR_COMPRAS_ESPERA_MAX_MIN)
     limite = time.monotonic() + maximo * 60
     while time.monotonic() < limite:
         ok, motivo = en_ventana(momento)
@@ -347,12 +360,24 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         # que existe el vigilante de precios hay dos procesos que pueden cerrar
         # la misma posición al final de la sesión, y el que llegue segundo no
         # puede mandar una venta de unas acciones que ya no existen.
-        if o.tipo != ords.COMPRA and not niv.sigue_abierta(
-                broker, o.simbolo, o.acciones):
-            log(f"  {o.ticker}: XTB ya no tiene la posición (la cerró el "
-                f"vigilante de precios o una venta anterior). No se vende.")
-            ya_estaban += 1
-            continue
+        #
+        # Y se vende lo que XTB TIENE, no lo que dice la orden: las acciones de
+        # `pendientes.json` salen de la cuenta simulada, y si difieren de las
+        # del broker la comprobación de "sigue abierta con ese volumen" diría
+        # que no y la posición se quedaría sin vender. El vigilante de precios
+        # hace lo mismo.
+        if o.tipo != ords.COMPRA:
+            reales = sum(float(p["acciones"]) for p in broker.posiciones()
+                         if p["lado"] == "buy" and p["ticker"] == o.simbolo)
+            if reales < 1:
+                log(f"  {o.ticker}: XTB ya no tiene la posición (la cerró el "
+                    f"vigilante de precios o una venta anterior). No se vende.")
+                ya_estaban += 1
+                continue
+            if int(reales) != o.acciones:
+                log(f"  {o.ticker}: la orden dice {o.acciones} acciones y XTB "
+                    f"tiene {int(reales)}; se vende lo que hay en XTB.")
+                o = dataclasses.replace(o, acciones=int(reales))
 
         log(f"  enviando {o.tipo} {o.ticker} x{o.acciones}...")
         # Si XTB responde vacío, `enviar_resolviendo` le pregunta si la orden
@@ -365,10 +390,19 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
                                        objetivo=o.objetivo, stop=o.stop),
                 id_orden=o.id)
         else:
+            # El bid de justo antes, como referencia para deducir el precio si
+            # XTB no lo devuelve (ver ambiguas.deducir_precio_venta). Aquí no hay
+            # suscripciones de ticks que una cotización pudiera romper.
+            try:
+                bid = float(broker.cotizacion(o.simbolo)["bid"])
+            except Exception as exc:  # noqa: BLE001 — sin bid, precio sin deducir
+                log(f"    sin cotización previa de {o.simbolo} ({exc!r}); si XTB "
+                    f"no da el precio, quedará vacío.")
+                bid = None
             e = amb.enviar_resolviendo(
                 broker, o.simbolo, o.tipo,
                 lambda: broker.vender(o.simbolo, o.acciones),
-                id_orden=o.id)
+                id_orden=o.id, referencia=bid)
         log(f"    -> {e.estado}"
             + (f" a {e.precio}" if e.precio else "")
             + (f" (orden {e.orden})" if e.orden else "")
@@ -393,10 +427,16 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
     return hechas
 
 
-def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> None:
-    """Delega en centinela.estado_broker, que es donde vive ahora."""
+def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> dict:
+    """Delega en centinela.estado_broker, y deja en la salida del job cuántas
+    posiciones tiene XTB: de eso depende que se arranque el vigilante."""
     from centinela import estado_broker
-    estado_broker.volcar(broker, candado_ok=candado_ok)
+    datos = estado_broker.volcar(broker, candado_ok=candado_ok)
+    salida = os.environ.get("GITHUB_OUTPUT")
+    if salida:
+        with open(salida, "a", encoding="utf-8") as fh:
+            fh.write(f"posiciones_xtb={len(datos['posiciones'])}\n")
+    return datos
 
 
 # --------------------------------------------------------------------------- #
@@ -620,9 +660,16 @@ def cerrar_tiempos_atrasados(broker: bx.BrokerXTB, registro: dict) -> list:
         if ords.ya_enviada(registro, orden.id):
             continue
 
+        if not niv.sigue_abierta(broker, orden.simbolo, acciones):
+            log(f"  {pos['ticker']}: XTB ya no tiene la posición; no se vende.")
+            continue
         log(f"  {pos['ticker']}: debía salir por tiempo el {limite} y sigue "
             f"abierta -> cerrando a la apertura de hoy (plan B)")
-        e = broker.vender(orden.simbolo, acciones)
+        # Por `enviar_resolviendo`, como todas: confirma contra XTB que la
+        # posición BAJÓ y deduce el precio si XTB no lo da.
+        e = amb.enviar_resolviendo(
+            broker, orden.simbolo, orden.tipo,
+            lambda: broker.vender(orden.simbolo, acciones), id_orden=orden.id)
         log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
             + (f" ERROR: {e.error}" if e.error else ""))
         ords.registrar_ejecucion(orden, e)
@@ -731,10 +778,16 @@ def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
         if ords.ya_enviada(registro, orden.id):
             continue
 
+        if not niv.sigue_abierta(broker, orden.simbolo, acciones):
+            log(f"  {pos['ticker']}: XTB ya no tiene la posición; no se vende.")
+            continue
         log(f"  {pos['ticker']}: precio {precio:.2f} cruzó el "
             f"{'STOP' if motivo == ords.VENTA_STOP else 'OBJETIVO'} "
             f"{nivel:.2f} -> cerrando")
-        e = broker.vender(orden.simbolo, acciones)
+        e = amb.enviar_resolviendo(
+            broker, orden.simbolo, orden.tipo,
+            lambda: broker.vender(orden.simbolo, acciones), id_orden=orden.id,
+            referencia=precio)
         log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
             + (f" ERROR: {e.error}" if e.error else ""))
         ords.registrar_ejecucion(orden, e)
@@ -788,6 +841,61 @@ def _compras_rechazadas_sin_reponer(posiciones: list[dict]) -> dict:
                 f"{entrada}, orden {rechazos[-1].get('orden_xtb') or '?'}: "
                 f"{rechazos[-1].get('error') or 'sin motivo'}")
     return por_ticker
+
+
+def libro_de_acciones(desde: str | None = None) -> dict[str, int]:
+    """Acciones que DEBERÍA haber en XTB según `bitacora_broker.csv`, por símbolo.
+
+    Compras ejecutadas menos ventas ejecutadas, desde el arranque. Es la otra
+    mitad de la reconciliación: la posición del simulador dice qué debería
+    estar abierto según la estrategia; esto dice qué debería estar abierto
+    según lo que el propio sistema MANDÓ. Una venta hecha en XTB que no está
+    aquí —un push que la perdió, un cierre a mano en xStation 5— aparece como
+    XTB con menos acciones de las que dice el libro.
+    """
+    desde = desde or config.EJECUCION_DESDE
+    ruta = ords.ARCHIVO_BITACORA_BROKER
+    libro: dict[str, int] = {}
+    if not ruta.exists():
+        return libro
+    import csv
+    with open(ruta, encoding="utf-8", newline="") as f:
+        for fila in csv.DictReader(f, restval=""):
+            if fila.get("estado") != "ejecutada" or str(fila.get("sesion", "")) < desde:
+                continue
+            try:
+                n = int(float(fila.get("acciones") or 0))
+            except ValueError:
+                continue
+            signo = 1 if ords.lado_de(fila.get("tipo", "")) == "compra" else -1
+            simbolo = fila.get("simbolo_xtb") or ords.simbolo_xtb(fila["ticker"])
+            libro[simbolo] = libro.get(simbolo, 0) + signo * n
+    return libro
+
+
+def cuadrar_libro(broker: bx.BrokerXTB) -> list[str]:
+    """Acciones de XTB contra el libro. Cualquier diferencia es ROJO."""
+    reales: dict[str, int] = {}
+    for p in broker.posiciones():
+        if p["lado"] == "buy":
+            reales[p["ticker"]] = reales.get(p["ticker"], 0) + int(float(p["acciones"]))
+    libro = libro_de_acciones()
+    problemas = []
+    for simbolo in sorted(set(libro) | set(reales)):
+        debe, hay = libro.get(simbolo, 0), reales.get(simbolo, 0)
+        if debe == hay:
+            continue
+        if hay < debe:
+            problemas.append(
+                f"{simbolo}: XTB tiene {hay} acciones y bitacora_broker.csv dice "
+                f"{debe}. Hay una VENTA (o un cierre) en XTB que el sistema no "
+                f"tiene registrada: mira el historial en xStation 5.")
+        else:
+            problemas.append(
+                f"{simbolo}: XTB tiene {hay} acciones y bitacora_broker.csv dice "
+                f"{debe}. Hay una COMPRA en XTB que el sistema no tiene "
+                f"registrada.")
+    return problemas
 
 
 def reconciliar(broker: bx.BrokerXTB) -> list[str]:
@@ -854,10 +962,55 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     for t in sorted((reales - simuladas) & comprado_hoy):
         log(f"{t}: comprada hoy; el simulador la convertirá en posición en el "
             f"post-cierre. No es una diferencia.")
+    # Y el libro: lo que el sistema mandó contra lo que XTB tiene.
+    problemas.extend(cuadrar_libro(broker))
     return problemas
 
 
 # --------------------------------------------------------------------------- #
+def ventas_fuera_de_ventana(motivo: str, ahora=None) -> int:
+    """El respaldo de ventas llegó fuera de su ventana. Que se sepa CÓMO.
+
+    Antes esto devolvía 0 sin anotar nada y el workflow pintaba "ok": la página
+    decía "Ventas: ok" con el run llegando cuatro horas después del cierre. Un
+    "ok" no puede ocultar que se llegó tarde.
+
+      - Si el vigilante de precios ya hizo las ventas de hoy, su resultado se
+        queda: es el camino normal y este cron es el respaldo.
+      - Si no había nada que vender hoy: `fuera-de-ventana`, sin rojo.
+      - Si quedaban salidas por tiempo sin hacer: ROJO. Mañana las cierra el
+        plan B en la apertura, pero hoy la estrategia no se cumplió.
+    """
+    ahora = ahora or datetime.now(config.TZ_ET)
+    hoy = ahora.date().isoformat()
+    if motivo == "hoy no hay mercado":
+        salud.registrar("ventas", "omitido:no-es-sesion")
+        return 0
+    previo = salud.cargar().get("runs", {}).get("ventas", {})
+    if str(previo.get("cuando", ""))[:10] == hoy and \
+            str(previo.get("resultado", "")).startswith("ok"):
+        log(f"respaldo fuera de ventana ({motivo}); las ventas de hoy ya están "
+            f"hechas: {previo.get('resultado')} — {previo.get('detalle') or ''}")
+        return 0
+    registro = ords.cargar_enviadas()
+    pendientes = ords.cargar_pendientes()
+    sin_hacer = [o for o in pendientes.get("ordenes", [])
+                 if o.tipo == ords.VENTA_TIEMPO and o.sesion == hoy
+                 and not ords.ya_enviada(registro, o.id)]
+    hora = ahora.strftime("%H:%M ET")
+    if not sin_hacer:
+        salud.registrar("ventas", "fuera-de-ventana: nada que vender",
+                        f"el respaldo llegó a las {hora} ({motivo})")
+        return 0
+    msg = (f"{len(sin_hacer)} salida(s) por tiempo de hoy SIN HACER "
+           f"({', '.join(o.ticker for o in sin_hacer)}); el respaldo llegó a "
+           f"las {hora} ({motivo}). Mañana las cierra el plan B en la apertura.")
+    print(f"::error::{msg}", flush=True)
+    salud.registrar("ventas", "fallo:fuera-de-ventana", msg)
+    publicar_resultado("fallo:fuera-de-ventana")
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("momento", choices=MOMENTOS)
@@ -883,13 +1036,17 @@ def main() -> int:
         log(f"momento={args.momento}: {motivo}")
 
     if not ok:
-        if args.momento == "compras" and "más de" in motivo:
+        if args.momento == "compras" and motivo != "hoy no hay mercado":
             # Llegar tarde a las compras NO es un día tranquilo: es una sesión
-            # de trading perdida, y tiene que verse en rojo.
+            # de trading perdida, y tiene que verse en rojo. Y agotar la espera
+            # ANTES de que abra tampoco: antes eso devolvía 0 —verde— sin haber
+            # comprado nada.
             print(f"::error::Ventana de compras perdida: {motivo}", flush=True)
             salud.registrar("compras", "fallo:ventana-perdida", motivo)
             publicar_resultado("fallo:ventana-perdida")
             return 1
+        if args.momento == "ventas":
+            return ventas_fuera_de_ventana(motivo)
         return 0
 
     # Los momentos que ENVÍAN exigen la decisión del día; los que solo miran
@@ -915,7 +1072,7 @@ def main() -> int:
     try:
         with bx.BrokerXTB(credenciales, demo=True) as broker:
             saldo = broker.saldo()
-            log(f"cuenta {saldo['cuenta']} (DEMO): saldo {saldo['saldo']:,.2f} "
+            log(f"cuenta DEMO verificada: saldo {saldo['saldo']:,.2f} "
                 f"{saldo['divisa']} | equity {saldo['equity']:,.2f}")
 
             # ANTES de comprar nada: cerrar lo que debió salir ayer. Una

@@ -77,6 +77,27 @@ TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
          VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA,
          ENTRADA_TARDIA, VENTA_DATO_ERRONEO)
 
+#: Las que COMPRAN. Todo lo demás vende. Hace falta saberlo para confirmar una
+#: orden contra XTB: una compra se confirma porque la posición CRECE y una venta
+#: porque BAJA o desaparece. Confundirlas anotó como "rechazada" la venta de
+#: CTVA del 2026-10-02, que XTB sí ejecutó.
+TIPOS_COMPRA = (COMPRA, ENTRADA_TARDIA)
+
+
+def lado_de(tipo: str) -> str:
+    """'compra' o 'venta', según el tipo de orden.
+
+    Acepta también "compra"/"venta" a secas, que es como llegan los tests y los
+    diagnósticos. Un tipo que no está en el vocabulario es un error: deducir el
+    lado "por defecto" es exactamente cómo una venta acabó juzgada como compra.
+    """
+    if tipo in TIPOS_COMPRA or tipo == "compra":
+        return "compra"
+    if tipo in TIPOS or tipo == "venta":
+        return "venta"
+    raise ValueError(f"Tipo de orden desconocido: {tipo!r}; no se sabe si "
+                     f"compra o vende.")
+
 #: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
 #: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente
 #: aborta el commit, y `commit_y_push.sh` no silencia esos fallos a propósito.
@@ -97,6 +118,13 @@ COLUMNAS_BROKER = [
     # vigilar; la segunda, el de ejecutar.
     "precio_disparo",
     "precio_simulador", "slippage_pct", "error",
+    # De dónde sale `precio`. XTB no siempre lo devuelve al ejecutar, y un
+    # precio deducido no vale lo mismo que uno que dio el broker:
+    #   xtb       lo devolvió XTB en la respuesta de la orden
+    #   posicion  precio de apertura de la posición nueva (compras)
+    #   saldo     deducido del cambio de saldo de la cuenta (ventas)
+    #   manual    corregido a mano, con la evidencia en `error`
+    "precio_fuente",
 ]
 
 
@@ -264,8 +292,12 @@ def marcar_enviada(registro: dict, id_orden: str, detalle: dict) -> None:
     Marcar antes perdería la orden para siempre si el envío fallara; marcar
     después, como mucho, la repite — y para eso está la reconciliación.
     """
-    registro.setdefault("enviadas", {})[id_orden] = {
-        "cuando": datetime.now(config.TZ_ET).isoformat(), **detalle}
+    entrada = {"cuando": datetime.now(config.TZ_ET).isoformat(), **detalle}
+    registro.setdefault("enviadas", {})[id_orden] = entrada
+    # El registro de idempotencia es lo que impide repetir una orden. Si se
+    # perdiera en un push fallido, el siguiente run volvería a mandarla.
+    from . import diario
+    diario.anotar("enviada", id=id_orden, detalle=entrada)
 
 
 # --------------------------------------------------------------------------- #
@@ -294,7 +326,10 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
         slippage = round(100.0 * (bruto if orden.tipo == COMPRA else -bruto), 4)
 
     fila = {
-        "id": orden.id, "sesion": orden.sesion, "cuando_et": ejecucion.cuando,
+        # La hora SIEMPRE: con (id, hora) el diario distingue dos intentos de
+        # la misma orden, y una fila sin hora no se podría distinguir de nada.
+        "id": orden.id, "sesion": orden.sesion,
+        "cuando_et": ejecucion.cuando or datetime.now(config.TZ_ET).isoformat(),
         "cartera": orden.cartera, "ticker": orden.ticker,
         "simbolo_xtb": orden.simbolo, "tipo": orden.tipo,
         "acciones": orden.acciones, "estado": ejecucion.estado,
@@ -303,12 +338,45 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
         "precio_disparo": orden.referencia,
         "precio_simulador": orden.precio_simulador,
         "slippage_pct": slippage, "error": ejecucion.error,
+        "precio_fuente": getattr(ejecucion, "precio_fuente", None)
+                         or ("xtb" if ejecucion.precio else None),
     }
+    # Una venta parcial deja escrito lo que se vendió DE VERDAD, no lo pedido:
+    # la reconciliación cuadra acciones contra XTB con esta columna.
+    hechas = getattr(ejecucion, "acciones_hechas", None)
+    if hechas is not None and ejecucion.estado == "ejecutada":
+        fila["acciones"] = hechas
+    if not nuevo:
+        _migrar_columnas(ruta)
     with open(ruta, "a", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNAS_BROKER)
         if nuevo:
             w.writeheader()
         w.writerow(fila)
+    # PRIMERO en el CSV del árbol, que es lo que lee el resto de este proceso,
+    # y en el diario local, que es lo que sobrevive a un push que choca.
+    if ruta == ARCHIVO_BITACORA_BROKER:
+        from . import diario
+        diario.anotar("orden", fila=fila)
+
+
+def _migrar_columnas(ruta: Path) -> None:
+    """Reescribe la cabecera si al fichero le faltan columnas nuevas.
+
+    Añadir una columna al final y seguir escribiendo filas con más campos que
+    la cabecera produce un CSV que pandas lee desplazado. Se reescribe una vez,
+    rellenando en blanco, y a partir de ahí todas las filas tienen la misma
+    forma.
+    """
+    with open(ruta, encoding="utf-8", newline="") as f:
+        lector = csv.DictReader(f, restval="")
+        if list(lector.fieldnames or []) == COLUMNAS_BROKER:
+            return
+        filas = [{c: fila.get(c, "") for c in COLUMNAS_BROKER} for fila in lector]
+    with open(ruta, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=COLUMNAS_BROKER)
+        w.writeheader()
+        w.writerows(filas)
 
 
 def actualizar_ejecucion(id_orden: str, ruta: Path | None = None, **campos) -> bool:
@@ -353,6 +421,9 @@ def actualizar_ejecucion(id_orden: str, ruta: Path | None = None, **campos) -> b
         w = csv.DictWriter(f, fieldnames=COLUMNAS_BROKER)
         w.writeheader()
         w.writerows(filas)
+    if ruta == ARCHIVO_BITACORA_BROKER:
+        from . import diario
+        diario.anotar("actualizar", id=id_orden, campos=campos)
     return True
 
 

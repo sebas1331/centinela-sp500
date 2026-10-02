@@ -58,8 +58,8 @@ fi
 git config user.name "$autor_nombre"
 git config user.email "$autor_email"
 
-# Sin "|| true": si una de estas rutas desapareciera queremos enterarnos, no
-# acabar con un índice vacío que se lee igual que "no hubo cambios".
+# Sin silenciar nada: si una de estas rutas desapareciera queremos enterarnos,
+# no acabar con un índice vacío que se lee igual que "no hubo cambios".
 git add -- "$@"
 
 if git diff --cached --quiet; then
@@ -83,13 +83,18 @@ for intento in 1 2 3; do
     break
   fi
   echo "push rechazado (intento $intento/3); rebase sobre origin/$rama y reintento..."
-  # Sin "|| true" estos comandos abortarían el script bajo `set -e` en cuanto la
-  # red fallase, saltándose los reintentos y el mensaje de error de abajo: el
-  # job moriría igualmente en rojo, pero con un `fatal:` de git en vez de una
-  # explicación. Se dejan fallar y que decida el bucle.
-  git fetch origin "$rama" || true
+  # Cada fallo se DICE y decide el bucle; nada se silencia. Un `if !` no
+  # dispara `set -e`, así que un fetch caído por la red no aborta el script
+  # saltándose los reintentos: se avisa y se pasa al siguiente intento.
+  if ! git fetch origin "$rama"; then
+    echo "::warning::git fetch falló (intento $intento/3); se reintenta."
+    sleep 5
+    continue
+  fi
   if ! git rebase "origin/$rama"; then
-    git rebase --abort || true
+    if ! git rebase --abort; then
+      echo "::error::git rebase --abort también falló: el árbol de trabajo puede haber quedado a medio rebasar."
+    fi
     # Reintentar no arregla un conflicto de contenido, solo entierra la causa
     # bajo dos rondas más de ruido (fue lo que pasó el 2026-07-28). Un conflicto
     # aquí significa que otro run ya procesó esta sesión y este duplicó el

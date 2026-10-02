@@ -16,12 +16,13 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 from centinela import broker_xtb as bx, config  # noqa: E402
+from conftest import CUENTA_PRUEBA  # noqa: E402
 
 
 #: La cuenta demo que el sistema tiene permitido operar. Los dobles usan ESTE
 #: número, no uno inventado: el candado compara contra la configuración
 #: versionada y un número cualquiera lo haría saltar (que es justo su trabajo).
-CUENTA = config.CUENTA_DEMO
+CUENTA = CUENTA_PRUEBA
 
 
 # --------------------------------------------------------------------------- #
@@ -143,8 +144,10 @@ def test_un_endpoint_ILEGIBLE_tambien_aborta():
 def test_si_la_cuenta_conectada_no_es_la_esperada_aborta():
     """Protege del caso en que el mismo login tenga varias cuentas."""
     b = _broker(cuenta=99999999)
-    with pytest.raises(bx.CuentaNoDemo, match="99999999"):
+    with pytest.raises(bx.CuentaNoDemo, match="huella") as exc:
         b.conectar()
+    # Se identifica por sus últimos dígitos, nunca entera: el log es público.
+    assert "•••999" in str(exc.value) and "99999999" not in str(exc.value)
 
 
 def test_no_se_puede_pedir_una_cuenta_real_ni_a_proposito():
@@ -426,7 +429,7 @@ def test_una_cuenta_DISTINTA_se_rechaza_aunque_las_credenciales_cuadren():
     sesión solo contra lo que dicen las credenciales, apuntar el sistema a otra
     cuenta —la real, la de otra persona— sería editar un campo y nada más.
 
-    Compara contra `config.CUENTA_DEMO`, que está versionada: cambiarla exige
+    Compara contra `CUENTA_PRUEBA`, que está versionada: cambiarla exige
     un commit.
     """
     otra = 99887766
@@ -435,8 +438,11 @@ def test_una_cuenta_DISTINTA_se_rechaza_aunque_las_credenciales_cuadren():
 
     with pytest.raises(bx.CuentaNoDemo) as exc:
         b.conectar()
-    assert str(config.CUENTA_DEMO) in str(exc.value)
+    assert "CUENTA_DEMO_HUELLA" in str(exc.value)
     assert "solo opera" in str(exc.value)
+    # Y el mensaje NO lleva el número entero: los logs de un repo público se
+    # leen desde fuera.
+    assert str(otra) not in str(exc.value)
 
 
 def test_el_candado_tambien_ve_la_incoherencia_al_reves():
@@ -450,11 +456,11 @@ def test_el_candado_tambien_ve_la_incoherencia_al_reves():
 def test_pasar_a_real_exige_cambiar_DOS_cosas_versionadas():
     """Ni un despiste con una sola variable saca órdenes a una cuenta con dinero.
 
-    `TIPO_CUENTA_BROKER` decide demo o real y `CUENTA_DEMO` fija cuál. Las dos
+    `TIPO_CUENTA_BROKER` decide demo o real y `CUENTA_DEMO_HUELLA` fija cuál. Las dos
     están en el código, no en secrets, así que las dos exigen commit.
     """
     assert config.TIPO_CUENTA_BROKER == "demo"
-    assert isinstance(config.CUENTA_DEMO, int)
+    assert len(config.CUENTA_DEMO_HUELLA) == 64
 
     # Con el interruptor en "demo", pedir una conexión real se rechaza.
     b = bx.BrokerXTB(bx.Credenciales(email="x@y.z", cuenta=CUENTA, password="p"),
@@ -472,6 +478,25 @@ def test_el_README_documenta_como_pasar_a_dinero_real():
     """
     readme = (RAIZ / "README.md").read_text(encoding="utf-8")
     assert "Antes de pasar a dinero real" in readme
-    assert "TIPO_CUENTA_BROKER" in readme and "CUENTA_DEMO" in readme
+    assert "TIPO_CUENTA_BROKER" in readme and "CUENTA_DEMO_HUELLA" in readme
     for paso in ("TOTP", "credenciales", "auditoria_fiabilidad"):
         assert paso in readme, f"el apartado no menciona {paso}"
+
+
+def test_el_numero_de_la_cuenta_no_esta_en_el_repositorio():
+    """Solo su huella. El número real llega por el secret XTB_CUENTA.
+
+    Se busca cualquier número de 8 cifras en config.py: es la forma de los
+    números de cuenta de XTB, y ninguna constante legítima de config la tiene.
+    """
+    import re
+    fuente = (RAIZ / "centinela" / "config.py").read_text(encoding="utf-8")
+    assert not re.search(r"(?<![0-9a-f])\d{8}(?![0-9a-f])", fuente), \
+        "hay un número de 8 cifras en config.py: ¿un número de cuenta?"
+    assert re.search(r'CUENTA_DEMO_HUELLA = "[0-9a-f]{64}"', fuente)
+
+
+def test_la_huella_distingue_cuentas():
+    assert config.es_cuenta_demo(CUENTA_PRUEBA)
+    assert not config.es_cuenta_demo(CUENTA_PRUEBA + 1)
+    assert not config.es_cuenta_demo("no-es-un-numero")
