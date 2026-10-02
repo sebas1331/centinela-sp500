@@ -1,0 +1,97 @@
+name: Cerrar por dato erróneo
+
+# ---------------------------------------------------------------------------
+# Cierra a mercado una posición cuya serie de precios no era real, en XTB y en
+# el simulador, con motivo propio (`dato_erroneo`).
+#
+# POR QUÉ EXISTE. El 2026-10-02 el sistema compró CTVA por un drawdown del 86 %
+# que no existía: una escisión que yfinance no reajustó. El screener ya descarta
+# esas series (centinela/continuidad.py), pero la posición se quedó abierta con
+# un objetivo en +103 % y un stop calculado sobre un ATR falso. Lo que decidiera
+# esa posición a partir de aquí no sería una decisión de la estrategia.
+#
+# MANUAL Y CON LA CASILLA DESMARCADA. Esto manda una orden real a la demo y
+# reescribe la bitácora: no puede dispararlo un cron. Y solo cierra tickers ya
+# declarados en estado/datos_erroneos.json, con su causa y su evidencia.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Ticker a cerrar (tiene que estar declarado en estado/datos_erroneos.json)"
+        type: string
+        required: true
+      enviar:
+        description: "SÍ cerrar de verdad (sin marcar, solo informa)"
+        type: boolean
+        default: false
+      solo_simulador:
+        description: "El broker nunca tuvo la posición: cerrar solo en el simulador"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  cerrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        run: playwright install --with-deps chromium
+
+      - name: Restaurar caché de precios
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: precios-
+          restore-keys: precios-
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Cerrar la posición
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS="--ticker ${{ inputs.ticker }}"
+          if [ "${{ inputs.enviar }}" = "true" ]; then ARGS="$ARGS --enviar"; fi
+          if [ "${{ inputs.solo_simulador }}" = "true" ]; then ARGS="$ARGS --solo-simulador"; fi
+          python scripts/cerrar_por_dato_erroneo.py $ARGS
+
+      # `always()`: si vendió en XTB y falló después, la venta TIENE que quedar
+      # registrada o el siguiente run la repetiría sobre una posición que ya no
+      # existe.
+      - name: Commit y push del cierre
+        if: always()
+        run: |
+          scripts/commit_y_push.sh \
+            "cierre por dato erróneo de ${{ inputs.ticker }} [skip ci]" \
+            "$(git diff --quiet -- estado bitacora.csv bitacora.sqlite bitacora_broker.csv ordenes && echo omitido:sin-notificaciones || echo procesado)" \
+            estado bitacora.csv bitacora.sqlite bitacora_broker.csv ordenes

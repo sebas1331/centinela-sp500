@@ -209,6 +209,8 @@ def test_una_curva_plana_no_inventa_un_sharpe():
 def test_curva_vacia_no_revienta():
     m = cuenta.metricas(pd.DataFrame(columns=["fecha", "equity"]), capital=1000.0)
     assert m["rentabilidad_pct"] is None and m["sesiones"] == 0
+    # Mismas claves que una curva con datos: el panel las lee todas sin mirar.
+    assert "equity_final" in m and m["equity_final"] is None
 
 
 def test_cagr_anualiza_con_sesiones():

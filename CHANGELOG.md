@@ -5,6 +5,101 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-02 (4) — Lo que decidió el dato roto deja de contar
+
+La entrada anterior arregló el futuro: el screener ya no mira una serie con una
+acción corporativa sin ajustar. Esto es lo otro, lo que **ya se decidió** con
+esas series. CTVA seguía abierta en la demo y ocho operaciones de MRNA estaban
+dentro de las cifras publicadas.
+
+### CTVA: cerrada, no dejada correr
+
+134 acciones a mercado, en XTB y en el simulador, con motivo propio
+—`dato_erroneo`, tipo de orden `venta_dato_erroneo`—. Dejarla correr era dejar
+que un artefacto de datos decidiera la salida: su objetivo estaba en +103 % y su
+stop salía de un ATR que valía el 51 % del precio.
+
+El cierre lo hace `scripts/cerrar_por_dato_erroneo.py`, manual, y **solo cierra
+lo declarado** en `estado/datos_erroneos.json`. Las dos patas van juntas o no va
+ninguna: cerrar solo en XTB dejaría al simulador reconciliando contra una
+posición fantasma cada mañana, y cerrar solo en el simulador dejaría acciones
+vivas en el broker sin nadie que las vigile.
+
+La entrada **no se borra**: se abre en la bitácora como la habría abierto el
+post-cierre —misma función, mismo precio de apertura, mismo objetivo— y se cierra
+acto seguido. El dinero de la demo se movió de verdad; una bitácora sin esa
+operación sería más limpia y más falsa.
+
+### Las ventanas se declaran a mano, con evidencia
+
+`centinela/datos_erroneos.py` + `estado/datos_erroneos.json`, mismo patrón que
+`incidentes.py`: ticker, desde, causa, evidencia y fecha de detección. Sin
+evidencia no se guarda.
+
+| | |
+|---|---|
+| CTVA | desde 01/10 — escisión: 77,65 → 12,57 (×0,16) con ×22 de volumen |
+| MRNA | desde 19/08 — contrasplit: 62,96 → 174,38 (×2,77) |
+
+**Por qué declaradas y no detectadas al vuelo.** Recorrer la bitácora llamando a
+`continuidad.esta_rota` haría que el win rate del panel cambiara solo el día que
+yfinance reajuste una serie o el salto salga de la ventana de 260 sesiones:
+cifras de hace dos meses moviéndose sin que nadie decida nada. `continuidad.py`
+las **encuentra**; este registro las **declara**.
+
+**El cruce es por solapamiento**, no por fecha de entrada: las dos operaciones
+de MRNA anteriores al salto (22/07 y 07/08) viven enteras en la escala antigua y
+no están afectadas; una que cruzara el salto sería el caso más sucio de todos.
+
+### Qué cambia en las cifras
+
+Ocho operaciones de MRNA fuera (6 cerradas + 2 abiertas) y las de CTVA, que
+nacen ya excluidas. Las excluidas eran **ganadoras en conjunto** (+26,4 pp en A,
++32,3 pp en B), así que las cifras **bajan**: el dato roto llevaba dos meses
+adornando el resultado.
+
+| | A antes | A después | B antes | B después |
+|---|---|---|---|---|
+| Cerradas | 76 | **73** | 61 | **58** |
+| Win rate | 63,16 % | **63,01 %** | 67,21 % | **65,52 %** |
+| Expectancy | +3,95 pp | **+3,76 pp** | +4,21 pp | **+3,87 pp** |
+| Profit factor | 2,02 | **1,97** | 2,68 | **2,47** |
+| Suma de retornos | +300,5 pp | **+274,1 pp** | +256,8 pp | **+224,5 pp** |
+| Capital | 34.254 $ | **33.845 $** | 33.968 $ | **33.457 $** |
+| Rentabilidad | +14,18 % | **+12,82 %** | +13,23 % | **+11,52 %** |
+| CAGR | 90,2 % | **79,4 %** | 82,6 % | **69,7 %** |
+| Sharpe | 2,09 | **1,92** | 1,92 | **1,71** |
+| Drawdown máx. | −10,44 % | −10,44 % | −12,16 % | −12,16 % |
+| Slots usados | 5 | **4** | 4 | **3** |
+
+El drawdown no se mueve: los tramos de caída de la curva no los puso MRNA.
+
+### Dónde se aplica la exclusión, y dónde NO
+
+Un solo sitio decide quién cuenta (`cuenta.marcar_excluidas` / `vista_limpia`,
+al lado del criterio de las duplicadas) y de ahí lo leen el panel, la página de
+operativa, el auditor y el dimensionado de órdenes. Dos copias del criterio es
+como el panel y la auditoría acaban contando universos distintos sin que nadie se
+entere; ya pasó con `marcar_duplicadas`.
+
+| Se excluye de | No se excluye de |
+|---|---|
+| win rate, expectancy, profit factor, suma de retornos | la bitácora: las filas siguen, con su P&L |
+| cuenta simulada, curva de equity, riesgo por operación | la tabla de operaciones: se pintan **marcadas** |
+| «XTB vs. simulador» (slippage de la demo) | **órdenes activas**: una excluida puede seguir viva, con su stop y su límite puestos, y la página no puede callar una orden real |
+| el equity que dimensiona las órdenes nuevas | el diario de fiabilidad del broker: mide si XTB ejecuta lo que se le manda, y eso lo hizo bien — la culpa era del dato, no del broker |
+
+La página lo dice en voz alta: una nota bajo la tabla con la causa y la
+evidencia de cada serie, el contador avisando de cuántas filas no cuentan, y las
+ejecuciones reales de la demo que se caen de «XTB vs. simulador».
+
+`reportes/auditoria_fiabilidad.md` sigue siendo el del universo anterior; la
+próxima ejecución del auditor ya aplicará la exclusión.
+
+512 tests.
+
+---
+
 ## 2026-10-02 (3) — Una escisión sin ajustar hizo comprar lo que no debía
 
 CTVA entró con un objetivo de **+103 %** cuando la estrategia busca rebotes de

@@ -126,6 +126,13 @@ h2{font-size:.78rem; text-transform:uppercase; letter-spacing:.07em;
         margin:-.3rem 0 .9rem}
 .navpag a{color:var(--acento)}
 tr.urge-fila td{background:var(--aviso-fondo)}
+/* Operación decidida sobre una serie de precios que no era real: se enseña
+   —ocurrió, y en la demo se movió dinero— pero no cuenta en ninguna cifra. El
+   mismo ámbar que el resto de avisos, para no estrenar un registro nuevo. */
+tr.sucia td{background:var(--aviso-fondo)}
+.marca{font-size:.7em; font-weight:600; color:var(--aviso); white-space:nowrap;
+       border:1px solid var(--aviso-borde); border-radius:4px; padding:0 .25em;
+       margin-left:.3em}
 .nota a{color:inherit; text-decoration:underline}
 
 /* ------------------------------ Curva de equity ----------------------------- */
@@ -353,6 +360,7 @@ footer a{color:var(--acento)}
     </table>
     <div class="vacio" id="vacio" hidden>Ninguna operación coincide con los filtros.</div>
   </div>
+  <p class="nota" id="nota-datos" hidden></p>
 
   <h2>Órdenes activas</h2>
   <details id="det-ordenes" open>
@@ -1024,6 +1032,32 @@ function iniciar(D){
       ? "Ganadora" : "Perdedora";
   }
 
+  /* --- Nota de las series rotas ----------------------------------------- */
+  function pintarDatosErroneos(){
+    var m = meta.datos_erroneos || {}, nota = document.getElementById("nota-datos");
+    if(!m.operaciones && !m.ejecuciones_demo) return;
+    nota.textContent = "";
+    nota.appendChild(el("b","", m.operaciones + (m.operaciones === 1
+      ? " operación no cuenta" : " operaciones no cuentan")));
+    nota.appendChild(document.createTextNode(
+      " en ninguna cifra de esta página: se decidieron sobre una serie de " +
+      "precios con una acción corporativa que la fuente no reajustó, así que " +
+      "el drawdown y el ATR que las originaron no eran reales. Siguen en la " +
+      "bitácora y en la tabla, marcadas, porque ocurrieron. "));
+    (m.series || []).forEach(function(s){
+      var linea = el("span","", s.ticker + " desde el " + fecha(s.desde) +
+        " (" + s.operaciones + ") · ");
+      linea.title = s.causa + " " + s.evidencia;
+      nota.appendChild(linea);
+    });
+    if(m.ejecuciones_demo)
+      nota.appendChild(document.createTextNode(
+        m.ejecuciones_demo + (m.ejecuciones_demo === 1
+          ? " ejecución real de la demo queda" : " ejecuciones reales de la demo quedan")
+        + " fuera de «XTB vs. simulador» por lo mismo."));
+    nota.hidden = false;
+  }
+
   var cuerpo = document.getElementById("cuerpo");
   function pintar(){
     cabecera.querySelectorAll("th").forEach(function(th){
@@ -1047,7 +1081,17 @@ function iniciar(D){
         else if(contenido) td.appendChild(contenido);
         tr.appendChild(td);
       }
-      celda("ticker", el("span","tk",o.ticker));
+      if(o.es_dato_erroneo) tr.className = "sucia";
+      var tk = document.createDocumentFragment();
+      tk.appendChild(el("span","tk",o.ticker));
+      if(o.es_dato_erroneo){
+        var marca = el("span","marca","dato erróneo");
+        marca.title = "Decidida sobre una serie de precios con una acción " +
+          "corporativa sin ajustar. Está aquí porque ocurrió; no cuenta en " +
+          "ninguna cifra de esta página.";
+        tk.appendChild(marca);
+      }
+      celda("ticker", tk);
       celda("cartera", o.cartera);
       var et = etiqueta(o);
       var celdaEstado = document.createDocumentFragment();
@@ -1076,8 +1120,14 @@ function iniciar(D){
     });
     cuerpo.appendChild(frag);
     document.getElementById("vacio").hidden = lista.length > 0;
+    /* Las marcadas se pintan pero no cuentan arriba, así que el contador lo
+       dice: si no, las cifras de la cabecera y las filas de la tabla no
+       cuadrarían y parecería un error de la página. */
+    var sucias = 0;
+    lista.forEach(function(o){ if(o.es_dato_erroneo) sucias++; });
     document.getElementById("cuenta").textContent =
-      lista.length + " de " + ops.length + " operaciones";
+      lista.length + " de " + ops.length + " operaciones"
+      + (sucias ? " · " + sucias + " no cuentan" : "");
   }
 
   document.getElementById("buscar").addEventListener("input", pintar);
@@ -1092,6 +1142,7 @@ function iniciar(D){
   pintarKpis();
   pintarComparativa();
   dibujarCurva();
+  pintarDatosErroneos();
   pintar();
 
   /* --- Pie -------------------------------------------------------------- */

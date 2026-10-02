@@ -44,8 +44,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (calendario, config, cuenta, datos, presupuesto,  # noqa: E402
-                       ordenes as ords, riesgo)
+from centinela import (calendario, config, cuenta, datos,  # noqa: E402
+                       datos_erroneos, presupuesto, ordenes as ords, riesgo)
 
 DOCS_DIR = config.BASE_DIR / "docs"
 PLANTILLA = Path(__file__).resolve().parent / "plantilla_dashboard.html"
@@ -64,8 +64,9 @@ RUTAS_DATOS = ("bitacora.csv", "estado", "reportes", "logs")
 MAX_OPERACIONES = 5000
 
 #: Etiquetas de motivo de salida tal y como se enseñan. La bitácora las guarda en
-#: minúscula y con vocabulario cerrado (objetivo / stop / tiempo).
-MOTIVOS = {"objetivo": "Objetivo", "stop": "Stop", "tiempo": "Tiempo"}
+#: minúscula y con vocabulario cerrado (objetivo / stop / tiempo / dato_erroneo).
+MOTIVOS = {"objetivo": "Objetivo", "stop": "Stop", "tiempo": "Tiempo",
+           datos_erroneos.MOTIVO_SALIDA: "Dato erróneo"}
 
 #: Día en que el simulador dejó de poder abrir dos posiciones del mismo ticker en
 #: la misma cartera. Todo lo anterior puede llevar duplicados; lo posterior no.
@@ -159,11 +160,13 @@ def curva_equity(cerradas: pd.DataFrame, sesiones: list[str],
     return puntos
 
 
-#: El criterio de "entrada duplicada por el bug" vive en el paquete, no aquí:
-#: la auditoría de fiabilidad y las notificaciones necesitan exactamente el
-#: mismo, y dos copias acabarían contando universos distintos sin que nadie se
-#: entere. Se reexporta con este nombre porque es como lo llaman los tests.
+#: Los dos criterios de exclusión viven en el paquete, no aquí: la auditoría de
+#: fiabilidad, la página de operativa y las notificaciones necesitan exactamente
+#: los mismos, y dos copias acabarían contando universos distintos sin que nadie
+#: se entere. Se reexportan con estos nombres porque es como los llaman los
+#: tests.
 marcar_duplicadas = cuenta.marcar_duplicadas
+marcar_dato_erroneo = datos_erroneos.marcar
 
 
 def _vista(cerradas: pd.DataFrame, abiertas: pd.DataFrame,
@@ -343,6 +346,14 @@ def bloque_broker(ctas: dict) -> dict | None:
         return None
     ops = pd.read_csv(ruta)
     hechas = ops[ops["estado"] == "ejecutada"]
+    # FUERA LAS DE UNA SERIE ROTA. La demo compró CTVA y la cerró el mismo día
+    # por dato erróneo: las dos ejecuciones existen y están en
+    # bitacora_broker.csv, pero promediar su slippage con el de las operaciones
+    # de la estrategia mediría la calidad de ejecución de una decisión que no
+    # era una decisión. El recuento de lo excluido va en meta, para que la
+    # página pueda decir que faltan y por qué.
+    sucias = hechas["ticker"].astype(str).str.upper().isin(datos_erroneos.tickers())
+    hechas = hechas[~sucias]
     if hechas.empty:
         return None
 
@@ -396,6 +407,25 @@ def bloque_broker(ctas: dict) -> dict | None:
         "capital_inicial": _redondear(ctas[cartera]["cta"]["capital_inicial"]),
         "ultima": str(hechas["cuando_et"].max())[:10],
     }
+
+
+def _ejecuciones_demo_excluidas() -> int:
+    """Cuántas ejecuciones reales de la demo se caen de las estadísticas.
+
+    Son las de un ticker con serie rota: la compra de CTVA y su cierre por dato
+    erróneo. Se cuentan para que la página pueda decirlo; sin esta cifra, la
+    sección "XTB vs. simulador" pasaría de dos operaciones a ninguna y parecería
+    que la demo no ha operado nunca.
+    """
+    ruta = ords.ARCHIVO_BITACORA_BROKER
+    if not ruta.exists():
+        return 0
+    ops = pd.read_csv(ruta)
+    if ops.empty:
+        return 0
+    hechas = ops[ops["estado"] == "ejecutada"]
+    return int(hechas["ticker"].astype(str).str.upper()
+               .isin(datos_erroneos.tickers()).sum())
 
 
 def _pnl_no_realizado(bit: pd.DataFrame, precios: dict) -> list:
@@ -458,8 +488,11 @@ def construir_datos(precios: dict | None = None) -> dict:
     estado = json.loads(RUTA_ESTADO.read_text(encoding="utf-8"))
 
     bit["pnl_pct_pp"] = bit["pnl_pct"] * 100.0  # fracción -> puntos porcentuales
-    bit["duplicada"] = marcar_duplicadas(bit)
-    limpias = bit[~bit["duplicada"]]
+    # Dos exclusiones, un solo sitio donde se deciden (centinela/cuenta.py):
+    # las duplicadas del bug del 2026-08-06 y las decididas sobre una serie con
+    # una acción corporativa sin ajustar. Ninguna de las dos borra nada.
+    bit = cuenta.marcar_excluidas(bit)
+    limpias = cuenta.vista_limpia(bit)
     sesiones = sesiones_del_periodo(limpias)
 
     if precios is None:
@@ -472,11 +505,16 @@ def construir_datos(precios: dict | None = None) -> dict:
     # leerlo publicaría el P&L del día en que el análisis corrió por última vez
     # sin que nada lo dijera.
     bit["pnl_abierta_pp"] = _pnl_no_realizado(bit, precios)
-    limpias = bit[~bit["duplicada"]]
-    cerradas = bit[bit["estado"] == "cerrada"].copy()
-    abiertas = bit[bit["estado"] != "cerrada"].copy()
+    limpias = cuenta.vista_limpia(bit)
     cerradas_ok = limpias[limpias["estado"] == "cerrada"].copy()
     abiertas_ok = limpias[limpias["estado"] != "cerrada"].copy()
+
+    # LAS ÓRDENES ACTIVAS NO SE FILTRAN POR DATO ERRÓNEO. Una posición excluida
+    # de la estadística puede seguir VIVA, con su stop y su límite puestos; y
+    # esa sección no cuenta resultados, dice lo que tiene que estar hoy en el
+    # broker. Quitarla de ahí haría que la página callara una orden real.
+    # (Las duplicadas sí se van: nunca existieron como posición.)
+    operativas = bit[~bit["duplicada"]]
 
     # La cuenta se calcula SIEMPRE sobre la vista limpia: las 13 entradas del
     # bug del 2026-08-06 llegaron a poner 30 posiciones vivas a la vez en la
@@ -521,6 +559,13 @@ def construir_datos(precios: dict | None = None) -> dict:
             # Segunda (o siguiente) entrada del mismo ticker en la misma cartera
             # con la anterior aún viva: la huella del bug del 2026-08-06.
             "es_duplicada": bool(r["duplicada"]),
+            # Decidida sobre una serie con una acción corporativa sin ajustar.
+            # A diferencia de las duplicadas, estas SÍ se pintan en la tabla,
+            # marcadas: son operaciones que ocurrieron de verdad —en la demo se
+            # movió dinero— y esconderlas sería el silencio que este repositorio
+            # lleva tres incidentes intentando hacer imposible. Lo que no hacen
+            # es contar en ninguna cifra agregada.
+            "es_dato_erroneo": bool(r["dato_erroneo"]),
             "motivo": (MOTIVOS.get(r["motivo_salida"], r["motivo_salida"])
                        if es_cerrada else "Abierta"),
         })
@@ -531,7 +576,7 @@ def construir_datos(precios: dict | None = None) -> dict:
         "cuenta": bloque_cuenta(ctas),
         "riesgo": bloque_riesgo(ctas, limpias),
         "broker": bloque_broker(ctas),
-        "ordenes": ordenes_activas(limpias, estado, ctas),
+        "ordenes": ordenes_activas(operativas, estado, ctas),
         "resumen": limpio["resumen"],
         "carteras": limpio["comparativa"],
         "curva_equity": limpio["curva"],
@@ -545,6 +590,12 @@ def construir_datos(precios: dict | None = None) -> dict:
             # afectadas y desde cuándo el sistema ya no las puede crear.
             "duplicadas": int(bit["duplicada"].sum()),
             "corregido_el": FECHA_CORRECCION_DUPLICADOS,
+            # Lo que necesita la nota de las series rotas: cuántas operaciones
+            # quedan fuera, de qué ticker y desde cuándo, con la evidencia del
+            # salto. Y cuántas ejecuciones de la demo se caen de "XTB vs.
+            # simulador" por lo mismo, que si no desaparecerían sin explicación.
+            "datos_erroneos": {**datos_erroneos.resumen(bit),
+                               "ejecuciones_demo": _ejecuciones_demo_excluidas()},
         },
     }
 

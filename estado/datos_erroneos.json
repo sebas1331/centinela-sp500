@@ -1,0 +1,23 @@
+{
+ "actualizado": "2026-10-02T11:00:22.860558-04:00",
+ "series": [
+  {
+   "causa": "Escisión no ajustada por yfinance: el histórico anterior al 01/10 está en la escala de la compañía entera y el posterior en la de lo que quedó. El drawdown del 86 % que vio el modelo no existía.",
+   "desde": "2026-10-01",
+   "detectado": "2026-10-02",
+   "evidencia": "Cierre del 2026-10-01: 77,65 -> 12,57 (×0,1619), con 88 M de volumen (×22 lo normal). ATR(14) a través del salto = 51 % del precio; el modelo dio prob=1.000.",
+   "hasta": null,
+   "nota": "La posición de la demo (134 acciones compradas el 02/10 por entrada tardía) se cerró el mismo día con motivo de salida 'dato_erroneo'.",
+   "ticker": "CTVA"
+  },
+  {
+   "causa": "Contrasplit no ajustado por yfinance: la serie salta ×2,77 en una sesión sin que haya noticia que lo justifique. Las features, el ATR y el drawdown que se calculan sobre esa ventana no son reales.",
+   "desde": "2026-08-19",
+   "detectado": "2026-10-02",
+   "evidencia": "Cierre del 2026-08-19: 62,96 -> 174,38 (×2,7697). Detectado al barrer los 28 tickers del historial con continuidad.saltos().",
+   "hasta": null,
+   "nota": "Las operaciones anteriores al salto (entradas del 22/07 y del 07/08) NO están afectadas: viven enteras dentro de la escala antigua.",
+   "ticker": "MRNA"
+  }
+ ]
+}

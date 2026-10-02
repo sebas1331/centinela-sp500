@@ -37,9 +37,10 @@ def volcar(broker, candado_ok: bool = True) -> None:
         print(f"no se pudo volcar el estado del broker: {exc!r}")
         return
 
-    bit = pd.read_csv(config.BASE_DIR / "bitacora.csv")
-    bit["duplicada"] = cuenta.marcar_duplicadas(bit)
-    limpias = bit[~bit["duplicada"]]
+    # La misma vista limpia que el panel: sin duplicadas y sin las decididas
+    # sobre una serie rota. Si cada página se filtrara a su manera, el coste de
+    # una posición saldría distinto aquí y allí sin que nadie se enterara.
+    limpias = cuenta.vista_limpia(pd.read_csv(config.BASE_DIR / "bitacora.csv"))
     cta = cuenta.simular(limpias[limpias["portafolio"] == config.CARTERA_BROKER],
                          fricciones=True)
     coste = {t["ticker"]: t["coste"] for t in cta["abiertas"]}

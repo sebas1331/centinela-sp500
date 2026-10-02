@@ -205,12 +205,15 @@ def test_schema_datos_json(datos):
         assert set(o) == {"id", "ticker", "cartera", "estado", "fecha_entrada",
                           "precio_entrada", "fecha_salida", "precio_salida",
                           "pnl_pct", "pnl_dinero", "acciones", "inversion",
-                          "no_realizado", "es_duplicada", "motivo"}
+                          "no_realizado", "es_duplicada", "es_dato_erroneo",
+                          "motivo"}
         assert isinstance(o["es_duplicada"], bool)
+        assert isinstance(o["es_dato_erroneo"], bool)
         assert isinstance(o["id"], int)
         assert o["estado"] in ("abierta", "cerrada")
         assert o["cartera"] in ("A", "B")
-        assert o["motivo"] in ("Objetivo", "Stop", "Tiempo", "Abierta")
+        assert o["motivo"] in ("Objetivo", "Stop", "Tiempo", "Dato erróneo",
+                               "Abierta")
         assert isinstance(o["no_realizado"], bool)
         assert isinstance(o["precio_entrada"], float)
         # Las mismas cifras en dinero: un +19% no dice si fueron ocho dólares
@@ -219,8 +222,15 @@ def test_schema_datos_json(datos):
 
     assert set(datos["meta"]) == {"actualizado", "ultima_preapertura",
                                   "ultima_postcierre", "repo",
-                                  "duplicadas", "corregido_el"}
+                                  "duplicadas", "corregido_el",
+                                  "datos_erroneos"}
     assert isinstance(datos["meta"]["duplicadas"], int)
+    de = datos["meta"]["datos_erroneos"]
+    assert set(de) == {"operaciones", "series", "ejecuciones_demo"}
+    assert isinstance(de["operaciones"], int) and isinstance(de["ejecuciones_demo"], int)
+    for s in de["series"]:
+        assert set(s) == {"ticker", "desde", "hasta", "causa", "evidencia",
+                          "detectado", "operaciones"}
 
 
 def test_datos_json_es_serializable_y_sin_nan(datos):
@@ -722,7 +732,16 @@ def test_bitacora_csv_real_no_ha_perdido_filas():
     filas_en_disco = len(pd.read_csv(gd.RUTA_BITACORA))
     d = gd.construir_datos()
     assert len(d["operaciones"]) == filas_en_disco
-    assert filas_en_disco == d["resumen"]["cerradas"] + d["resumen"]["abiertas"] + d["meta"]["duplicadas"]
+    # Toda fila del fichero cuenta como cerrada, cuenta como abierta, o está
+    # excluida (duplicada, dato erróneo, o las dos cosas). Si alguna se cayera
+    # por el camino, la suma no daría. La exclusión se cuenta sobre la UNIÓN y
+    # no sumando los dos contadores: el día que una operación sea duplicada Y
+    # de serie rota, sumarlos la contaría dos veces y este test se pondría rojo
+    # sin que nada estuviera mal.
+    excluidas = sum(1 for o in d["operaciones"]
+                    if o["es_duplicada"] or o["es_dato_erroneo"])
+    assert filas_en_disco == (d["resumen"]["cerradas"] + d["resumen"]["abiertas"]
+                              + excluidas)
 
 
 # --------------------------------------------------------------------------- #

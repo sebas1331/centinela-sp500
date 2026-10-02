@@ -67,9 +67,15 @@ VENTA_STOP_INTRADIA = "stop_intradia"
 #: estrategia supone que se pagó, así que la diferencia contra el ejecutado es
 #: exactamente la factura del retraso.
 ENTRADA_TARDIA = "entrada_tardia"
+#: Cierre de una posición porque la serie con la que se decidió entrar no era
+#: real (ver centinela/datos_erroneos.py). No la decide la estrategia: la
+#: decide el descubrimiento de que el dato estaba roto, así que no puede
+#: contarse como una salida por stop ni por tiempo. Se manda a mano y queda
+#: fuera de las estadísticas de la demo, como la operación que cierra.
+VENTA_DATO_ERRONEO = "venta_dato_erroneo"
 TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
          VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA,
-         ENTRADA_TARDIA)
+         ENTRADA_TARDIA, VENTA_DATO_ERRONEO)
 
 #: Las órdenes del día. El fichero —y su directorio— existen en el repositorio
 #: desde el principio, aunque estén vacíos: `git add` de una ruta inexistente

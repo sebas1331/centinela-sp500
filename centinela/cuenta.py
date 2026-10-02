@@ -62,15 +62,17 @@ import math
 
 import pandas as pd
 
-from . import config
+from . import config, datos_erroneos
 
 
 # --------------------------------------------------------------------------- #
 # Fricciones
 # --------------------------------------------------------------------------- #
 #: Salidas que se ejecutan a mercado y por tanto pagan slippage. Una salida por
-#: "objetivo" es una orden límite y no está aquí, por definición.
-SALIDAS_A_MERCADO = ("stop", "tiempo")
+#: "objetivo" es una orden límite y no está aquí, por definición. La salida por
+#: dato erróneo sí: es una venta a mercado, decidida fuera de la estrategia,
+#: cuando se descubre que la serie con la que se entró no era real.
+SALIDAS_A_MERCADO = ("stop", "tiempo", datos_erroneos.MOTIVO_SALIDA)
 
 
 def precio_entrada_neto(precio: float, fricciones: bool = True) -> float:
@@ -123,6 +125,36 @@ def marcar_duplicadas(bit: pd.DataFrame) -> pd.Series:
             if any(fin[previo] >= entrada[idx] for previo in orden[:pos]):
                 dup[idx] = True
     return dup
+
+
+# --------------------------------------------------------------------------- #
+# Qué entra en las estadísticas
+# --------------------------------------------------------------------------- #
+def marcar_excluidas(bit: pd.DataFrame) -> pd.DataFrame:
+    """Añade las dos columnas de exclusión a una bitácora leída del CSV.
+
+    `duplicada`     la cicatriz del bug del 2026-08-06 (ver arriba).
+    `dato_erroneo`  decidida sobre una serie con una acción corporativa sin
+                    ajustar (ver centinela/datos_erroneos.py).
+
+    Las dos excluyen de la estadística y ninguna borra nada. Viven juntas aquí
+    porque el día que haya una tercera, el sitio donde ponerla tiene que ser
+    obvio: si cada consumidor se filtra a su manera, el panel, la página de
+    operativa y la auditoría acaban contando universos distintos sin que nadie
+    se entere. Ya pasó con `marcar_duplicadas`, que estaba copiada en el
+    generador del dashboard.
+    """
+    bit = bit.copy()
+    bit["duplicada"] = marcar_duplicadas(bit)
+    bit["dato_erroneo"] = datos_erroneos.marcar(bit)
+    return bit
+
+
+def vista_limpia(bit: pd.DataFrame) -> pd.DataFrame:
+    """Las operaciones que SÍ cuentan: ni duplicadas ni de serie rota."""
+    if "duplicada" not in bit.columns or "dato_erroneo" not in bit.columns:
+        bit = marcar_excluidas(bit)
+    return bit[~bit["duplicada"] & ~bit["dato_erroneo"]]
 
 
 # --------------------------------------------------------------------------- #
@@ -295,8 +327,12 @@ def metricas(curva: pd.DataFrame, capital: float, dias_por_anio: int = 252) -> d
     solo por muestreo). La cifra está para ordenar magnitudes, no para creérsela.
     """
     if curva.empty:
+        # `equity_final` también, aunque sea None: el panel lo lee SIEMPRE
+        # (bloque_cuenta), así que devolver un dict con menos claves aquí
+        # convierte una curva vacía en un KeyError a 200 líneas de distancia.
         return {"rentabilidad_pct": None, "cagr_pct": None,
-                "drawdown_max_pct": None, "sharpe": None, "sesiones": 0}
+                "drawdown_max_pct": None, "sharpe": None, "sesiones": 0,
+                "equity_final": None}
 
     eq = curva["equity"].astype(float)
     final = float(eq.iloc[-1])

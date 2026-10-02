@@ -30,8 +30,19 @@ sys.path.insert(0, str(RAIZ / "scripts"))
 @pytest.fixture(autouse=True)
 def nada_toca_el_estado_real(tmp_path, monkeypatch):
     """Redirige a un temporal todo lo que se escribe fuera de docs/."""
-    from centinela import fiabilidad, latido, ordenes, salud
+    from centinela import config, datos_erroneos, fiabilidad, latido, ordenes, salud
 
+    # La bitácora y el estado del simulador. Un test que cierre una posición
+    # —el cierre por dato erróneo lo hace— escribiría si no la bitácora REAL
+    # del repositorio, que es la fuente de verdad de todo el sistema. Hasta
+    # ahora cada fichero de tests se acordaba por su cuenta; esto lo hace una
+    # vez para todos, que es de lo que va este conftest.
+    monkeypatch.setattr(config, "ARCHIVO_BITACORA_SQLITE",
+                        tmp_path / "bitacora.sqlite")
+    monkeypatch.setattr(config, "ARCHIVO_BITACORA_CSV", tmp_path / "bitacora.csv")
+    monkeypatch.setattr(config, "ARCHIVO_ESTADO", tmp_path / "estado.json")
+    monkeypatch.setattr(datos_erroneos, "ARCHIVO",
+                        tmp_path / "datos_erroneos.json")
     monkeypatch.setattr(fiabilidad, "ARCHIVO", tmp_path / "fiabilidad.csv")
     monkeypatch.setattr(salud, "ARCHIVO", tmp_path / "salud.json")
     monkeypatch.setattr(ordenes, "ARCHIVO_BITACORA_BROKER",

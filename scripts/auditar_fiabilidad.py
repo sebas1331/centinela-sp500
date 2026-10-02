@@ -469,11 +469,12 @@ def main() -> int:
                     help="usa solo la caché local de precios")
     args = ap.parse_args()
 
-    bit = pd.read_csv(RUTA_BITACORA)
-    bit["duplicada"] = cuenta.marcar_duplicadas(bit)
+    bit = cuenta.marcar_excluidas(pd.read_csv(RUTA_BITACORA))
     # La vista LIMPIA es la que manda, igual que en el dashboard: las 13 entradas
-    # del bug del 2026-08-06 no son la estrategia, son una cicatriz.
-    limpias = bit[~bit["duplicada"]].copy()
+    # del bug del 2026-08-06 no son la estrategia, son una cicatriz; y las
+    # decididas sobre una serie con una acción corporativa sin ajustar tampoco
+    # son la estrategia, son un artefacto de la fuente de datos.
+    limpias = cuenta.vista_limpia(bit).copy()
 
     inicio = str(bit["fecha_entrada"].min())
     fin = str(max(bit["fecha_entrada"].max(), bit["fecha_salida"].dropna().max()))

@@ -37,9 +37,12 @@ def log(msg: str) -> None:
 
 
 def _cuenta_de_la_cartera(cartera: str, capital: float | None = None) -> dict:
-    bit = pd.read_csv(RUTA_BITACORA)
-    bit["duplicada"] = cuenta.marcar_duplicadas(bit)
-    limpias = bit[~bit["duplicada"]]
+    # LA MISMA VISTA LIMPIA QUE EL PANEL (centinela/cuenta.py). De aquí sale el
+    # tamaño del slot, o sea cuántas acciones se compran: si el equity que se
+    # publica y el que dimensiona las órdenes no fueran el mismo número, la
+    # página diría una cosa y el broker haría otra. Las operaciones de una serie
+    # rota no cuentan para ninguno de los dos.
+    limpias = cuenta.vista_limpia(pd.read_csv(RUTA_BITACORA))
     return cuenta.simular(limpias[limpias["portafolio"] == cartera],
                           capital=capital, fricciones=True)
 
