@@ -133,7 +133,7 @@ def main() -> int:
             if real == "rechazada":
                 rechazadas.append(f)
                 fiabilidad.anotar(fiabilidad.FALLIDA, f["simbolo_xtb"],
-                                  ords.COMPRA, porque)
+                                  ords.COMPRA, porque, id_orden=f["id"])
 
         if not rechazadas:
             log("")
@@ -179,7 +179,8 @@ def main() -> int:
             e = amb.enviar_resolviendo(
                 b, orden.simbolo, tipo,
                 lambda o=orden: b.comprar(o.simbolo, o.acciones,
-                                          objetivo=o.objetivo, stop=o.stop))
+                                          objetivo=o.objetivo, stop=o.stop),
+                id_orden=orden.id)
             log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
                 + (f" (orden {e.orden})" if e.orden else "")
                 + (f" ERROR: {e.error}" if e.error else ""))
@@ -189,15 +190,15 @@ def main() -> int:
             log(f"    confirmado en XTB: {real.upper()} — {porque}")
             e.estado = real
             ords.registrar_ejecucion(orden, e)
+            # El diario de fiabilidad ya lo anotó `enviar_resolviendo`: un
+            # envío deja UNA fila. Anotarlo otra vez aquí contaba la misma
+            # orden dos veces y desvirtuaba el porcentaje.
             if real == "ejecutada":
                 ords.marcar_enviada(registro, id_orden,
                                     {"estado": real, "orden": e.orden})
-                fiabilidad.anotar(fiabilidad.CONFIRMADA, orden.simbolo, tipo,
-                                  porque)
             else:
                 problemas.append(f"{f['ticker']}: la entrada tardía acabó "
                                  f"'{real}'. {porque}.")
-                fiabilidad.anotar(fiabilidad.FALLIDA, orden.simbolo, tipo, porque)
         ords.guardar_enviadas(registro)
 
     if problemas:

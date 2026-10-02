@@ -34,6 +34,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from centinela import (calendario, config, cuenta, fiabilidad,  # noqa: E402
+                       incidentes,
                        latido as lat, presupuesto,
                        ordenes as ords, salud, broker_xtb as bx)
 
@@ -503,7 +504,9 @@ def construir(ahora: datetime | None = None) -> dict:
         "generado": ahora.isoformat(),
         "hoy": bloque_hoy(ordenes, ahora),
         "vigilante_precios": bloque_vigilante_precios(ahora, posiciones),
-        "fiabilidad": fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora),
+        "fiabilidad": fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora,
+                                         desde=incidentes.ultimo_arreglo()),
+        "incidentes": incidentes.cargar(),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
         "componentes": bloque_componentes(datos_salud, ahora),
@@ -560,6 +563,13 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     ambares: list[str] = []
     runs = datos_salud.get("runs", {})
 
+    # Un incidente con causa identificada y arreglo publicado deja de gritar:
+    # sigue viéndose en la página como dato histórico, pero no en el semáforo.
+    # Lo que NO se apaga es un rechazo nuevo con cualquier causa no registrada
+    # — las órdenes van listadas una a una, así que si la causa vuelve, vuelve
+    # el rojo.
+    resueltas = incidentes.ordenes_resueltas()
+
     # --- ROJO: algún componente crítico acabó mal -------------------------
     for clave in CRITICOS:
         r = runs.get(clave)
@@ -567,6 +577,10 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             continue
         resultado = str(r.get("resultado", ""))
         if resultado.startswith("fallo") or resultado in ("failure", "error"):
+            # Si ese componente falló ESE DÍA por un incidente ya resuelto, no
+            # se repite aquí: está contado abajo, con su causa y su commit.
+            if incidentes.excusa_componente(clave, str(r.get("cuando", ""))[:10]):
+                continue
             nombre = salud.COMPONENTES[clave][0]
             rojos.append(f"{nombre} terminó en rojo ({resultado}).")
 
@@ -594,7 +608,9 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     rec = runs.get("reconcilia", {})
     resultado_rec = str(rec.get("resultado", ""))
     if resultado_rec and not resultado_rec.startswith("omitido") \
-            and resultado_rec != "ok":
+            and resultado_rec != "ok" \
+            and not incidentes.excusa_componente(
+                "reconcilia", str(rec.get("cuando", ""))[:10]):
         # El detalle viene con las diferencias separadas por "|", que es cómo
         # las junta el ejecutor. Aquí se leen, así que se separan con puntos.
         detalle = "; ".join(d.strip() for d in
@@ -684,6 +700,8 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     for o in ordenes:
         if o.get("sesion") != hoy_iso or o.get("estado") != "en_cola":
             continue
+        if o.get("id_interno") in resueltas:
+            continue
         if cierre_pasado(ahora):
             rojos.append(
                 f"{o.get('ticker')}: la {o.get('tipo_nombre')} sigue EN COLA "
@@ -692,7 +710,8 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     # --- ÁMBAR: el broker no está aceptando órdenes -----------------------
     # El 2026-09-29 el endpoint de trading devolvió cuerpo vacío en 7 de 8
     # compras y el sistema no lo midió: se supo porque alguien estaba mirando.
-    fia = fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora)
+    fia = fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora,
+                             desde=incidentes.ultimo_arreglo())
     if fia["enviadas"] >= MINIMO_PARA_JUZGAR and \
             fia["fiabilidad_pct"] is not None and \
             fia["fiabilidad_pct"] < FIABILIDAD_MINIMA_PCT:
@@ -709,6 +728,7 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
     # pierde entera — y eso no es un "atención", es un problema.
     rechazos = [o for o in ordenes
                 if o.get("estado") == "rechazada"
+                and o.get("id_interno") not in resueltas
                 and _reciente(o.get("sesion"), ahora, dias=DIAS_RECHAZOS)]
     for o in rechazos:
         rojos.append(

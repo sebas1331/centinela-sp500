@@ -135,7 +135,7 @@ REINTENTOS = 2
 
 
 def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
-                       dormir=time.sleep):
+                       dormir=time.sleep, id_orden: str = ""):
     """Manda una orden y, si el broker no sabe qué pasó, lo averigua.
 
     `mandar` es una función sin argumentos que devuelve una `Ejecucion`: así
@@ -161,7 +161,7 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
             # xStation 5 figuran como rechazadas.
             if antes_acciones is None:
                 fiabilidad.anotar(fiabilidad.CONFIRMADA, simbolo, tipo,
-                                  f"{e.estado}; no se pudo confirmar en XTB")
+                                  f"{e.estado}; no se pudo confirmar en XTB", id_orden=id_orden)
                 return e
             real, porque = confirmar(broker, simbolo, antes_acciones,
                                      dormir=dormir)
@@ -170,16 +170,20 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
             e.estado = real
             if real == "rechazada":
                 e.error = porque
-                fiabilidad.anotar(fiabilidad.RECHAZADA, simbolo, tipo, porque)
+                fiabilidad.anotar(fiabilidad.RECHAZADA, simbolo, tipo, porque,
+                                  id_orden=id_orden)
             elif real == "ejecutada":
-                fiabilidad.anotar(fiabilidad.EJECUTADA, simbolo, tipo, porque)
+                fiabilidad.anotar(fiabilidad.EJECUTADA, simbolo, tipo, porque,
+                                  id_orden=id_orden)
             else:
-                fiabilidad.anotar(fiabilidad.EN_COLA, simbolo, tipo, porque)
+                fiabilidad.anotar(fiabilidad.EN_COLA, simbolo, tipo, porque,
+                                  id_orden=id_orden)
             return e
 
         if e.estado != "ambigua":
             fiabilidad.anotar(fiabilidad.FALLIDA, simbolo, tipo,
-                              str(e.error or "sin motivo"))
+                              str(e.error or "sin motivo"),
+                              id_orden=id_orden)
             return e
 
         if antes_acciones is None:
@@ -200,7 +204,7 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
 
         if desenlace in (EJECUTADA_TRAS_AMBIGUA, EN_COLA_TRAS_AMBIGUA):
             fiabilidad.anotar(fiabilidad.AMBIGUA_RESUELTA_SI, simbolo, tipo,
-                              detalle["detalle"])
+                              detalle["detalle"], id_orden=id_orden)
             # La orden existe: se devuelve como tal. El estado lo dice para que
             # quien lo lea sepa que hubo que averiguarlo.
             e.estado = ("ejecutada" if desenlace == EJECUTADA_TRAS_AMBIGUA
@@ -212,11 +216,11 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
             # No se pudo comprobar. Reintentar a ciegas podría comprar dos
             # veces, así que se para y se dice por qué.
             fiabilidad.anotar(fiabilidad.AMBIGUA_SIN_RESOLVER, simbolo, tipo,
-                              detalle["detalle"])
+                              detalle["detalle"], id_orden=id_orden)
             return e
 
         fiabilidad.anotar(fiabilidad.AMBIGUA_RESUELTA_NO, simbolo, tipo,
-                          detalle["detalle"])
+                          detalle["detalle"], id_orden=id_orden)
         if intento <= REINTENTOS:
             print(f"[ambigua] no entró: se reintenta ({intento}/{REINTENTOS}).",
                   flush=True)

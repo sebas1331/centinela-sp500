@@ -362,11 +362,13 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             e = amb.enviar_resolviendo(
                 broker, o.simbolo, o.tipo,
                 lambda: broker.comprar(o.simbolo, o.acciones,
-                                       objetivo=o.objetivo, stop=o.stop))
+                                       objetivo=o.objetivo, stop=o.stop),
+                id_orden=o.id)
         else:
             e = amb.enviar_resolviendo(
                 broker, o.simbolo, o.tipo,
-                lambda: broker.vender(o.simbolo, o.acciones))
+                lambda: broker.vender(o.simbolo, o.acciones),
+                id_orden=o.id)
         log(f"    -> {e.estado}"
             + (f" a {e.precio}" if e.precio else "")
             + (f" (orden {e.orden})" if e.orden else "")
@@ -790,6 +792,10 @@ def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
 # --------------------------------------------------------------------------- #
 # Reconciliación
 # --------------------------------------------------------------------------- #
+def hoy_iso() -> str:
+    return datetime.now(config.TZ_ET).date().isoformat()
+
+
 def _compras_rechazadas_sin_reponer(posiciones: list[dict]) -> dict:
     """Posiciones del simulador cuya compra XTB rechazó y nadie repuso.
 
@@ -871,10 +877,21 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
             f"{t}: abierta en el simulador (cartera {cartera}) y NO en XTB. "
             f"O la compra no llegó, o se cerró en el broker por su cuenta "
             f"(¿saltó el stop o el take profit?) y el simulador no se enteró.")
-    for t in sorted(reales - simuladas):
+    # Lo comprado HOY todavía no es una posición para el simulador: lo mueve de
+    # `entradas_pendientes` a `posiciones` en el post-cierre. Entre la compra de
+    # la mañana y el cierre, la posición existe en XTB y no en el estado, y eso
+    # no es una discrepancia: es el mismo día funcionando como debe.
+    comprado_hoy = {
+        f["ticker"] for f in ords.filas_de_sesion(hoy_iso())
+        if f.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)
+        and f.get("estado") == "ejecutada"}
+    for t in sorted(reales - simuladas - comprado_hoy):
         problemas.append(
             f"{t}: abierta en XTB y NO en el simulador. Hay dinero expuesto que "
             f"el sistema no está siguiendo.")
+    for t in sorted((reales - simuladas) & comprado_hoy):
+        log(f"{t}: comprada hoy; el simulador la convertirá en posición en el "
+            f"post-cierre. No es una diferencia.")
     return problemas
 
 

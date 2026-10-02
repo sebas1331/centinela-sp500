@@ -131,7 +131,8 @@ def test_schema_de_operativa_json(datos):
     assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
                           "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
-                          "vigilante_precios", "fiabilidad", "sesion_xtb"}
+                          "vigilante_precios", "fiabilidad", "sesion_xtb",
+                          "incidentes"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
@@ -751,7 +752,8 @@ def test_una_orden_que_acaba_el_dia_en_cola_es_ROJA():
     import generar_operativa as go
     ahora = datetime(2026, 10, 1, 18, 0, tzinfo=config.TZ_ET)   # tras el cierre
     orden = {"tipo": ords.COMPRA, "tipo_nombre": "Compra", "ticker": "MRNA",
-             "sesion": "2026-10-01", "estado": "en_cola"}
+             "sesion": "2026-10-01", "estado": "en_cola",
+             "id_interno": "2026-10-01|A|MRNA|compra"}
     salud_ok = {"runs": {c: {"cuando": ahora.isoformat(), "resultado": "ok"}
                          for c in go.CRITICOS}}
     s = go.semaforo(salud_ok, None, [], [orden], ahora)

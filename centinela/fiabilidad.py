@@ -22,7 +22,10 @@ from pathlib import Path
 from . import config
 
 ARCHIVO = config.ESTADO_DIR / "fiabilidad_broker.csv"
-COLUMNAS = ["cuando", "sesion", "simbolo", "tipo", "estado", "detalle"]
+#: `id` es el identificador determinista de la orden (fecha|cartera|ticker|tipo).
+#: Sin él no se puede excluir con precisión una orden concreta de un incidente
+#: ya resuelto: cortar por fecha no basta cuando el arreglo es del mismo día.
+COLUMNAS = ["cuando", "sesion", "id", "simbolo", "tipo", "estado", "detalle"]
 
 #: El vocabulario, cerrado. Cada uno responde a una pregunta distinta y por eso
 #: no se pueden juntar:
@@ -46,7 +49,7 @@ CUENTAN_COMO_EJECUTADA = (EJECUTADA, AMBIGUA_RESUELTA_SI)
 
 
 def anotar(estado: str, simbolo: str, tipo: str, detalle: str = "",
-           ruta: Path | None = None) -> None:
+           ruta: Path | None = None, id_orden: str = "") -> None:
     """Deja constancia de un intento de orden. Nunca falla hacia arriba.
 
     Un problema al escribir este diario no puede tumbar una operación: lo peor
@@ -70,6 +73,7 @@ def anotar(estado: str, simbolo: str, tipo: str, detalle: str = "",
             w.writerow({
                 "cuando": ahora.isoformat(),
                 "sesion": ahora.date().isoformat(),
+                "id": id_orden,
                 "simbolo": simbolo,
                 "tipo": tipo,
                 "estado": estado,
@@ -80,18 +84,34 @@ def anotar(estado: str, simbolo: str, tipo: str, detalle: str = "",
 
 
 def resumen(dias: int = 7, ruta: Path | None = None,
-            ahora: datetime | None = None) -> dict:
-    """Cuántos intentos y cómo acabaron, en los últimos `dias`."""
+            ahora: datetime | None = None, desde: str | None = None) -> dict:
+    """Cuántos intentos y cómo acabaron, en los últimos `dias`.
+
+    `desde` adelanta el corte hasta la fecha del último arreglo publicado. Sin
+    eso, un fallo ya corregido sigue hundiendo el porcentaje durante una semana
+    y el número deja de contestar la pregunta que se le hace, que es "¿puedo
+    fiarme del broker HOY?". El dato viejo no se borra: se ve en la lista de
+    incidentes, que es donde significa algo.
+    """
     ruta = ruta or ARCHIVO
     ahora = ahora or datetime.now(config.TZ_ET)
     corte = (ahora - timedelta(days=dias)).date().isoformat()
+    if desde and desde > corte:
+        corte = desde
 
+    from . import incidentes
+    excluidas = incidentes.ordenes_resueltas()
     cuenta = {e: 0 for e in ESTADOS}
     ultimo_malo = None
     if ruta.exists():
         with open(ruta, encoding="utf-8", newline="") as f:
-            for fila in csv.DictReader(f):
+            for fila in csv.DictReader(f, restval=""):
                 if str(fila.get("sesion", "")) < corte:
+                    continue
+                # Las órdenes de un incidente ya resuelto no cuentan: su fallo
+                # tiene causa identificada y arreglo publicado, y arrastrarlo
+                # hace que el porcentaje conteste a una pregunta vieja.
+                if fila.get("id") and fila["id"] in excluidas:
                     continue
                 estado = fila.get("estado")
                 if estado not in cuenta:
@@ -113,6 +133,8 @@ def resumen(dias: int = 7, ruta: Path | None = None,
                 + cuenta[AMBIGUA_SIN_RESOLVER])
     return {
         "dias": dias,
+        "desde": corte,
+        "acotada_por_arreglo": bool(desde and desde == corte),
         "enviadas": enviadas,
         # EJECUTADAS, no "confirmadas". La diferencia la pagó el 2026-09-30:
         # dos órdenes aceptadas por XTB, anotadas "en_cola", rechazadas en

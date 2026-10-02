@@ -232,7 +232,8 @@ def vender_por_nivel(broker, registro: dict, v: dict, disparo: str,
     t0 = time.monotonic()
     e = amb.enviar_resolviendo(
         broker, v["simbolo"], tipo,
-        lambda: broker.vender(v["simbolo"], v["acciones"]))
+        lambda: broker.vender(v["simbolo"], v["acciones"]),
+        id_orden=id_orden)
     latencia = time.monotonic() - t0
     log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
         + (f" (orden {e.orden})" if e.orden else "")

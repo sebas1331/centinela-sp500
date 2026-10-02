@@ -326,6 +326,9 @@ footer a{color:var(--acento)}
   padding:.55rem .7rem; background:var(--superficie);
   border:1px solid var(--borde); border-radius:10px;
 }
+.inc-txt{margin:.25rem 0 0; font-size:.8rem; line-height:1.5;
+         color:var(--tenue)}
+.inc-meta{margin:.4rem 0 0; font-size:.72rem; color:var(--muy-tenue)}
 .nota-sesion{margin:.45rem 0 0; font-size:.74rem; color:var(--tenue)}
 .comp-fila b{font-size:.86rem; font-weight:600}
 .comp-fila .meta{font-size:.72rem; color:var(--tenue); grid-column:1}
@@ -425,6 +428,9 @@ footer a{color:var(--acento)}
   <h2>Alertas recientes</h2>
   <div id="alertas"></div>
 
+  <h2 id="h-incidentes" hidden>Incidentes resueltos</h2>
+  <div id="incidentes" class="comp" hidden></div>
+
   <footer>
     <a id="repo" href="https://github.com/sebas1331/centinela-sp500">Repositorio en GitHub</a>
     <a href="index.html">Dashboard de estrategia</a>
@@ -518,8 +524,11 @@ fetch("operativa.json", {cache:"no-cache"})
     document.getElementById("semaforo").appendChild(el("p","ok", err.message));
   });
 
+var D_REPO = null;
+
 function iniciar(D){
   var meta = D.meta || {};
+  D_REPO = meta.repo || null;
   if(meta.repo) document.getElementById("repo").href = meta.repo;
   document.getElementById("generado").textContent =
     "Generado " + horaEc(D.generado) + " (hora de Ecuador)";
@@ -545,6 +554,7 @@ function iniciar(D){
   pintarNiveles(D.niveles || []);
   pintarReconciliacion(D.reconciliacion || {});
   pintarAlertas(D.alertas || []);
+  pintarIncidentes(D.incidentes || []);
 }
 
 /* ------------------------------------------------------------- 0. Hoy ---- */
@@ -769,7 +779,9 @@ function pintarFiabilidad(F){
   caja.className = "vigia" + (malo ? " mal" : "");
   caja.appendChild(el("span","luzp"));
   caja.appendChild(el("b","","Fiabilidad de XTB"));
-  caja.appendChild(el("span","det","últimos " + F.dias + " días:"));
+  caja.appendChild(el("span","det", F.acotada_por_arreglo
+    ? "desde el último arreglo (" + fecha(F.desde) + "):"
+    : "últimos " + F.dias + " días:"));
 
   /* ENVIADAS y EJECUTADAS por separado, que es la lección del 2026-09-30: dos
      compras enviadas, aceptadas por XTB, anotadas "en cola"… y rechazadas. La
@@ -1003,6 +1015,37 @@ function pintarNiveles(niveles){
       if(c.motivo) d.appendChild(el("div","meta", c.motivo));
       caja.appendChild(d);
     });
+    zona.appendChild(caja);
+  });
+}
+
+/* ------------------------------------------ 6b. Incidentes resueltos ---- */
+/* En gris y al final: son historia, no alarma. Están aquí porque borrarlos
+   sería peor que dejarlos gritando — quien mire el panel dentro de un mes
+   tiene que poder ver qué pasó y con qué commit se arregló. */
+function pintarIncidentes(lista){
+  var h = document.getElementById("h-incidentes");
+  var zona = document.getElementById("incidentes");
+  if(!lista.length){ h.hidden = true; zona.hidden = true; return; }
+  h.hidden = false; zona.hidden = false;
+  zona.textContent = "";
+
+  lista.slice().reverse().forEach(function(i){
+    var caja = el("div","cartera");
+    var h3 = el("h3","", i.titulo + " ");
+    h3.appendChild(el("span","", fecha(i.fecha)
+      + (i.arreglado && i.arreglado !== i.fecha
+         ? " · arreglado " + fecha(i.arreglado) : " · arreglado")));
+    caja.appendChild(h3);
+    caja.appendChild(el("p","inc-txt", i.causa));
+    if(i.arreglo) caja.appendChild(el("p","inc-txt", i.arreglo));
+    var pie = el("p","inc-meta",
+      (i.ordenes || []).length + " orden(es): " + (i.ordenes || []).join(", "));
+    pie.appendChild(document.createTextNode(" · commit "));
+    pie.appendChild(enlace(
+      (D_REPO || "https://github.com/sebas1331/centinela-sp500")
+      + "/commit/" + i.commit, i.commit));
+    caja.appendChild(pie);
     zona.appendChild(caja);
   });
 }

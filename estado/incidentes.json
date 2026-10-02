@@ -1,0 +1,36 @@
+{
+ "actualizado": "2026-10-02T10:35:19.119458-04:00",
+ "incidentes": [
+  {
+   "arreglado": "2026-10-02",
+   "arreglo": "Las compras se mandan DESPUÉS de la apertura; el job duerme si llega antes. Y tras cada orden se pregunta a XTB hasta obtener un estado definitivo: 'aceptada' ya no se anota como 'ejecutada'.",
+   "causa": "El ejecutor mandaba las compras entre 60 y 5 minutos ANTES de abrir, contando con que XTB las encolara y las ejecutara al open. XTB las encola y luego las descarta en silencio: devuelve 'en cola' sin error y la orden desaparece. Comprobado a propósito el 01/10 con el mercado cerrado (orden 916785162: aceptada, y tres minutos después ni posición ni orden).",
+   "commit": "9667fb7",
+   "componentes": [
+    "compras",
+    "reconcilia"
+   ],
+   "fecha": "2026-09-30",
+   "ordenes": [
+    "2026-09-30|A|MRNA|compra",
+    "2026-09-30|A|FICO|compra"
+   ],
+   "titulo": "Compras enviadas antes de la apertura"
+  },
+  {
+   "arreglado": "2026-10-02",
+   "arreglo": "No se mandan los niveles a XTB. Se siguen registrando en la bitácora porque son la decisión del simulador, y de vigilarlos se encarga el vigilante de precios.",
+   "causa": "XTB no acepta stop loss ni take profit en acciones al contado. El 28/09 los ignoraba en silencio y después pasó a RECHAZAR la orden entera. Aislado con el mercado abierto: CTVA x134 con niveles, rechazada; las mismas 134 sin niveles, ejecutada (orden 916937102).",
+   "commit": "6f538dc",
+   "componentes": [
+    "compras",
+    "reconcilia"
+   ],
+   "fecha": "2026-10-02",
+   "ordenes": [
+    "2026-10-02|A|CTVA|compra"
+   ],
+   "titulo": "Órdenes rechazadas por llevar objetivo y stop"
+  }
+ ]
+}

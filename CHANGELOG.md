@@ -5,6 +5,51 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-02 (2) — Incidentes resueltos: un rojo arreglado deja de gritar
+
+Los rechazos del 30/09 y del 02/10 tienen causa identificada y arreglo
+publicado, pero seguirían pintando rojo y hundiendo la fiabilidad hasta la
+semana que viene. Un rojo que se queda días en pantalla ya no informa: entrena
+a mirar el panel sin leerlo.
+
+`estado/incidentes.json` declara cada uno con **fecha, causa, arreglo, commit y
+las órdenes afectadas**. Sin commit no se guarda — un incidente resuelto sin el
+commit del arreglo no es un incidente resuelto, es uno que alguien prefiere no
+mirar.
+
+| | |
+|---|---|
+| **En el semáforo** | no aparece |
+| **En la página** | sí, abajo y en gris, con su causa y enlace al commit |
+| **En la fiabilidad** | sus órdenes no cuentan, y el porcentaje se muestra «desde el último arreglo» |
+| **Un rechazo nuevo** | rojo inmediato, con cualquier causa no registrada |
+
+Lo que NO hace es silenciar. Las órdenes van **listadas una a una**, así que si
+la causa vuelve, vuelve el rojo: declarar un incidente no vuelve inmune a un
+ticker ni a un componente. Y la excusa de un componente va de la fecha del
+incidente a la de su arreglo, ambas incluidas y ni un día más — porque un fallo
+así no se queda en un día (la reconciliación del 30/09 siguió dando diferencias
+cada mañana hasta que se arregló) pero tampoco dura para siempre.
+
+### Dos cosas más que aparecieron al medirlo
+
+**El diario de fiabilidad contaba dos veces la misma orden.** La entrada tardía
+quedaba anotada por `enviar_resolviendo` y otra vez por el script que la mandó.
+Un envío deja una fila.
+
+**La reconciliación daba un rojo falso cada día que se compra.** El simulador
+mueve las entradas de `entradas_pendientes` a `posiciones` en el post-cierre,
+así que entre la compra de la mañana y el cierre la posición existe en XTB y no
+en el estado. Eso no es una discrepancia: es el mismo día funcionando como debe.
+Lo que nunca se excusa es una posición en XTB que nadie compró.
+
+Semáforo tras el cambio: **verde**, sin motivos. Fiabilidad: **1 de 1 ejecutada
+(100 %) desde el último arreglo**.
+
+488 tests.
+
+---
+
 ## 2026-10-02 — No era el horario: eran los niveles. Y XTB cuenta doble
 
 El arreglo de ayer funcionó en las dos mitades que se podían probar:
