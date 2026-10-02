@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-10-01T18:00:40.871215-04:00",
+  "actualizado": "2026-10-02T08:45:46.644658-04:00",
   "contador_grupo": 90,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 6.796,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-02",
+      "notas": "prob=1.000 score_fund=44.0 sent=0.0 (n=0)",
+      "proba": 1.0,
+      "resistencia": 90.87,
+      "score_fundamental": 44.0,
+      "sector": "Materials",
+      "target_analista": 92.6,
+      "ticker": "CTVA",
+      "timestamp_escaneo": "2026-10-02T08:45:05.001278-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -392,11 +409,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36920530308"
     },
     "preapertura": {
-      "cuando": "2026-10-01T08:46:00.018861-04:00",
-      "run": "36853566299",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/36853566299"
+      "cuando": "2026-10-02T08:45:46.644635-04:00",
+      "run": "37000106732",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37000106732"
     }
   },
   "ultima_postcierre": "2026-10-01",
-  "ultima_preapertura": "2026-10-01"
+  "ultima_preapertura": "2026-10-02"
 }
