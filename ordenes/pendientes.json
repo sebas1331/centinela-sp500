@@ -1,6 +1,6 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-01T18:01:22.619500-04:00",
+  "generado": "2026-10-02T08:46:20.554635-04:00",
   "ordenes": [
     {
       "acciones": 4,
@@ -29,7 +29,21 @@
       "stop": null,
       "ticker": "APH",
       "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 134,
+      "cartera": "A",
+      "fecha_limite": "2026-10-15",
+      "id": "2026-10-02|A|CTVA|compra",
+      "id_operacion": null,
+      "objetivo": 26.16,
+      "precio_simulador": null,
+      "referencia": 12.57,
+      "sesion": "2026-10-02",
+      "stop": 11.06,
+      "ticker": "CTVA",
+      "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-01"
+  "sesion": "2026-10-02"
 }
