@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-02T15:01:27.415635-04:00",
+  "actualizado": "2026-10-02T16:19:56.323070-04:00",
   "contador_grupo": 91,
   "entradas_pendientes": [],
   "posiciones": {
@@ -200,34 +200,6 @@
         "sector": "Information Technology",
         "stop": 529.7776,
         "ticker": "FICO"
-      },
-      {
-        "atr_entrada": 13.1332,
-        "dia_limite": "2026-10-13",
-        "entrada": 186.55,
-        "fecha_entrada": "2026-09-30",
-        "grupo": 89,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-09-30",
-            "motivo": "objetivo inicial",
-            "objetivo": 212.8164
-          },
-          {
-            "fecha": "2026-09-30",
-            "motivo": "recálculo: ATR=13.54, resistencia=208.90",
-            "objetivo": 213.6374
-          }
-        ],
-        "id": 157,
-        "objetivo": 213.6374,
-        "objetivo_inicial": 212.8164,
-        "portafolio": "A",
-        "proba": 0.7975,
-        "score_fundamental": 16.3,
-        "sector": "Health Care",
-        "stop": 164.164,
-        "ticker": "MRNA"
       }
     ],
     "B": [
@@ -331,34 +303,6 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "FICO"
-      },
-      {
-        "atr_entrada": 13.1332,
-        "dia_limite": "2026-10-13",
-        "entrada": 186.55,
-        "fecha_entrada": "2026-09-30",
-        "grupo": 89,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-09-30",
-            "motivo": "objetivo inicial",
-            "objetivo": 212.8164
-          },
-          {
-            "fecha": "2026-09-30",
-            "motivo": "recálculo: ATR=13.54, resistencia=208.90",
-            "objetivo": 213.6374
-          }
-        ],
-        "id": 158,
-        "objetivo": 213.6374,
-        "objetivo_inicial": 212.8164,
-        "portafolio": "B",
-        "proba": 0.7975,
-        "score_fundamental": 16.3,
-        "sector": "Health Care",
-        "stop": null,
-        "ticker": "MRNA"
       },
       {
         "atr_entrada": 20.1826,
