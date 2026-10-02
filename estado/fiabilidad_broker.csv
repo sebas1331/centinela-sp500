@@ -4,3 +4,6 @@ cuando,sesion,simbolo,tipo,estado,detalle
 2026-10-01T23:26:01.514813-04:00,2026-10-01,MRNA.US,compra,rechazada,XTB la aceptó como 'en cola' con el mercado cerrado (mandada 43 min antes de la apertura) y la descartó después. En xStation 5 figura como RECHAZADO.
 2026-10-01T23:26:01.515243-04:00,2026-10-01,FICO.US,compra,rechazada,XTB la aceptó como 'en cola' con el mercado cerrado (mandada 43 min antes de la apertura) y la descartó después. En xStation 5 figura como RECHAZADO.
 2026-10-02T09:30:22.922267-04:00,2026-10-02,CTVA.US,compra,rechazada,XTB no tiene ni posición ni orden de CTVA.US tras 1 comprobación(es): la orden no existe
+2026-10-02T10:05:58.989056-04:00,2026-10-02,CTVA.US,compra,fallida,"XTB no tiene ni posición ni orden de CTVA.US: la orden 916925310 no existe, se rechazó"
+2026-10-02T10:06:05.953772-04:00,2026-10-02,CTVA.US,entrada_tardia,ejecutada,XTB tiene la posición: CTVA.US pasó de 0 a 134 acciones (intento 1)
+2026-10-02T10:06:06.055829-04:00,2026-10-02,CTVA.US,entrada_tardia,confirmada,hay posición de CTVA.US: 134 acción(es) a 12.71
