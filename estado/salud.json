@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-03T14:09:24.925222-04:00",
+  "actualizado": "2026-10-04T14:21:33.851152-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-02T15:49:15.933355-04:00",
@@ -51,11 +51,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37079912483"
     },
     "vigilante": {
-      "cuando": "2026-10-03T14:09:24.925222-04:00",
+      "cuando": "2026-10-04T14:21:33.851152-04:00",
       "detalle": "El ejecutor del Mac no reportó la orden 2026-10-02|A|CTVA|compra (compra de 134 CTVA). O su run no llegó a correr, o falló antes de publicar. Revisa los runs del ejecutor en Actions.",
       "resultado": "fallo:job-en-rojo (fallo:1-problemas)",
-      "run": "37143070882",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37143070882"
+      "run": "37224052837",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37224052837"
     },
     "vigilante_precios": {
       "cuando": "2026-10-02T15:22:08.959059-04:00",
