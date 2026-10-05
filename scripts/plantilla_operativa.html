@@ -311,6 +311,7 @@ footer a{color:var(--acento)}
 }
 .sem-verde{border-color:var(--verde)} .sem-verde .luz{color:var(--verde)}
 .sem-verde .luz::before{background:var(--verde)}
+.sin-verificar{color:var(--aviso); font-weight:600}
 .vermas{background:none; border:0; padding:0; color:inherit; font:inherit;
         text-decoration:underline; cursor:pointer; opacity:.8}
 .meta .vermas{font-size:inherit}
@@ -515,7 +516,12 @@ function enlace(url, texto){
 }
 
 /* ------------------------------------------------------------ Arranque ---- */
-fetch("operativa.json", {cache:"no-cache"})
+/* LA VERSIÓN DEL ESQUEMA que espera esta página: tiene que valer lo mismo que
+   ESQUEMA en scripts/generar_operativa.py (lo comprueba un test). Y en la URL,
+   con la hora, para que ni el navegador ni la CDN de GitHub Pages (max-age=600)
+   sirvan un JSON viejo junto a un HTML nuevo. */
+var ESQUEMA = 3;
+fetch("operativa.json?v=" + ESQUEMA + "&t=" + Date.now(), {cache:"no-store"})
   .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
   .then(iniciar)
   .catch(function(err){
@@ -533,38 +539,89 @@ var B0 = {};
 var P0 = [];
 var D_REPO = null;
 
-function iniciar(D){
-  var meta = D.meta || {};
-  D_REPO = meta.repo || null;
-  if(meta.repo) document.getElementById("repo").href = meta.repo;
-  document.getElementById("generado").textContent =
-    "Generado " + horaEc(D.generado) + " (hora de Ecuador)";
-  var s = document.getElementById("sello");
-  s.textContent = "";
-  s.appendChild(el("b","",horaEc(D.generado)));
-  s.appendChild(el("span","rotulo","última actualización"));
+/* VALORES POR DEFECTO de todo lo que la página lee. Un JSON de otra versión
+   (o al que le falte un bloque) no puede romper el arranque: el 05/10 la falta
+   de `coste_ejecucion.repuestas` lanzó una excepción, iniciar() se cortó a la
+   mitad y la página se quedó sin posiciones, sin historial y con la cuenta
+   vacía. Cada campo tiene aquí un valor seguro. */
+var POR_DEFECTO = {
+  meta: {}, hoy: {}, fiabilidad: {}, componentes: [], sesion_xtb: null,
+  broker: {}, posiciones: [], ordenes: [], niveles: [], reconciliacion: {},
+  alertas: [], incidentes: [], vigilante_precios: null,
+  semaforo: {color: "ambar", titulo: "Atención", motivos: [], n_rojos: 0, n_ambares: 0},
+  coste_ejecucion: {
+    umbral_pct: 0.5, ultimas_n: 10,
+    compras: {n: 0, ultimas: [], media_ultimas: null, ambar: false},
+    entradas_tardias: {n: 0, ultimas: [], media_ultimas: null, ambar: false},
+    repuestas: {decididas: 0, tardias: 0, max: 2, ambar: false}
+  }
+};
 
-  pintarHoy(D.hoy || {});
-  pintarSemaforo(D);
+function conDefecto(valor, defecto){
+  if(valor === undefined || valor === null) return defecto;
+  if(defecto && typeof defecto === "object" && !Array.isArray(defecto)
+     && typeof valor === "object" && !Array.isArray(valor)){
+    var r = {}, k;
+    for(k in defecto) r[k] = conDefecto(valor[k], defecto[k]);
+    for(k in valor) if(!(k in r)) r[k] = valor[k];
+    return r;
+  }
+  if(Array.isArray(defecto) && !Array.isArray(valor)) return defecto;
+  return valor;
+}
+
+/* Cada sección se pinta por separado: si una falla, se dice y las demás
+   siguen. Un fallo no se esconde: va a la consola y al semáforo. */
+var FALLOS = [];
+function seguro(nombre, fn){
+  try { fn(); }
+  catch(e){
+    console.error("operativa: no se pudo pintar «" + nombre + "»:", e);
+    FALLOS.push("No se pudo pintar «" + nombre + "»: " + (e && e.message));
+  }
+}
+
+function iniciar(Dcrudo){
+  var D = conDefecto(Dcrudo || {}, POR_DEFECTO);
+  /* Lo que usa el latido, ANTES que nada: si algo de abajo fallara, la cuenta y
+     las posiciones en vivo tienen que tener de dónde partir. */
+  B0 = D.broker;
+  P0 = D.posiciones;
+  var meta = D.meta;
+  D_REPO = meta.repo || null;
+  seguro("cabecera", function(){
+    if(meta.repo) document.getElementById("repo").href = meta.repo;
+    document.getElementById("generado").textContent =
+      "Generado " + horaEc(D.generado) + " (hora de Ecuador)";
+    var s = document.getElementById("sello");
+    s.textContent = "";
+    s.appendChild(el("b","",horaEc(D.generado)));
+    s.appendChild(el("span","rotulo","última actualización"));
+  });
+  seguro("hoy", function(){ pintarHoy(D.hoy); });
+  seguro("semáforo", function(){ pintarSemaforo(D); });
+  if(D.esquema !== ESQUEMA){
+    console.warn("operativa: esquema " + D.esquema + ", la página espera " + ESQUEMA);
+    ambarSemaforo("Datos de una versión anterior de la página (esquema "
+      + (D.esquema === undefined ? "sin número" : D.esquema) + "; esta página espera el "
+      + ESQUEMA + "): recarga en unos minutos. Se enseña todo lo que se puede leer.");
+  }
   /* El latido se pide aparte y EN VIVO: viene de una rama que se reescribe
-     cada dos minutos, así que pedirlo al cargar da la edad real. Si viajara
-     dentro de operativa.json tendría la edad de la última vez que se regeneró
-     la página, y la regla de los 10 minutos no se podría cumplir.
-     Va después del semáforo porque puede empeorarlo. */
-  pintarVigilante(D);
-  pintarFiabilidad(D.fiabilidad || {});
-  pintarCoste(D.coste_ejecucion);
-  pintarComponentes(D.componentes || []);
-  pintarSesionXTB(D.sesion_xtb);
-  B0 = D.broker || {};
-  P0 = D.posiciones || [];
-  pintarBroker(B0);
-  pintarPosiciones(P0);
-  montarOrdenes(D.ordenes || []);
-  pintarNiveles(D.niveles || []);
-  pintarReconciliacion(D.reconciliacion || {});
-  pintarAlertas(D.alertas || []);
-  pintarIncidentes(D.incidentes || []);
+     cada dos minutos, así que pedirlo al cargar da la edad real. Va después del
+     semáforo porque puede empeorarlo. */
+  seguro("vigilante de precios", function(){ pintarVigilante(D); });
+  seguro("fiabilidad", function(){ pintarFiabilidad(D.fiabilidad); });
+  seguro("coste de ejecución", function(){ pintarCoste(D.coste_ejecucion); });
+  seguro("componentes", function(){ pintarComponentes(D.componentes); });
+  seguro("sesión de XTB", function(){ pintarSesionXTB(D.sesion_xtb); });
+  seguro("cuenta", function(){ pintarBroker(B0); });
+  seguro("posiciones", function(){ pintarPosiciones(P0); });
+  seguro("órdenes", function(){ montarOrdenes(D.ordenes); });
+  seguro("niveles", function(){ pintarNiveles(D.niveles); });
+  seguro("reconciliación", function(){ pintarReconciliacion(D.reconciliacion); });
+  seguro("alertas", function(){ pintarAlertas(D.alertas); });
+  seguro("incidentes", function(){ pintarIncidentes(D.incidentes); });
+  FALLOS.forEach(function(f){ ambarSemaforo(f); });
 }
 
 /* ------------------------------------------------------------- 0. Hoy ---- */
@@ -997,12 +1054,23 @@ function pintarComponentes(comps){
 }
 
 /* --------------------------------------------------------- 3. La cuenta ---- */
+function etiquetaCuenta(b){
+  var verificada = b && b.candado_ok === true
+                   && (b.tipo === "demo" || b.tipo === "real");
+  if(!verificada) return el("span","sin-verificar","sin verificar");
+  return el("span","", b.tipo === "demo" ? "DEMO" : "REAL");
+}
+
 function pintarBroker(b){
   var zona = document.getElementById("broker");
   zona.textContent = "";
   var caja = el("div","cartera");
-  var h3 = el("h3","", "Cuenta " + (b.cuenta || "—") + " ");
-  h3.appendChild(el("span","", b.tipo === "demo" ? "demo" : "REAL"));
+  /* LA ETIQUETA SOLO SE AFIRMA SI EL CANDADO LA VERIFICÓ. Antes, si faltaba el
+     dato, decía «REAL» por defecto (05/10, con el JSON roto): lo peor que
+     puede decir una página de una cuenta demo. Sin verificación, «sin
+     verificar», en ámbar. */
+  var h3 = el("h3","", "Cuenta ");
+  h3.appendChild(etiquetaCuenta(b));
   caja.appendChild(h3);
 
   var dl = el("dl");

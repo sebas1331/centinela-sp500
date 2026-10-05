@@ -5,6 +5,38 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-05 (5) — La página Operativa publicada se rompía: desfase de versiones
+
+**Síntoma**: «No se pudo cargar operativa.json — … `C.repuestas.ambar`», sin
+historial, sin posiciones ni componentes, valor de posiciones 0,00 con WDC
+abierta y la cuenta como «— REAL».
+
+**Causa** (no era solo caché): `publicar_operativa.py` importaba el generador al
+arrancar el job y después hacía `git reset --hard origin/main`. El push de
+`1b9c74e` cayó entre las dos cosas: el reset trajo la plantilla NUEVA (que lee
+`coste_ejecucion.repuestas`) y el generador VIEJO, ya en memoria, escribió un
+JSON sin ese campo. Las dos piezas salieron del mismo run, con versiones
+distintas. La excepción cortó `iniciar()` antes de cargar la cuenta y las
+posiciones, el latido pintó con datos vacíos y la etiqueta, sin `tipo`, cayó en
+«REAL». La caché de Pages (`max-age=600`) puede producir el mismo cruce.
+
+**Arreglos**:
+- El publicador genera en un **proceso nuevo después del reset**: código,
+  plantilla y datos del mismo commit.
+- **Versión de esquema**: `operativa.json` lleva `esquema` (3) y la plantilla
+  espera el mismo; si no coincide, aviso «datos de una versión anterior,
+  recarga en unos minutos» y se pinta todo lo que se pueda.
+- **Valores por defecto** para cada bloque, y cada sección se pinta por
+  separado: si una falla, se dice (consola y semáforo) y las demás siguen.
+- El JSON se pide como `operativa.json?v=3&t=<hora>` y `no-store`.
+- La etiqueta de la cuenta solo dice **DEMO** o **REAL** si el candado lo
+  verificó; si falta el dato, **«sin verificar»** en ámbar.
+- Tests que cargan la página ENTERA en node (`tests/js/cargar_operativa.js`)
+  con un JSON de la versión anterior —el caso real— y con uno casi vacío, y que
+  la etiqueta nunca diga REAL sin verificación.
+
+---
+
 ## 2026-10-05 (4) — Entradas tardías sin umbral de coste; Chromium desde caché
 
 - **Coste de ejecución.** El umbral del 0,5 % se aplica solo a las **compras

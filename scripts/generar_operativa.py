@@ -544,6 +544,13 @@ def bloque_reconciliacion(datos_salud: dict) -> dict:
     }
 
 
+#: VERSIÓN DEL ESQUEMA de operativa.json (2026-10-05). Sube cada vez que cambia
+#: la forma del JSON, y `var ESQUEMA` de la plantilla tiene que valer lo mismo
+#: (lo comprueba un test). Si la página publicada recibe un JSON de otra
+#: versión —caché de GitHub Pages, o un HTML que llegó antes que sus datos— no
+#: se rompe: avisa «datos de una versión anterior» y pinta lo que puede.
+ESQUEMA = 3
+
 #: Coste de ejecución de compras: cuántas se promedian y a partir de qué media
 #: se avisa (umbral fijado por el usuario el 2026-10-05). Como referencia, el
 #: simulador ya descuenta 0,25 % por compra a mercado (0,15 % de slippage +
@@ -672,6 +679,9 @@ def construir(ahora: datetime | None = None) -> dict:
     ordenes = bloque_ordenes()
     posiciones = bloque_posiciones(estado_broker, estado_sim, ahora)
     return {
+        # La forma de este JSON. La plantilla lleva el mismo número y, si no
+        # coincide, avisa y pinta lo que pueda en vez de romperse.
+        "esquema": ESQUEMA,
         "generado": ahora.isoformat(),
         "hoy": bloque_hoy(ordenes, ahora),
         "vigilante_precios": bloque_vigilante_precios(ahora, posiciones),

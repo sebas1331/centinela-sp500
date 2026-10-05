@@ -99,7 +99,7 @@ def test_la_pagina_no_llama_a_la_API_de_GitHub():
     # propio JSON, y el latido del vigilante de precios, que tiene que pedirse
     # EN VIVO porque su edad es justo el dato.
     assert html.count("fetch(") == 2
-    assert 'fetch("operativa.json"' in html
+    assert 'fetch("operativa.json?v="' in html
     assert "V.url_latido" in html
 
 
@@ -130,7 +130,7 @@ def datos(tmp_path, monkeypatch):
 
 
 def test_schema_de_operativa_json(datos):
-    assert set(datos) == {"generado", "hoy", "hoy_es_sesion", "componentes",
+    assert set(datos) == {"esquema", "generado", "hoy", "hoy_es_sesion", "componentes",
                           "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
                           "vigilante_precios", "fiabilidad", "sesion_xtb",
@@ -951,3 +951,92 @@ def test_dos_tardias_de_diez_aun_no_es_ambar(monkeypatch):
         _compra(o2.COMPRA, tk, f"2026-10-0{i + 5}", 0.0, estado="rechazada")
         _compra(o2.ENTRADA_TARDIA, tk, f"2026-10-0{i + 5}", 100.0, apertura=99.0)
     assert not go.bloque_coste_ejecucion()["repuestas"]["ambar"]
+
+
+# --------------------------------------------------------------------------- #
+# Desfase de versiones entre el HTML y el JSON (página rota del 2026-10-05)
+# --------------------------------------------------------------------------- #
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+NODE = shutil.which("node")
+CARGADOR = RAIZ / "tests" / "js" / "cargar_operativa.js"
+PLANTILLA = RAIZ / "scripts" / "plantilla_operativa.html"
+
+
+def _cargar(tmp_path, datos_json: dict) -> dict:
+    """Carga la página ENTERA con ese JSON en node y devuelve lo que pintó."""
+    if NODE is None:
+        pytest.fail("hace falta node para probar la página (brew install node)")
+    f = tmp_path / "operativa.json"
+    f.write_text(json.dumps(datos_json), encoding="utf-8")
+    r = subprocess.run([NODE, str(CARGADOR), str(PLANTILLA), str(f)],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+def _version_anterior(datos: dict) -> dict:
+    """El JSON tal como lo publicaba la versión anterior: sin número de
+    esquema y con `coste_ejecucion` sin `repuestas` (el caso real del 05/10)."""
+    viejo = json.loads(json.dumps(datos))
+    viejo.pop("esquema", None)
+    viejo["coste_ejecucion"].pop("repuestas", None)
+    return viejo
+
+
+def test_el_html_nuevo_con_un_JSON_anterior_NO_se_rompe(datos, tmp_path):
+    r = _cargar(tmp_path, _version_anterior(datos))
+    assert not any("no se pudo cargar" in e for e in r["errores"]), r["errores"]
+    assert not any("No se pudo pintar" in e for e in r["errores"]), r["errores"]
+    assert "versión anterior" in r["semaforo"] and "recarga en unos minutos" in r["semaforo"]
+    # Y se pinta todo lo que se puede leer: los componentes y la cuenta.
+    assert r["filas"]["componentes"] == len(datos["componentes"]) > 0
+    assert r["filas"]["cuenta"] == 1
+
+
+def test_un_JSON_sin_casi_nada_tampoco_rompe_la_pagina(tmp_path):
+    r = _cargar(tmp_path, {"generado": "2026-10-05T11:00:00-04:00"})
+    assert not any("no se pudo cargar" in e for e in r["errores"]), r["errores"]
+    assert "versión anterior" in r["semaforo"]
+
+
+def test_con_el_JSON_de_su_version_no_hay_aviso(datos, tmp_path):
+    r = _cargar(tmp_path, datos)
+    assert r["errores"] == [] and "versión anterior" not in r["semaforo"]
+
+
+def test_el_JSON_se_pide_con_version_y_sin_cache(datos, tmp_path):
+    r = _cargar(tmp_path, datos)
+    url = r["urls"][0]
+    assert url.startswith(f"operativa.json?v={go.ESQUEMA}&t=")
+
+
+def test_la_plantilla_y_el_generador_hablan_el_mismo_esquema(datos):
+    import re
+    html = PLANTILLA.read_text(encoding="utf-8")
+    m = re.search(r"var ESQUEMA = (\d+);", html)
+    assert m and int(m.group(1)) == go.ESQUEMA == datos["esquema"]
+
+
+@pytest.mark.parametrize("broker,esperado", [
+    ({}, "sin verificar"),                                          # falta todo
+    ({"tipo": "real"}, "sin verificar"),                            # sin candado
+    ({"tipo": "real", "candado_ok": False}, "sin verificar"),       # candado saltó
+    ({"candado_ok": True}, "sin verificar"),                        # sin tipo
+    ({"tipo": "demo", "candado_ok": True}, "DEMO"),
+    ({"tipo": "real", "candado_ok": True}, "REAL"),
+])
+def test_la_cuenta_nunca_dice_REAL_sin_verificacion(datos, tmp_path, broker, esperado):
+    d = json.loads(json.dumps(datos))
+    d["broker"] = broker
+    r = _cargar(tmp_path, d)
+    assert r["cuenta"] == f"Cuenta {esperado}", r["cuenta"]
+
+
+def test_el_publicador_genera_en_un_proceso_nuevo_tras_el_reset():
+    """El generador importado ANTES del reset escribía HTML de una versión con
+    JSON de otra: así se publicó la página rota del 05/10."""
+    fuente = (RAIZ / "scripts" / "publicar_operativa.py").read_text(encoding="utf-8")
+    assert "import generar_operativa" not in fuente
+    assert fuente.index('"reset"') < fuente.index("generar_operativa.py")

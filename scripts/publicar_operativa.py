@@ -52,8 +52,6 @@ def main() -> int:
     ap.add_argument("--rama", default=os.environ.get("GITHUB_REF_NAME", "main"))
     args = ap.parse_args()
 
-    import generar_operativa as go
-
     ultimo = ""
     for intento in range(1, INTENTOS + 1):
         try:
@@ -61,10 +59,24 @@ def main() -> int:
             # que conservar, solo regenera lo que digan los datos publicados.
             _git("fetch", "-q", "origin", args.rama)
             _git("reset", "-q", "--hard", f"origin/{args.rama}")
-            datos, cambios = go.generar()
-            if not cambios:
+            # EN UN PROCESO NUEVO, después del reset (fallo del 2026-10-05).
+            # Antes el generador se importaba al arrancar el job y el reset de
+            # arriba traía la plantilla NUEVA: si alguien empujaba entretanto,
+            # salía HTML de una versión con JSON de otra. Así fue como la página
+            # publicada leyó un `coste_ejecucion` sin `repuestas` y se rompió.
+            # Un proceso nuevo carga el código del mismo commit que la plantilla.
+            r = subprocess.run([sys.executable,
+                                str(RAIZ / "scripts" / "generar_operativa.py")],
+                               cwd=str(RAIZ), capture_output=True, text=True)
+            print(r.stdout, end="", flush=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"el generador falló: {r.stderr.strip()[-500:]}")
+            if not _git("status", "--porcelain", "--", "docs"):
                 print("operativa sin cambios: nada que publicar.", flush=True)
                 return 0
+            import json
+            datos = json.loads((RAIZ / "docs" / "operativa.json")
+                               .read_text(encoding="utf-8"))
             _git("add", "--", "docs")
             _git("-c", f"user.name={AUTOR[0]}", "-c", f"user.email={AUTOR[1]}",
                  "commit", "-q", "-m", args.mensaje, "-m",
