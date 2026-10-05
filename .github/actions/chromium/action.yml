@@ -1,0 +1,47 @@
+name: Chromium para el login de XTB
+description: >
+  Instala el Chromium de Playwright desde caché y sin apt, y comprueba que
+  arranca. Solo si no arranca instala las dependencias del sistema.
+
+# POR QUÉ (2026-10-05). `playwright install --with-deps chromium` tarda unos 25 s
+# casi siempre, pero el 05/10 tardó 14 min: el mirror de apt de Ubuntu se atascó
+# bajando fuentes y mesa (pausas de 343 s y 252 s en descargas sueltas). Un
+# vigilante de rescate no puede esperar eso. El runner de GitHub ya trae Chrome y
+# sus librerías, así que:
+#   1. el navegador sale de `actions/cache` (clave por versión de Playwright);
+#   2. se instala SIN --with-deps: sin apt (si ya está en caché, no baja nada);
+#   3. se comprueba que arranca de verdad (scripts/probar_chromium.py);
+#   4. SOLO si no arranca, se instalan las dependencias con apt —dicho en el
+#      log— y se vuelve a comprobar. Si tampoco, el paso falla en rojo.
+# El tiempo de cada fase queda en el log y en el resumen del job.
+
+runs:
+  using: composite
+  steps:
+    - name: Versión de Playwright
+      id: version
+      shell: bash
+      run: echo "playwright=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+
+    - name: Caché del navegador
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.playwright }}
+
+    - name: Instalar y comprobar Chromium
+      shell: bash
+      run: |
+        inicio=$(date +%s)
+        python -m playwright install chromium
+        tras_instalar=$(date +%s)
+        if ! python scripts/probar_chromium.py; then
+          echo "::warning::Chromium no arranca con las librerías del runner: se instalan las dependencias del sistema con apt (puede tardar)."
+          python -m playwright install-deps chromium
+          python scripts/probar_chromium.py
+        fi
+        fin=$(date +%s)
+        msg="Chromium listo en $((fin - inicio)) s (instalar $((tras_instalar - inicio)) s, caché ${{ steps.cache.outputs.cache-hit == 'true' && 'SÍ' || 'NO' }})"
+        echo "$msg"
+        echo "### $msg" >> "$GITHUB_STEP_SUMMARY"

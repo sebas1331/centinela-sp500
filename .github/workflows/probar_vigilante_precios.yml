@@ -68,7 +68,7 @@ jobs:
         run: pip install -r requirements.txt -r requirements-broker.txt
 
       - name: Instalar Chromium para el login
-        run: playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
 
       # Con `sesion_nueva` no se restaura nada: el login es en frío y el JWT de
       # trading nace nuevo. Sirve para distinguir un problema del endpoint de

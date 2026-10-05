@@ -264,7 +264,7 @@ jobs:
       # El login de xStation5 pasa por un WAF que bloquea el camino REST, así
       # que la librería cae a un navegador de verdad.
       - name: Instalar Chromium para el login
-        run: playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
 
       # La sesión de XTB dura 8 h y cada runner es una máquina nueva. Sin esta
       # caché, XTB trataría cada ejecución como un dispositivo nuevo y pediría

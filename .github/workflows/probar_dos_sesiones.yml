@@ -34,7 +34,7 @@ jobs:
         run: pip install -r requirements.txt -r requirements-broker.txt
 
       - name: Instalar Chromium para el login
-        run: playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
 
       - name: Restaurar sesión de XTB
         uses: actions/cache@v4

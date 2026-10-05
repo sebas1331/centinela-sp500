@@ -50,7 +50,7 @@ jobs:
         run: pip install -r requirements.txt -r requirements-broker.txt
 
       - name: Instalar Chromium para el login
-        run: playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
 
       # Se restaura para recuperar el ticket que dejó la fase 1 (o el run del
       # ejecutor que falló), y se guarda con clave nueva para que la sesión

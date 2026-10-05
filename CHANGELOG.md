@@ -5,6 +5,23 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-05 (4) — Entradas tardías sin umbral de coste; Chromium desde caché
+
+- **Coste de ejecución.** El umbral del 0,5 % se aplica solo a las **compras
+  normales**. Las entradas tardías enseñan su coste pero no pintan: son caras por
+  diseño. En su lugar, **ámbar si más de 2 de las últimas 10 compras decididas
+  acabaron como entrada tardía**: señal de que la compra normal sigue fallando.
+  Hoy: 1 de 2 (WDC; MRNA y CTVA fuera por serie rota). Semáforo, verde.
+- **Chromium desde caché, sin apt.** El paso tardaba 22-31 s casi siempre, pero
+  el 05/10 tardó **826 s**: el mirror de apt de Ubuntu se atascó bajando fuentes
+  y mesa (pausas de 343 s y 252 s). Un vigilante de rescate no puede esperar eso.
+  Nueva acción `.github/actions/chromium` en los 12 workflows: navegador desde
+  `actions/cache`, `playwright install chromium` sin `--with-deps`, comprobación
+  de que arranca (`scripts/probar_chromium.py`) y apt **solo** si no arranca,
+  dicho en el log. El tiempo queda en el resumen de cada job.
+
+---
+
 ## 2026-10-05 (3) — Cuatro errores de la página Operativa
 
 - **Signo del slippage.** `registrar_ejecucion` decidía el lado con

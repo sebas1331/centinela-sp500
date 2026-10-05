@@ -188,3 +188,18 @@ def test_las_tres_capas_estan_cableadas():
     assert "rescate" in str(wf["concurrency"]["group"])
     pre = yaml.safe_load((RAIZ / ".github/workflows/preapertura.yml").read_text())
     assert "skipped" in pre["jobs"]["arrancar_vigilante"]["if"]
+
+
+def test_ningun_workflow_instala_chromium_con_apt_directamente():
+    """05/10: `--with-deps` tardó 14 min por un mirror de apt atascado. Todos
+    los workflows pasan por la acción, que cachea y solo usa apt si hace falta."""
+    import yaml
+    for f in (RAIZ / ".github" / "workflows").glob("*.yml"):
+        texto = f.read_text(encoding="utf-8")
+        assert "--with-deps" not in texto, f.name
+        for job in (yaml.safe_load(texto).get("jobs") or {}).values():
+            for paso in job.get("steps", []):
+                if "Chromium" in str(paso.get("name", "")):
+                    assert paso.get("uses") == "./.github/actions/chromium", f.name
+    accion = (RAIZ / ".github/actions/chromium/action.yml").read_text(encoding="utf-8")
+    assert "~/.cache/ms-playwright" in accion and "probar_chromium.py" in accion

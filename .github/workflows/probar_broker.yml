@@ -42,7 +42,7 @@ jobs:
       # que la librería cae a un navegador de verdad. Sin este paso, el primer
       # intento muere con CASError("BROWSER_CHROMIUM_MISSING").
       - name: Instalar Chromium para el login
-        run: playwright install --with-deps chromium
+        uses: ./.github/actions/chromium
 
       # La sesión de XTB dura 8 h y un runner es una máquina nueva cada vez.
       # Guardarla en la caché es lo que puede evitar que XTB pida el código por

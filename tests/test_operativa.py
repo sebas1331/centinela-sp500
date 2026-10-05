@@ -136,7 +136,7 @@ def test_schema_de_operativa_json(datos):
                           "vigilante_precios", "fiabilidad", "sesion_xtb",
                           "incidentes", "coste_ejecucion"}
     assert set(datos["coste_ejecucion"]) == {"umbral_pct", "ultimas_n", "compras",
-                                             "entradas_tardias"}
+                                             "entradas_tardias", "repuestas"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
@@ -843,7 +843,8 @@ def test_el_coste_separa_compras_normales_de_entradas_tardias(monkeypatch):
     assert c["compras"]["n"] == 1 and c["compras"]["media_ultimas"] == 0.2
     assert not c["compras"]["ambar"]
     assert c["entradas_tardias"]["media_ultimas"] == pytest.approx(2.274, abs=0.001)
-    assert c["entradas_tardias"]["ambar"]
+    # Su coste se enseña, pero no pinta: son caras por diseño.
+    assert not c["entradas_tardias"]["ambar"]
 
 
 def test_el_coste_promedia_solo_las_ultimas_diez(monkeypatch):
@@ -924,3 +925,29 @@ def test_las_notas_largas_no_se_cortan_a_mitad_de_frase():
 def test_la_pagina_usa_el_precio_y_los_niveles_del_vigilante():
     html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
     assert "function enVivo" in html and "enVivo(L)" in html
+
+
+
+def test_ambar_si_mas_de_dos_de_las_ultimas_diez_compras_acaban_tardias(monkeypatch):
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    for i, tk in enumerate(["A1", "A2", "A3"]):
+        sesion = f"2026-10-0{i + 5}"
+        _compra(o2.COMPRA, tk, sesion, 0.0, estado="rechazada")
+        _compra(o2.ENTRADA_TARDIA, tk, sesion, 100.0, apertura=99.0)
+    _compra(o2.COMPRA, "B1", "2026-10-08", 100.0, apertura=100.0)
+    r = go.bloque_coste_ejecucion()["repuestas"]
+    assert (r["decididas"], r["tardias"]) == (4, 3) and r["ambar"]
+    s = _sem({"runs": {}})
+    assert any("acabaron como entrada tardía" in m for m in s["motivos"])
+    # Y el coste alto de esas tardías NO pinta por sí mismo.
+    assert not any("entradas tardías" in m for m in s["motivos"])
+
+
+def test_dos_tardias_de_diez_aun_no_es_ambar(monkeypatch):
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    for i, tk in enumerate(["A1", "A2"]):
+        _compra(o2.COMPRA, tk, f"2026-10-0{i + 5}", 0.0, estado="rechazada")
+        _compra(o2.ENTRADA_TARDIA, tk, f"2026-10-0{i + 5}", 100.0, apertura=99.0)
+    assert not go.bloque_coste_ejecucion()["repuestas"]["ambar"]

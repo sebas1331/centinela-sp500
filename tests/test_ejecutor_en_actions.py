@@ -95,7 +95,8 @@ def test_cada_job_del_broker_trae_sus_secretos_y_su_navegador(fichero, job):
     for secreto in ("XTB_EMAIL", "XTB_CUENTA", "XTB_PASSWORD"):
         assert f"secrets.{secreto}" in texto, f"{fichero}: falta {secreto}"
     # El login de xStation5 cae a un navegador porque el WAF bloquea el REST.
-    assert "playwright install" in texto, f"{fichero}: sin Chromium el login muere"
+    # Por la acción común, que lo cachea y no usa apt salvo que haga falta.
+    assert "./.github/actions/chromium" in texto, f"{fichero}: sin Chromium el login muere"
     # Y la sesión cacheada, que es lo que evita el 2FA en cada ejecución.
     assert "xtb-sesion-" in texto, f"{fichero}: sin caché de sesión habría 2FA"
 

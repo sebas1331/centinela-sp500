@@ -550,6 +550,11 @@ def bloque_reconciliacion(datos_salud: dict) -> dict:
 #: 0,10 % de comisión y spread, ver config): un 0,5 % de media es el doble.
 COSTE_ULTIMAS = 10
 COSTE_AMBAR_PCT = 0.5
+#: Ámbar si, de las últimas `COSTE_ULTIMAS` compras decididas, más de estas
+#: acabaron como entrada tardía: señal de que la compra normal sigue fallando.
+#: Las entradas tardías son caras por diseño, así que su coste se enseña pero
+#: no pinta nada (decisión del 2026-10-05).
+TARDIAS_MAX = 2
 
 
 def bloque_coste_ejecucion(desde: str | None = None) -> dict:
@@ -598,17 +603,40 @@ def bloque_coste_ejecucion(desde: str | None = None) -> dict:
                     "pagado": round(pagado, 4), "apertura": round(ap, 4),
                     "coste_pct": round(100.0 * (pagado / ap - 1.0), 3)})
 
-    def resumen(filas):
+    def resumen(filas, con_umbral):
         filas = sorted(filas, key=lambda x: x["sesion"])
         ult = filas[-COSTE_ULTIMAS:]
         media = (round(sum(x["coste_pct"] for x in ult) / len(ult), 3)
                  if ult else None)
         return {"n": len(filas), "ultimas": ult, "media_ultimas": media,
-                "ambar": media is not None and media > COSTE_AMBAR_PCT}
+                "ambar": (con_umbral and media is not None
+                          and media > COSTE_AMBAR_PCT)}
+
+    # ¿Cuántas de las últimas compras DECIDIDAS acabaron como entrada tardía?
+    # Una decisión es (sesión, ticker) con una orden de compra; acabó tardía si
+    # esa misma sesión hay una entrada tardía ejecutada del mismo ticker.
+    decididas, tardias = set(), set()
+    if ruta.exists():
+        with open(ruta, encoding="utf-8", newline="") as f:
+            for r in _csv.DictReader(f, restval=""):
+                if str(r.get("sesion", "")) < desde or r["ticker"] in excluidos:
+                    continue
+                clave = (r["sesion"], r["ticker"])
+                if r.get("tipo") == ords.COMPRA:
+                    decididas.add(clave)
+                elif (r.get("tipo") == ords.ENTRADA_TARDIA
+                      and r.get("estado") == "ejecutada"):
+                    tardias.add(clave)
+    ultimas = sorted(decididas)[-COSTE_ULTIMAS:]
+    n_tardias = sum(1 for c in ultimas if c in tardias)
 
     return {"umbral_pct": COSTE_AMBAR_PCT, "ultimas_n": COSTE_ULTIMAS,
-            "compras": resumen(grupos[ords.COMPRA]),
-            "entradas_tardias": resumen(grupos[ords.ENTRADA_TARDIA])}
+            "compras": resumen(grupos[ords.COMPRA], con_umbral=True),
+            "entradas_tardias": resumen(grupos[ords.ENTRADA_TARDIA],
+                                        con_umbral=False),
+            "repuestas": {"decididas": len(ultimas), "tardias": n_tardias,
+                          "max": TARDIAS_MAX,
+                          "ambar": n_tardias > TARDIAS_MAX}}
 
 
 def bloque_alertas() -> list[dict]:
@@ -899,14 +927,19 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
 
     # --- ÁMBAR: comprar en XTB está saliendo caro --------------------------
     coste = bloque_coste_ejecucion()
-    for clave, nombre in (("compras", "las compras normales"),
-                          ("entradas_tardias", "las entradas tardías")):
-        g = coste[clave]
-        if g["ambar"]:
-            ambares.append(
-                f"Coste de ejecución de {nombre}: {g['media_ultimas']:+.2f} % de "
-                f"media sobre la apertura del simulador en las últimas "
-                f"{len(g['ultimas'])} (umbral {COSTE_AMBAR_PCT} %).")
+    g = coste["compras"]
+    if g["ambar"]:
+        ambares.append(
+            f"Coste de ejecución de las compras normales: "
+            f"{g['media_ultimas']:+.2f} % de media sobre la apertura del "
+            f"simulador en las últimas {len(g['ultimas'])} (umbral "
+            f"{COSTE_AMBAR_PCT} %).")
+    rep = coste["repuestas"]
+    if rep["ambar"]:
+        ambares.append(
+            f"{rep['tardias']} de las últimas {rep['decididas']} compras "
+            f"acabaron como entrada tardía (más de {rep['max']}): la compra "
+            f"normal sigue fallando.")
 
     color = "rojo" if rojos else ("ambar" if ambares else "verde")
     titulo = {"rojo": "Problema", "ambar": "Atención",
