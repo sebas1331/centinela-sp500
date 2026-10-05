@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-02T15:21:12.146818-04:00",
+  "actualizado": "2026-10-05T09:58:10.082826-04:00",
   "enviadas": {
     "2026-09-30|A|FICO|compra": {
       "cuando": "2026-09-30T08:47:39.239857-04:00",
@@ -22,6 +22,11 @@
       "estado": "ejecutada",
       "nota": "marcada a mano el 2026-10-02: XTB la ejecutó",
       "orden": 917022383
+    },
+    "2026-10-05|A|WDC|entrada_tardia": {
+      "cuando": "2026-10-05T09:58:10.082804-04:00",
+      "estado": "ejecutada",
+      "orden": 917455892
     }
   }
 }
