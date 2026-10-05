@@ -268,7 +268,7 @@ def main() -> int:
                 f"Se vendió {ticker} en XTB y el simulador no cerró ninguna "
                 f"posición. Las dos patas tienen que acabar iguales.")
         # Todo camino que cambie posiciones vuelca el estado del broker.
-        estado_broker.volcar(broker, candado_ok=True)
+        estado_broker.volcar(broker, candado_ok=True, cotizar=True)
 
     pnls = ", ".join(f"{c['portafolio']}: {c['pnl_pct']:+.2%}" for c in cerradas)
     log(f"✅ {ticker} cerrado en XTB y en el simulador por dato erróneo "

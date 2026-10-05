@@ -872,3 +872,54 @@ def test_el_coste_excluye_las_series_rotas(monkeypatch):
     monkeypatch.setattr(datos_erroneos, "tickers", lambda *_a: {"CTVA"})
     _compra(o2.ENTRADA_TARDIA, "CTVA", "2026-10-02", 12.71, apertura=12.385)
     assert go.bloque_coste_ejecucion()["entradas_tardias"]["n"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# Errores de la página del 05/10: equity, posiciones, notas
+# --------------------------------------------------------------------------- #
+def test_el_equity_suma_el_valor_de_mercado_y_el_efectivo_es_el_saldo():
+    """Modelo de caja (medido): XTB devolvía equity == saldo con WDC abierta."""
+    b = go.bloque_cuenta_broker({
+        "saldo": 28133.03, "equity": 28133.03, "candado_ok": True, "leido": "x",
+        "posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71,
+                        "precio_actual": 444.0}]})
+    assert b["efectivo"] == 28133.03
+    assert b["equity"] == 29909.03
+    assert b["pnl_abierto"] == 17.16 and b["invertido"] == 1758.84
+
+
+def test_sin_precio_de_mercado_no_hay_equity_inventado():
+    """XTB da precio 0: ni equity a medias ni el precio de entrada como actual."""
+    b = go.bloque_cuenta_broker({
+        "saldo": 28133.03, "equity": 28133.03, "candado_ok": True, "leido": "x",
+        "posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71,
+                        "precio_actual": 0.0}]})
+    assert b["equity"] is None and b["pnl_abierto"] is None
+
+
+def test_la_tabla_usa_los_niveles_de_la_compra_de_hoy_y_no_finge_precio():
+    """WDC salía sin objetivo ni stop y con el precio actual igual al de entrada."""
+    from centinela import broker_xtb as bx2, ordenes as o2
+    hoy = AHORA.date().isoformat()
+    o2.registrar_ejecucion(
+        o2.Orden(id=f"{hoy}|A|WDC|entrada_tardia", tipo=o2.ENTRADA_TARDIA,
+                 cartera="A", ticker="WDC", acciones=4, sesion=hoy,
+                 objetivo=495.49, stop=365.46),
+        bx2.Ejecucion(ticker="WDC.US", lado="compra", acciones=4,
+                      estado="ejecutada", precio=439.71, cuando=AHORA.isoformat()))
+    filas = go.bloque_posiciones(
+        {"posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71,
+                         "precio_actual": 0.0}]}, {"posiciones": {"A": []}}, AHORA)
+    assert filas[0]["objetivo"] == 495.49 and filas[0]["stop"] == 365.46
+    assert filas[0]["precio_actual"] is None and filas[0]["pnl"] is None
+
+
+def test_las_notas_largas_no_se_cortan_a_mitad_de_frase():
+    html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
+    assert "o.error.slice(0,80)" not in html and "detalle.slice(0,90)" not in html
+    assert "function textoLargo" in html and "ver más" in html
+
+
+def test_la_pagina_usa_el_precio_y_los_niveles_del_vigilante():
+    html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
+    assert "function enVivo" in html and "enVivo(L)" in html

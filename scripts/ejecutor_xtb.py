@@ -431,7 +431,7 @@ def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> dict:
     """Delega en centinela.estado_broker, y deja en la salida del job cuántas
     posiciones tiene XTB: de eso depende que se arranque el vigilante."""
     from centinela import estado_broker
-    datos = estado_broker.volcar(broker, candado_ok=candado_ok)
+    datos = estado_broker.volcar(broker, candado_ok=candado_ok, cotizar=True)
     salida = os.environ.get("GITHUB_OUTPUT")
     if salida:
         with open(salida, "a", encoding="utf-8") as fh:

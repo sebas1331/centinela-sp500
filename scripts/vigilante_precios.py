@@ -610,7 +610,8 @@ class Sesion:
         if self.prueba:
             return
         try:
-            self.foto_broker = estado_broker.volcar(self.broker, candado_ok=True)
+            self.foto_broker = estado_broker.volcar(
+                self.broker, candado_ok=True, precios=dict(self.precios.bid))
             self.error_broker = None
             self.ultima_foto_ok = self.mono()
         except Exception as exc:  # noqa: BLE001 — se dice, y si dura, se muere

@@ -322,8 +322,14 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
         # día en que debía haber salido, así que esta columna mide exactamente
         # lo que cuesta el plan B: cuánto se pierde (o se gana) por cerrar a la
         # apertura siguiente en vez de a tiempo.
+        #
+        # El lado sale de `lado_de`, no de `tipo == COMPRA` (fallo del
+        # 2026-10-05): una ENTRADA TARDÍA también compra, y con la comparación
+        # vieja se le daba el signo de una venta — WDC pagó 439,71 frente a
+        # una apertura de 429,93 y la página enseñaba −2,27 % en verde.
         bruto = ejecucion.precio / orden.precio_simulador - 1.0
-        slippage = round(100.0 * (bruto if orden.tipo == COMPRA else -bruto), 4)
+        slippage = round(100.0 * (bruto if lado_de(orden.tipo) == "compra"
+                                  else -bruto), 4)
 
     fila = {
         # La hora SIEMPRE: con (id, hora) el diario distingue dos intentos de

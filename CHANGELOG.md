@@ -5,6 +5,34 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-05 (3) — Cuatro errores de la página Operativa
+
+- **Signo del slippage.** `registrar_ejecucion` decidía el lado con
+  `tipo == COMPRA`, así que una ENTRADA TARDÍA llevaba el signo de una venta:
+  WDC pagó 439,71 frente a una apertura de 429,93 y la página enseñaba
+  −2,27 % en verde. Ahora el lado sale de `lado_de` y la convención es la misma
+  para todo: **positivo = coste** (comprar más caro o vender más barato que la
+  referencia), en rojo. Revisadas todas las filas: solo WDC estaba mal (la de
+  CTVA ya se corrigió a mano el 02/10); la fila de WDC queda en +2,2736 %.
+- **Equity.** XTB devuelve `equity` igual al saldo: no suma lo que valen las
+  acciones al contado (con WDC abierta, 1.758,84 $ de menos). Con el modelo de
+  caja medido esta mañana, **equity = saldo + valor de mercado** y el efectivo es
+  el saldo. El P&L abierto se calcula con el precio de mercado (el de XTB
+  también venía a 0). Si falta el precio de alguna posición, no se enseña un
+  equity a medias: queda vacío. El campo de XTB se guarda como `equity_xtb`.
+- **Posiciones.** WDC salía sin objetivo ni stop (el simulador no los tiene hasta
+  el post-cierre) y con el precio actual igual al de entrada (XTB da 0 y se caía
+  a la entrada). La tabla usa ahora los niveles de la orden de hoy —los mismos
+  que lee el vigilante— y nunca el precio de entrada como actual. Con el latido,
+  la página repinta posiciones y cuenta con el bid y los niveles del vigilante.
+  La foto de la cuenta (`estado_broker.volcar`) toma el precio de XTB si es
+  positivo, si no el bid del vigilante o una cotización (`precio_fuente`).
+- **Notas largas.** El historial de órdenes cortaba la nota a 80 caracteres (y
+  el detalle de los componentes a 90). Ahora se ve el principio, cortado por
+  palabra, con un «ver más» que la despliega entera.
+
+---
+
 ## 2026-10-05 (2) — Sin healthchecks.io: el vigilante se relanza solo; semáforo en sesiones; coste de ejecución
 
 ### Fuera healthchecks.io

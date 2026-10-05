@@ -203,7 +203,7 @@ def main() -> int:
         # Todo camino que cambie posiciones vuelca el estado. Sin esto, la
         # página se quedó media sesión diciendo "0 posiciones" con 134 acciones
         # de CTVA abiertas en XTB.
-        estado_broker.volcar(b, candado_ok=True)
+        estado_broker.volcar(b, candado_ok=True, cotizar=True)
 
     if problemas:
         for p in problemas:

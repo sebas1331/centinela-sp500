@@ -163,21 +163,62 @@ def bloque_cuenta_broker(estado_broker: dict | None) -> dict:
     if not estado_broker:
         return base
 
+    # MODELO DE CAJA (medido el 05/10): el saldo YA es el efectivo, y el equity
+    # es saldo + lo que valen las posiciones a precio de mercado. El campo
+    # `equity` de XTB no suma las acciones —daba lo mismo que el saldo— y la
+    # página lo copiaba: con WDC abierta enseñaba 1.758,84 $ de menos.
     saldo = _r(estado_broker.get("saldo"))
-    equity = _r(estado_broker.get("equity"))
-    invertido = _r(sum(p.get("coste", 0.0) or 0.0
-                       for p in estado_broker.get("posiciones", [])))
-    pnl = _r(sum(p.get("pnl", 0.0) or 0.0
-                 for p in estado_broker.get("posiciones", [])))
+    pos = estado_broker.get("posiciones", [])
+    invertido = _r(sum(p.get("invertido")
+                       or float(p.get("acciones") or 0) * float(p.get("precio_entrada") or 0)
+                       for p in pos))
+    actuales = [_precio_actual(p) for p in pos]
+    completo = all(a is not None for a in actuales)
+    valor = _r(sum(float(p.get("acciones") or 0) * a
+                   for p, a in zip(pos, actuales) if a is not None))
+    pnl = _r(sum(float(p.get("acciones") or 0) * (a - float(p.get("precio_entrada") or 0))
+                 for p, a in zip(pos, actuales) if a is not None))
     base.update({
         "candado_ok": bool(estado_broker.get("candado_ok")),
-        "saldo": saldo, "equity": equity, "invertido": invertido,
-        "efectivo": _r((equity or 0.0) - (invertido or 0.0)),
-        "pnl_abierto": pnl,
-        "pnl_abierto_pct": _r(100.0 * pnl / invertido) if invertido else None,
+        "saldo": saldo,
+        # Sin el precio de alguna posición, no hay equity: uno a medias sería
+        # falso. La página lo completa con el bid del latido si lo tiene.
+        "equity": _r((saldo or 0.0) + (valor or 0.0)) if completo else None,
+        "valor_posiciones": valor,
+        "invertido": invertido,
+        "efectivo": saldo,
+        "pnl_abierto": pnl if completo else None,
+        "pnl_abierto_pct": (_r(100.0 * pnl / invertido)
+                            if completo and invertido else None),
         "leido": estado_broker.get("leido"),
     })
     return base
+
+
+def _precio_actual(p: dict) -> float | None:
+    """El precio de mercado de una posición de broker.json. NUNCA el de entrada:
+    XTB lo devuelve a 0 y caer a la entrada daba P&L cero y un precio quieto."""
+    a = p.get("precio_actual")
+    try:
+        a = float(a)
+    except (TypeError, ValueError):
+        return None
+    return a if a > 0 else None
+
+
+def _niveles_comprados_hoy(hoy: str) -> dict[str, dict]:
+    """Objetivo y stop de las compras de HOY, de su fila en bitacora_broker.csv.
+
+    El simulador no los tiene hasta el post-cierre; el vigilante los lee de
+    aquí, y la tabla tiene que enseñar los mismos que él usa.
+    """
+    fuera = {}
+    for f in ords.filas_de_sesion(hoy):
+        if f.get("estado") == "ejecutada" and f.get("tipo") in ords.TIPOS_COMPRA:
+            fuera[f["ticker"]] = {"objetivo": _r(f.get("objetivo")),
+                                  "stop": _r(f.get("stop")),
+                                  "fecha_entrada": hoy}
+    return fuera
 
 
 def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
@@ -193,14 +234,18 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
     cartera = config.CARTERA_BROKER
     por_ticker = {p["ticker"]: p
                   for p in estado_sim.get("posiciones", {}).get(cartera, [])}
+    hoy_niveles = _niveles_comprados_hoy(ahora.date().isoformat())
     manana = _proxima_sesion(ahora)
 
     filas = []
     for p in estado_broker.get("posiciones", []):
         tk = str(p.get("ticker", "")).replace(".US", "").replace("-", ".")
-        sim = por_ticker.get(tk, {})
+        # Los niveles del simulador; y si aún no la tiene (comprada hoy), los
+        # de la orden, que son los que usa el vigilante.
+        sim = por_ticker.get(tk) or hoy_niveles.get(tk, {})
         entrada = _r(p.get("precio_entrada"))
-        actual = _r(p.get("precio_actual")) or entrada
+        actual = _r(_precio_actual(p))
+        acciones = float(p.get("acciones") or 0)
         objetivo = _r(sim.get("objetivo"))
         stop = _r(sim.get("stop"))
         limite = sim.get("dia_limite")
@@ -226,9 +271,11 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
                               if stop and actual else None),
             "dias_en_posicion": dias,
             "fecha_limite": limite,
-            "pnl": _r(p.get("pnl")),
+            "pnl": (_r(acciones * (actual - entrada))
+                    if entrada and actual else None),
             "pnl_pct": (_r(100.0 * (actual / entrada - 1.0))
                         if entrada and actual else None),
+            "precio_fuente": p.get("precio_fuente"),
             # Lo que hay que mirar hoy: sale mañana, o está pegada al stop.
             "sale_manana": bool(limite and manana and limite <= manana),
             "cerca_del_stop": bool(

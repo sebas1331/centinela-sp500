@@ -491,3 +491,35 @@ def test_las_compras_no_salen_en_los_primeros_cinco_minutos():
     assert ej.en_ventana("compras", apertura + timedelta(seconds=31))[0] is ej.ESPERAR
     assert ej.en_ventana("compras", apertura + timedelta(minutes=4))[0] is ej.ESPERAR
     assert ej.en_ventana("compras", apertura + timedelta(minutes=5))[0] is True
+
+
+
+@pytest.mark.parametrize("tipo,pagado,referencia,esperado", [
+    (ords.COMPRA, 101.0, 100.0, 1.0),               # compró más caro: coste
+    (ords.ENTRADA_TARDIA, 439.71, 429.935, 2.2736),  # WDC, 05/10
+    (ords.VENTA_TIEMPO, 99.0, 100.0, 1.0),          # vendió más barato: coste
+    (ords.VENTA_OBJETIVO_INTRADIA, 12.17, 12.14, -0.2471),  # vendió más caro
+    (ords.VENTA_TIEMPO_DIFERIDO, 101.0, 100.0, -1.0),
+])
+def test_el_slippage_es_positivo_cuando_cuesta_en_compras_y_en_ventas(
+        tipo, pagado, referencia, esperado):
+    o = ords.Orden(id=f"x|{tipo}", tipo=tipo, cartera="A", ticker="T",
+                   acciones=1, sesion="2026-10-05", precio_simulador=referencia)
+    ords.registrar_ejecucion(o, bx.Ejecucion(
+        ticker="T.US", lado="x", acciones=1, estado="ejecutada", precio=pagado))
+    fila = ords.filas_de_sesion("2026-10-05")[-1]
+    assert float(fila["slippage_pct"]) == pytest.approx(esperado, abs=1e-4)
+
+
+def test_la_foto_de_la_cuenta_usa_el_bid_y_calcula_el_equity_de_caja(monkeypatch):
+    from centinela import estado_broker
+    x = XTBDeMentira(saldo=30000.0)
+    x.abrir("WDC.US", 4, 439.71)                 # saldo -> 28.241,16
+    foto = estado_broker.volcar(x, precios={"WDC.US": 444.0})
+    p = foto["posiciones"][0]
+    assert p["precio_actual"] == 444.0 and p["precio_fuente"] == "bid"
+    assert p["pnl"] == pytest.approx(17.16)
+    assert foto["equity"] == pytest.approx(28241.16 + 1776.0)
+    # Sin bid ni cotización: hueco, no el precio de entrada.
+    foto = estado_broker.volcar(x)
+    assert foto["posiciones"][0]["precio_actual"] is None and foto["equity"] is None
