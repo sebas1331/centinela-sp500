@@ -23,9 +23,13 @@ runs:
       shell: bash
       run: echo "playwright=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
 
+    # restore + save por separado, y no `actions/cache`: ese solo guarda al
+    # final de un job que termina en VERDE, y un job que muere en rojo (el 05/10,
+    # una auditoría) se quedaba sin guardarla. Aquí se guarda en cuanto el
+    # navegador está instalado y comprobado.
     - name: Caché del navegador
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.playwright }}
@@ -45,3 +49,10 @@ runs:
         msg="Chromium listo en $((fin - inicio)) s (instalar $((tras_instalar - inicio)) s, caché ${{ steps.cache.outputs.cache-hit == 'true' && 'SÍ' || 'NO' }})"
         echo "$msg"
         echo "### $msg" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Guardar el navegador en la caché
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.playwright }}
