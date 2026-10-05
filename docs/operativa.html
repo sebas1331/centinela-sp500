@@ -311,6 +311,10 @@ footer a{color:var(--acento)}
 }
 .sem-verde{border-color:var(--verde)} .sem-verde .luz{color:var(--verde)}
 .sem-verde .luz::before{background:var(--verde)}
+.vermas{background:none; border:0; padding:0; color:inherit; font:inherit;
+        text-decoration:underline; cursor:pointer; opacity:.8}
+.meta .vermas{font-size:inherit}
+.largo{display:inline}
 .sem-ambar{border-color:var(--aviso-borde); background:var(--aviso-fondo)}
 .sem-ambar .luz{color:var(--aviso)} .sem-ambar .luz::before{background:var(--aviso)}
 .sem-rojo{border-color:var(--rojo); background:var(--rojo-fondo)}
@@ -526,6 +530,7 @@ fetch("operativa.json", {cache:"no-cache"})
   });
 
 var B0 = {};
+var P0 = [];
 var D_REPO = null;
 
 function iniciar(D){
@@ -552,8 +557,9 @@ function iniciar(D){
   pintarComponentes(D.componentes || []);
   pintarSesionXTB(D.sesion_xtb);
   B0 = D.broker || {};
+  P0 = D.posiciones || [];
   pintarBroker(B0);
-  pintarPosiciones(D.posiciones || []);
+  pintarPosiciones(P0);
   montarOrdenes(D.ordenes || []);
   pintarNiveles(D.niveles || []);
   pintarReconciliacion(D.reconciliacion || {});
@@ -703,18 +709,12 @@ function mostrarLatido(caja, det, V, L){
     return;
   }
 
-  /* La cuenta en vivo: el latido trae la foto leída en XTB hace como mucho dos
-     minutos. Si es más nueva que la de la página, manda ella. */
-  if(L.broker && L.broker.leido && (!B0.leido || L.broker.leido > B0.leido)){
-    var pos = L.broker.posiciones || [], inv = 0, pnl = 0;
-    pos.forEach(function(p){
-      inv += (p.coste != null ? p.coste : p.acciones * p.precio_entrada);
-      pnl += (p.pnl || 0); });
-    pintarBroker({cuenta: B0.cuenta, tipo: B0.tipo, saldo: L.broker.saldo,
-      equity: L.broker.equity, invertido: inv, efectivo: L.broker.saldo,
-      pnl_abierto: pnl, pnl_abierto_pct: inv ? 100 * pnl / inv : null,
-      candado_ok: L.broker.candado_ok, leido: L.broker.leido});
-  }
+  /* LA CUENTA Y LAS POSICIONES EN VIVO. El latido trae lo que usa el vigilante:
+     el bid de cada posición y sus niveles. Con eso se repintan la cuenta y la
+     tabla, para que enseñen el mismo precio y los mismos niveles que él mira.
+     XTB da el precio actual a 0 en acciones al contado; nunca se cae al de
+     entrada (eso daba P&L cero y un precio quieto). */
+  if(!(L.estado === "en-reposo")) enVivo(L);
   /* El historial: ¿estuvo cubierta la sesión entera, latido a latido? */
   var H = (L.historial || []).filter(function(h){
     return h.cuando && h.cuando.slice(0,10) === L.cuando.slice(0,10); });
@@ -775,6 +775,68 @@ function mostrarLatido(caja, det, V, L){
     "El vigilante de precios lleva " + Math.round(min) + " min sin latir "
     + "(más de " + V.muerto_minutos + ") y hay " + V.posiciones_a_vigilar
     + " posición(es) con nivel: pueden estar sin vigilar.");
+}
+
+/* Una nota larga, entera: se ve el principio, cortado por palabra, y un
+   «ver más» que la despliega. Antes se cortaba a mitad de frase y el resto no
+   había forma de leerlo desde la página. */
+function textoLargo(txt, n, clase){
+  var d = el(clase === "meta" ? "div" : "span", clase);
+  if(txt.length <= n){ d.textContent = txt; return d; }
+  var corte = txt.lastIndexOf(" ", n);
+  var corto = txt.slice(0, corte > n * 0.6 ? corte : n) + "… ";
+  var t = el("span", "", corto);
+  var b = el("button", "vermas", "ver más");
+  b.type = "button";
+  b.onclick = function(){
+    var abierto = b.textContent === "ver menos";
+    t.textContent = abierto ? corto : txt + " ";
+    b.textContent = abierto ? "ver más" : "ver menos";
+  };
+  d.appendChild(t); d.appendChild(b);
+  return d;
+}
+
+function enVivo(L){
+  var vivo = {};
+  (L.vigiladas || []).forEach(function(v){
+    vivo[v.ticker] = {bid: v.bid, objetivo: v.objetivo, stop: v.stop}; });
+  ((L.broker && L.broker.posiciones) || []).forEach(function(p){
+    var tk = p.ticker.replace(".US","").replace("-",".");
+    var x = vivo[tk] || (vivo[tk] = {});
+    if(!x.bid && p.precio_actual > 0) x.bid = p.precio_actual;
+  });
+  /* Las posiciones: precio del vigilante y, si faltan, sus niveles. */
+  var pos = P0.map(function(p0){
+    var p = {}; for(var k in p0) p[k] = p0[k];
+    var v = vivo[p.ticker] || {};
+    if(v.bid) p.precio_actual = v.bid;
+    if(p.objetivo === null && v.objetivo) p.objetivo = v.objetivo;
+    if(p.stop === null && v.stop) p.stop = v.stop;
+    var a = p.precio_actual, e = p.precio_entrada;
+    if(a && e){ p.pnl = p.acciones * (a - e); p.pnl_pct = 100 * (a / e - 1); }
+    p.dist_objetivo_pct = (p.objetivo && a) ? 100 * (p.objetivo / a - 1) : null;
+    p.dist_stop_pct = (p.stop && a) ? 100 * (a / p.stop - 1) : null;
+    return p;
+  });
+  pintarPosiciones(pos);
+  /* La cuenta: modelo de caja (medido): equity = saldo + valor de mercado. */
+  var saldo = (L.broker && L.broker.saldo != null) ? L.broker.saldo : B0.saldo;
+  if(saldo == null) return;
+  var valor = 0, inv = 0, completo = true;
+  pos.forEach(function(p){
+    inv += p.acciones * p.precio_entrada;
+    if(p.precio_actual) valor += p.acciones * p.precio_actual; else completo = false;
+  });
+  var b = {}; for(var k in B0) b[k] = B0[k];
+  b.saldo = saldo; b.efectivo = saldo; b.invertido = inv;
+  b.valor_posiciones = completo ? valor : null;
+  b.equity = completo ? saldo + valor : null;
+  b.pnl_abierto = completo ? valor - inv : null;
+  b.pnl_abierto_pct = (completo && inv) ? 100 * (valor - inv) / inv : null;
+  b.leido = (L.broker && L.broker.leido) || L.cuando;
+  if(L.broker) b.candado_ok = L.broker.candado_ok;
+  pintarBroker(b);
 }
 
 /* Como empeorarSemaforo, pero hasta ámbar: un verde pasa a ámbar y un rojo se
@@ -914,7 +976,10 @@ function pintarComponentes(comps){
     var meta = el("div","meta");
     meta.appendChild(document.createTextNode(
       c.cuando ? horaEc(c.cuando) : "nunca ha corrido"));
-    if(c.detalle) meta.appendChild(document.createTextNode(" · " + c.detalle.slice(0,90)));
+    if(c.detalle){
+      meta.appendChild(document.createTextNode(" · "));
+      meta.appendChild(textoLargo(c.detalle, 90, "largo"));
+    }
     if(c.url){
       meta.appendChild(document.createTextNode(" · "));
       meta.appendChild(enlace(c.url, "ver run"));
@@ -939,10 +1004,10 @@ function pintarBroker(b){
     dl.appendChild(el("dt","",k));
     dl.appendChild(el("dd",clase || "",v));
   }
-  fila("Saldo", precio(b.saldo));
+  fila("Saldo (efectivo)", precio(b.saldo));
+  fila("Valor de las posiciones", precio(b.valor_posiciones));
   fila("Equity", precio(b.equity));
   fila("Capital invertido", precio(b.invertido));
-  fila("Efectivo disponible", precio(b.efectivo));
   fila("P&L abierto", precio(b.pnl_abierto) + "  (" + pct(b.pnl_abierto_pct) + ")",
        signo(b.pnl_abierto));
   fila("Candado de demo",
@@ -1052,7 +1117,7 @@ function montarOrdenes(ordenes){
                  : (o.estado === "rechazada" ? "b-p" : "b-a")), o.estado || "—");
       var celda = document.createDocumentFragment();
       celda.appendChild(est);
-      if(o.error) celda.appendChild(el("div","meta", o.error.slice(0,80)));
+      if(o.error) celda.appendChild(textoLargo(o.error, 80, "meta"));
       c("estado", celda);
       c("orden", o.orden_xtb || "—");
       frag.appendChild(tr);
