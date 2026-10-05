@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-10-02T18:00:55.437030-04:00",
+  "actualizado": "2026-10-05T08:45:47.677619-04:00",
   "contador_grupo": 91,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 28.9787,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-05",
+      "notas": "prob=0.812 score_fund=88.6 sent=0.0 (n=0)",
+      "proba": 0.8125,
+      "resistencia": 495.49,
+      "score_fundamental": 88.6,
+      "sector": "Information Technology",
+      "target_analista": 664.9167,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-10-05T08:45:05.001150-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -91,11 +108,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37062002927"
     },
     "preapertura": {
-      "cuando": "2026-10-02T08:45:46.644635-04:00",
-      "run": "37000106732",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37000106732"
+      "cuando": "2026-10-05T08:45:47.677603-04:00",
+      "run": "37299354036",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37299354036"
     }
   },
   "ultima_postcierre": "2026-10-02",
-  "ultima_preapertura": "2026-10-02"
+  "ultima_preapertura": "2026-10-05"
 }
