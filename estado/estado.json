@@ -1,24 +1,7 @@
 {
-  "actualizado": "2026-10-05T08:45:47.677619-04:00",
-  "contador_grupo": 91,
-  "entradas_pendientes": [
-    {
-      "atr": 28.9787,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-10-05",
-      "notas": "prob=0.812 score_fund=88.6 sent=0.0 (n=0)",
-      "proba": 0.8125,
-      "resistencia": 495.49,
-      "score_fundamental": 88.6,
-      "sector": "Information Technology",
-      "target_analista": 664.9167,
-      "ticker": "WDC",
-      "timestamp_escaneo": "2026-10-05T08:45:05.001150-04:00"
-    }
-  ],
+  "actualizado": "2026-10-05T18:00:51.548624-04:00",
+  "contador_grupo": 92,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -47,10 +30,15 @@
             "fecha": "2026-10-02",
             "motivo": "recálculo: ATR=58.97, resistencia=1014.00",
             "objetivo": 719.9601
+          },
+          {
+            "fecha": "2026-10-05",
+            "motivo": "recálculo: ATR=57.92, resistencia=1014.00",
+            "objetivo": 717.8517
           }
         ],
         "id": 155,
-        "objetivo": 719.9601,
+        "objetivo": 717.8517,
         "objetivo_inicial": 718.7924,
         "portafolio": "A",
         "proba": 0.8776,
@@ -58,6 +46,29 @@
         "sector": "Information Technology",
         "stop": 529.7776,
         "ticker": "FICO"
+      },
+      {
+        "atr_entrada": 28.9787,
+        "dia_limite": "2026-10-16",
+        "entrada": 429.935,
+        "fecha_entrada": "2026-10-05",
+        "grupo": 92,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-10-05",
+            "motivo": "objetivo inicial",
+            "objetivo": 495.49
+          }
+        ],
+        "id": 162,
+        "objetivo": 495.49,
+        "objetivo_inicial": 495.49,
+        "portafolio": "A",
+        "proba": 0.8125,
+        "score_fundamental": 88.6,
+        "sector": "Information Technology",
+        "stop": 378.3428,
+        "ticker": "WDC"
       }
     ],
     "B": [
@@ -87,10 +98,15 @@
             "fecha": "2026-10-02",
             "motivo": "recálculo: ATR=58.97, resistencia=1014.00",
             "objetivo": 719.9601
+          },
+          {
+            "fecha": "2026-10-05",
+            "motivo": "recálculo: ATR=57.92, resistencia=1014.00",
+            "objetivo": 717.8517
           }
         ],
         "id": 156,
-        "objetivo": 719.9601,
+        "objetivo": 717.8517,
         "objetivo_inicial": 718.7924,
         "portafolio": "B",
         "proba": 0.8776,
@@ -98,14 +114,37 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "FICO"
+      },
+      {
+        "atr_entrada": 28.9787,
+        "dia_limite": "2026-10-16",
+        "entrada": 429.935,
+        "fecha_entrada": "2026-10-05",
+        "grupo": 92,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-10-05",
+            "motivo": "objetivo inicial",
+            "objetivo": 495.49
+          }
+        ],
+        "id": 163,
+        "objetivo": 495.49,
+        "objetivo_inicial": 495.49,
+        "portafolio": "B",
+        "proba": 0.8125,
+        "score_fundamental": 88.6,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "WDC"
       }
     ]
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-10-02T18:00:55.437009-04:00",
-      "run": "37062002927",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37062002927"
+      "cuando": "2026-10-05T18:00:51.548600-04:00",
+      "run": "37379245757",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37379245757"
     },
     "preapertura": {
       "cuando": "2026-10-05T08:45:47.677603-04:00",
@@ -113,6 +152,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37299354036"
     }
   },
-  "ultima_postcierre": "2026-10-02",
+  "ultima_postcierre": "2026-10-05",
   "ultima_preapertura": "2026-10-05"
 }
