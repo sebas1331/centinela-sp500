@@ -53,6 +53,19 @@ def precio_de_mercado(p: dict, precios: dict | None, broker=None,
     return None, "sin-precio"
 
 
+def _stops(broker) -> dict:
+    """Sin la lista de contado (dobles de tests antiguos) no hay stops que ver;
+    si la lista falla, se dice con None y no con {} ("no hay ninguna")."""
+    if not hasattr(broker, "ordenes_contado"):
+        return {}
+    from . import proteccion
+    try:
+        return proteccion.stops_por_simbolo(broker)
+    except Exception as exc:  # noqa: BLE001 — la foto sale igual, sin stops
+        print(f"::warning::no se pudo leer las órdenes de contado ({exc!r})", flush=True)
+        return None
+
+
 def volcar(broker, candado_ok: bool = True, precios: dict | None = None,
            cotizar: bool = False) -> dict:
     """Deja en estado/broker.json lo que XTB dice de la cuenta ahora mismo.
@@ -122,6 +135,10 @@ def volcar(broker, candado_ok: bool = True, precios: dict | None = None,
                    if precios_completos else None),
         "divisa": saldo["divisa"],
         "posiciones": filas,
+        # Las stops vivas en XTB (centinela/proteccion.py): la página dice si
+        # cada stop está "en XTB" o "solo vigilante", y la siguiente vuelta las
+        # usa para saber que una stop que desaparece EXISTÍA.
+        "stops": _stops(broker),
     }
     ruta = ARCHIVO
     ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2,

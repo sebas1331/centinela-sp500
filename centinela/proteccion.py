@@ -278,3 +278,42 @@ def registrar_stop_ejecutada(e: dict, hoy: str | None = None) -> ords.Orden:
                    acciones_hechas=int(e["acciones"]), precio_fuente="nivel")
     ords.registrar_ejecucion(orden, ej)
     return orden
+
+
+def stops_de_la_ultima_foto() -> dict[str, dict]:
+    """Las stops que había en la última foto publicada de la cuenta
+    (estado/broker.json). Es la memoria que comparten el vigilante, sus
+    relevos y la reconciliación para saber que una stop EXISTÍA."""
+    import json
+    from . import estado_broker
+    try:
+        return json.loads(estado_broker.ARCHIVO.read_text(encoding="utf-8")).get("stops") or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def revisar(broker, antes: dict[str, dict] | None = None, hoy: str | None = None,
+            log=print) -> dict:
+    """La vuelta completa: detectar las stops que saltaron, y sincronizar.
+
+    1. Una stop que estaba (`antes`), ya no está, y a XTB le faltan acciones
+       respecto al libro: la ejecutó XTB. Se registra la venta (`stop_xtb`).
+    2. Se deja una stop por posición con su cantidad y precio exactos.
+
+    Devuelve {"ejecutadas": [Orden], "informe": [...], "stops": {simbolo: ...}}.
+    """
+    antes = stops_de_la_ultima_foto() if antes is None else antes
+    posiciones = broker.posiciones()
+    ahora = stops_por_simbolo(broker)
+    ejecutadas = []
+    for e in stops_ejecutadas(posiciones, antes, ahora, ords.libro_de_acciones()):
+        o = registrar_stop_ejecutada(e, hoy)
+        log(f"[proteccion] {e['simbolo']}: la stop {e['orden']} SALTÓ en XTB — "
+            f"{e['acciones']} acciones vendidas a ~{e['precio']} (registrada como "
+            f"{o.tipo})")
+        ejecutadas.append(o)
+    if ejecutadas:
+        posiciones = broker.posiciones()
+    informe = sincronizar(broker, stops_deseados(posiciones, hoy), log=log)
+    return {"ejecutadas": ejecutadas, "informe": informe,
+            "stops": stops_por_simbolo(broker)}

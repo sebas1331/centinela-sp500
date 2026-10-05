@@ -115,6 +115,64 @@ tirar la información.
 
 ---
 
+## Parche 3 — Órdenes pendientes de venta y la lista de órdenes de contado
+
+**Ficheros:** `grpc/proto.py` (bloque `CENTINELA (CAMBIOS.md, parche 3)`),
+`grpc/client.py` (`_pending_call`, `new_limit_order`, `new_stop_order`,
+`modify_limit_order`, `modify_stop_order`, `delete_orders_checked`,
+`cash_orders_snapshot`), `grpc/types.py` (`GrpcPendingOrderResult`) y
+`client.py` (`place_pending_order`, `modify_pending_order`,
+`cancel_pending_orders`, `get_cash_orders`).
+
+**De dónde sale.** La web de xStation 5 lleva embebidos los descriptores
+protobuf de sus servicios (base64 dentro de los microfrontends `trading-web-cmp`
+y `portfolio-web-cmp`, en `/mfe/apps/<nombre>-web-cmp/`). Decodificados dan el
+esquema exacto, sin adivinar números de campo:
+
+* `pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService`
+  — el MISMO servicio de `NewMarketOrder`: `NewLimitOrder`, `NewStopOrder`,
+  `ModifyLimitOrder`, `ModifyStopOrder`, `DeleteOrders`.
+* `pl.xtb.ipax.pub.grpc.order.v1.OrderService/SubscribeOrderGroups` — la lista
+  de órdenes que enseña la web. Stream: el primer mensaje es la foto (SNAPSHOT).
+
+Los mensajes que construye el parche se validaron decodificándolos con esos
+mismos descriptores. Sin `expirationDate` la orden no vence (el interruptor
+"Vencimiento de la orden" apagado de la web).
+
+**Dos fallos del original que esto destapó:**
+
+1. `getAllOrders` (WebSocket, lo que usaba `get_orders()`) **no ve las órdenes
+   de contado**: con una limitada y una stop aceptadas devolvió cero. La lista
+   buena es `get_cash_orders()`, que además trae el ESTADO de cada orden.
+2. `cancel_orders` daba por cancelada una orden con que su número volviera en la
+   respuesta, y vuelve también en la rama de error (`ERROR_CODE_CANNOT_FIND_ORDER`).
+   `delete_orders_checked` lee la rama `success`/`error` de cada orden.
+
+**Lo medido en la demo** (2026-10-05, mercado abierto, F.US; runs 37338861588 y
+37359224699 del workflow "Probar órdenes pendientes XTB"):
+
+* XTB solo admite **una** orden pendiente de venta por acción. La segunda se
+  ACEPTA (devuelve número) y a los pocos segundos ya no existe: no está en la
+  lista, y modificarla o cancelarla devuelve "Order modification not allowed"
+  (código 2029). Pasa en los dos órdenes (limitada→stop y stop→limitada).
+  **Aceptada no es viva**: hay que releer la lista.
+* Modificar el precio funciona y conserva el número. Cancelar funciona.
+* Las órdenes pendientes aparecen también en la lista de POSICIONES del
+  WebSocket, como fila `sell`. Todo el repo filtra `lado == "buy"`.
+
+**Hallazgo de paso, sin aplicar todavía:** `build_new_market_order` del original
+mete el stop loss y el take profit DENTRO del mensaje `Size` (campos 3/4), donde
+el esquema no tiene nada; el servidor los recibe como campos desconocidos. Según
+el esquema van en `NewMarketOrderRequest.stopLossValue = 6` /
+`takeProfitValue = 7`. Eso explica que "XTB ignorara" los niveles en contado el
+28/09 y los rechazara el 02/10. También existe `ModifyPosition` (stop y objetivo
+sobre una posición abierta). No se ha probado: el sistema usa órdenes
+pendientes.
+
+**Tests:** `tests/test_proteccion.py` (el uso) y la prueba real del workflow.
+
+---
+
 ## Lo que NO se tocó
 
 **El parche del selector del segundo factor** (`centinela/parche_otp.py`) sigue
@@ -130,7 +188,7 @@ Si algún día reaparece el proyecto o sale una versión nueva:
 
 1. Copiar el árbol nuevo sobre `vendor/xtb_api/`, conservando `LICENSE` y este
    fichero.
-2. Volver a aplicar los dos parches de arriba (`_resolve_instrument_id` y
-   `_grpc_call`) y anotar aquí qué cambió.
+2. Volver a aplicar los tres parches de arriba (`_resolve_instrument_id`,
+   `_grpc_call` y el bloque de órdenes pendientes) y anotar aquí qué cambió.
 3. `pytest` entero en verde, y una compra real de una acción en la demo: los dos
    parches existen porque los tests no bastaban para verlos.

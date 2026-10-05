@@ -222,3 +222,105 @@ def test_sin_stop_no_se_pide_nada(monkeypatch):
     monkeypatch.setattr(config, "STOP_EN_XTB", False)
     assert prot.stops_deseados([{"ticker": "WDC.US", "acciones": 4, "lado": "buy"}],
                                estado={"posiciones": {}}) == {}
+
+
+# --------------------------------------------------------------------------- #
+# Vigilante, reconciliación y página
+# --------------------------------------------------------------------------- #
+import sys  # noqa: E402
+from datetime import datetime  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import ejecutor_xtb as ej  # noqa: E402
+import generar_operativa as go  # noqa: E402
+import vigilante_precios as vp  # noqa: E402
+
+
+def test_vigilante_da_gracia_a_la_stop_de_xtb_y_luego_respalda(monkeypatch):
+    vendidas = []
+    monkeypatch.setattr(vp, "vender_por_nivel",
+                        lambda b, r, v, d, bid: vendidas.append(d) or True)
+    reloj = {"t": 1000.0}
+    monkeypatch.setattr(vp.time, "monotonic", lambda: reloj["t"])
+    precios = vp.Precios()
+    precios.bid["WDC.US"] = 360.0                      # por debajo del stop
+    v = {"ticker": "WDC", "simbolo": "WDC.US", "acciones": 4, "stop": 365.46,
+         "objetivo": 495.49, "stop_xtb": 917531939}
+    quedan = vp.evaluar(None, {}, [v], precios)
+    assert vendidas == [] and quedan == [v], "con la stop en XTB, primero salta XTB"
+    reloj["t"] += config.VIGILANTE_GRACIA_STOP_XTB_SEG + 1
+    vp.evaluar(None, {}, quedan, precios)
+    assert vendidas == ["stop"], "pasada la gracia, respaldo a mercado"
+
+
+def test_vigilante_sin_stop_en_xtb_vende_en_el_acto(monkeypatch):
+    vendidas = []
+    monkeypatch.setattr(vp, "vender_por_nivel",
+                        lambda b, r, v, d, bid: vendidas.append(d) or True)
+    precios = vp.Precios()
+    precios.bid["WDC.US"] = 360.0
+    v = {"ticker": "WDC", "simbolo": "WDC.US", "acciones": 4, "stop": 365.46,
+         "objetivo": 495.49, "stop_xtb": None}
+    vp.evaluar(None, {}, [v], precios)
+    assert vendidas == ["stop"]
+
+
+def test_el_objetivo_no_espera_a_xtb(monkeypatch):
+    vendidas = []
+    monkeypatch.setattr(vp, "vender_por_nivel",
+                        lambda b, r, v, d, bid: vendidas.append(d) or True)
+    precios = vp.Precios()
+    precios.bid["WDC.US"] = 500.0
+    v = {"ticker": "WDC", "simbolo": "WDC.US", "acciones": 4, "stop": 365.46,
+         "objetivo": 495.49, "stop_xtb": 917531939}
+    vp.evaluar(None, {}, [v], precios)
+    assert vendidas == ["objetivo"]
+
+
+def test_reconciliacion_en_rojo_si_la_stop_no_queda_puesta(monkeypatch):
+    x = XTBFalso({"WDC.US": 4})
+    original = x.poner_orden_venta
+
+    def descarta(*a, **k):
+        r = original(*a, **k)
+        x.ordenes.pop(r.orden, None)
+        return r
+    x.poner_orden_venta = descarta
+    monkeypatch.setattr(prot, "stops_de_la_ultima_foto", lambda: {})
+    monkeypatch.setattr(prot, "stops_deseados",
+                        lambda pos, hoy=None: _deseados(**{"WDC.US": (4, 365.46)}))
+    problemas = ej.revisar_stops(x)
+    assert len(problemas) == 1 and "WDC.US" in problemas[0]
+
+
+def test_reconciliacion_repone_y_queda_en_verde(monkeypatch):
+    x = XTBFalso({"WDC.US": 4})
+    monkeypatch.setattr(prot, "stops_de_la_ultima_foto", lambda: {})
+    monkeypatch.setattr(prot, "stops_deseados",
+                        lambda pos, hoy=None: _deseados(**{"WDC.US": (4, 365.46)}))
+    assert ej.revisar_stops(x) == []
+    assert [o["precio"] for o in x.ordenes.values()] == [365.46]
+
+
+def test_pagina_dice_donde_vive_cada_nivel():
+    broker = {"posiciones": [
+        {"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71, "precio_actual": 450.0},
+        {"ticker": "FICO.US", "acciones": 1, "precio_entrada": 600.0, "precio_actual": 610.0}],
+        "stops": {"WDC.US": {"orden": 917531939, "precio": 365.46, "acciones": 4.0}}}
+    sim = {"posiciones": {"A": [
+        {"ticker": "WDC", "stop": 365.46, "objetivo": 495.49, "fecha_entrada": "2026-10-05"},
+        {"ticker": "FICO", "stop": 529.78, "objetivo": 719.96, "fecha_entrada": "2026-09-30"}]}}
+    filas = {f["ticker"]: f for f in go.bloque_posiciones(
+        broker, sim, datetime(2026, 10, 5, 15, 0, tzinfo=config.TZ_ET))}
+    assert filas["WDC"]["stop_en"] == "xtb" and filas["WDC"]["stop_orden_xtb"] == 917531939
+    assert filas["FICO"]["stop_en"] == "vigilante"
+    assert filas["WDC"]["objetivo_en"] == "vigilante"
+
+
+def test_pagina_no_inventa_si_no_se_pudieron_leer_las_stops():
+    broker = {"posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 1,
+                              "precio_actual": 2}], "stops": None}
+    sim = {"posiciones": {"A": [{"ticker": "WDC", "stop": 1.0, "objetivo": 3.0}]}}
+    f = go.bloque_posiciones(broker, sim, datetime(2026, 10, 5, 15, 0, tzinfo=config.TZ_ET))[0]
+    assert f["stop_en"] == "?"

@@ -21,30 +21,25 @@ SIEMPRE explícito y además se verifica dos veces:
 Si cualquiera de las dos falla —o no se puede determinar— no se envía nada y se
 lanza `CuentaNoDemo`. Nunca "por si acaso"; nunca un aviso y seguir.
 
-LO QUE EL CLIENTE NO PUEDE HACER (medido, no supuesto)
-------------------------------------------------------
-El protocolo reverse-engineered solo expone abrir órdenes y cancelar las que
-están en cola. NO existe modificar una posición abierta ni cerrarla por id:
+LO QUE EL CLIENTE PUEDE Y NO PUEDE HACER (medido, no supuesto)
+------------------------------------------------------------------
+* **Stop y objetivo como órdenes pendientes** (desde el 2026-10-05, parche 3
+  del cliente): `poner_orden_venta`, `modificar_orden`, `cancelar_ordenes` y
+  `ordenes_contado`. XTB solo admite UNA orden pendiente de venta por acción,
+  así que la stop va en XTB y el objetivo lo ejecuta el vigilante
+  (centinela/proteccion.py). `vender` cancela antes las órdenes pendientes del
+  símbolo para liberar las acciones.
 
-* **Poner take profit o stop loss: XTB LOS IGNORA en acciones al contado.**
-  Comprobado con una orden real el 2026-09-28, con el mercado abierto: se
-  compró 1 acción de F.US a 12,45 pasando `stop_loss=11.21` y
-  `take_profit=13.70`, y la posición apareció con `STOP=None OBJETIVO=None`.
-  La orden se aceptó y se ejecutó; los niveles simplemente no se aplicaron, sin
-  ningún error. Coincide con lo que documenta XTB: en acciones reales los
-  niveles no van sobre la posición, sino como órdenes pendientes
-  independientes (sell stop / sell limit) que este cliente no sabe crear.
+* **Niveles al comprar: no se mandan.** El 28/09 XTB los "ignoró" y el 02/10
+  rechazó la orden entera. El parche 3 encontró por qué: el cliente original
+  los metía en un campo que el esquema no tiene (ver vendor/xtb_api/CAMBIOS.md).
+  No se ha probado la forma correcta; el sistema usa la orden pendiente.
 
-  Consecuencia directa: **la Cartera A no puede llevar su stop en el broker**
-  por esta vía, que es justo lo que la distingue de la B.
-
-* **Modificar el take profit**: imposible, y ya da igual, porque tampoco se
-  puede poner al abrir.
+* **Modificar el objetivo de una posición** (`modificar_objetivo`): no se usa;
+  el objetivo lo lleva el vigilante.
 
 * **Cerrar una posición**: se hace vendiendo el mismo volumen (`vender`). En
-  acciones al contado eso netea la posición; si XTB la tratara como cobertura y
-  abriera una corta, la reconciliación posterior lo detecta y el ejecutor
-  termina en ROJO en lugar de dejar una posición espuria abierta.
+  acciones al contado eso netea la posición.
 
 VOLUMEN ENTERO
 --------------

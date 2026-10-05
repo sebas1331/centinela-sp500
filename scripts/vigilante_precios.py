@@ -17,6 +17,16 @@ el simulador supone. La diferencia entre lo que consigue y aquel vistazo diario
 es medible: las salidas llevan tipo propio (`stop_intradia`, `objetivo_intradia`)
 justamente para poder compararlas.
 
+LA STOP TAMBIÉN VA EN XTB (2026-10-05)
+--------------------------------------
+Desde el parche 3 del cliente, la stop de cada posición se pone como orden
+pendiente en el servidor de XTB (centinela/proteccion.py), que salta aunque este
+proceso o GitHub fallen. En cada relectura el vigilante la repone si falta, la
+ajusta si no cuadra y detecta si saltó. Si ve el precio cruzar un stop que ya
+está en XTB, espera `VIGILANTE_GRACIA_STOP_XTB_SEG` a que salte allí y solo
+después vende él a mercado, como respaldo. El objetivo sigue siendo suyo: XTB
+admite una sola orden pendiente de venta por acción.
+
 LO QUE NO HACE
 --------------
 No decide nada. Los niveles son los que el simulador calculó la víspera y se
@@ -60,7 +70,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from centinela import (ambiguas as amb, calendario, config,  # noqa: E402
                        broker_xtb as bx, diario, estado_broker, latido as lat,
                        niveles as niv, ordenes as ords, estado as est_mod,
-                       salud)
+                       proteccion, salud)
 
 #: Cada cuánto se pregunta por precios cuando el WebSocket está caído.
 RESPALDO_SEGUNDOS = 20
@@ -476,8 +486,24 @@ def evaluar(broker, registro: dict, vigiladas: list[dict],
         v["bid"] = bid
         disparo = niv.cruce(bid, v.get("stop"), v.get("objetivo"))
         if disparo is None:
+            v.pop("_cruce_stop", None)
             quedan.append(v)
             continue
+        # La stop está en XTB: que salte allí. El vigilante solo entra como
+        # respaldo si, pasada la gracia, la posición sigue abierta.
+        if disparo == "stop" and v.get("stop_xtb"):
+            nuevo = "_cruce_stop" not in v
+            desde = v.setdefault("_cruce_stop", time.monotonic())
+            espera = time.monotonic() - desde
+            if espera < config.VIGILANTE_GRACIA_STOP_XTB_SEG:
+                if nuevo:
+                    log(f"  {v['ticker']}: bid {bid} cruzó el stop {v['stop']}; "
+                        f"la stop #{v['stop_xtb']} está en XTB, se le dan "
+                        f"{config.VIGILANTE_GRACIA_STOP_XTB_SEG} s para saltar.")
+                quedan.append(v)
+                continue
+            log(f"  {v['ticker']}: la stop de XTB no saltó en "
+                f"{espera:.0f} s; respaldo a mercado.")
         if vender_por_nivel(broker, registro, v, disparo, bid):
             VENDIDAS["n"] += 1
         # Vendida o ya cerrada por otro, deja de vigilarse: en los dos casos no
@@ -549,6 +575,8 @@ class Sesion:
         self.tiempos_hechos = False
         self.ventas_tiempo = 0
         self.foto_broker: dict | None = None
+        #: Stops en XTB vistas en la última vuelta (None: aún no se miró).
+        self.stops_vistos: dict | None = None
         self.error_broker: str | None = None
         self.ultima_foto_ok = mono()
         self.ultimo_latido_ok = mono()
@@ -595,8 +623,49 @@ class Sesion:
                 + (", ".join(sorted(ahora)) or "ninguna")
                 + (f" — ya no están: {', '.join(sorted(antes - ahora))}"
                    if antes - ahora else ""))
+        # La gracia de una stop cruzada se conserva entre relecturas.
+        previas = {v["simbolo"]: v for v in self.vigiladas}
+        for v in nuevas:
+            if "_cruce_stop" in previas.get(v["simbolo"], {}):
+                v["_cruce_stop"] = previas[v["simbolo"]]["_cruce_stop"]
         self.vigiladas = nuevas
+        self.proteger()
         self.proximo_refresco = self.mono() + config.VIGILANTE_REFRESCO_SEG
+
+    # --- la stop en XTB ------------------------------------------------------
+    def proteger(self) -> None:
+        """Stop de cada posición en XTB: detectar las que saltaron, reponer las
+        que falten, y marcar en cada vigilada qué stop la protege.
+
+        Nunca tumba al vigilante: si XTB no deja, el stop lo sigue vigilando
+        él, que es como funcionaba antes. Pero se dice en voz alta.
+        """
+        if self.prueba or not config.STOP_EN_XTB or \
+                not hasattr(self.broker, "ordenes_contado"):
+            return
+        if self.stops_vistos is None:
+            self.stops_vistos = proteccion.stops_de_la_ultima_foto()
+        try:
+            r = proteccion.revisar(self.broker, self.stops_vistos, self.hoy, log=log)
+        except Exception as exc:  # noqa: BLE001
+            print(f"::warning::no se pudo revisar las stops en XTB ({exc!r}); "
+                  f"el vigilante sigue vigilándolas.", flush=True)
+            return
+        for i in r["informe"]:
+            if not i["ok"]:
+                print(f"::error::{i['simbolo']}: stop NO puesta en XTB — "
+                      f"{i['error']}. La vigila solo el vigilante.", flush=True)
+        for o in r["ejecutadas"]:
+            if not en_prueba():
+                publicar_venta(o.ticker, o.tipo)
+        self.stops_vistos = r["stops"]
+        for v in self.vigiladas:
+            v["stop_xtb"] = (self.stops_vistos.get(v["simbolo"]) or {}).get("orden")
+        if r["ejecutadas"]:
+            simbolos = {ords.simbolo_xtb(o.ticker) for o in r["ejecutadas"]}
+            self.vigiladas = [v for v in self.vigiladas
+                              if v["simbolo"] not in simbolos
+                              or niv.sigue_abierta(self.broker, v["simbolo"], 1)]
 
     # --- la foto de la cuenta ----------------------------------------------
     def fotografiar(self) -> None:

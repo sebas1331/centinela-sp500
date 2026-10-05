@@ -446,3 +446,33 @@ def filas_de_sesion(sesion: str, ruta: Path | None = None) -> list[dict]:
     with open(ruta, encoding="utf-8", newline="") as f:
         return [fila for fila in csv.DictReader(f, restval="")
                 if fila.get("sesion") == sesion]
+
+
+def libro_de_acciones(desde: str | None = None) -> dict[str, int]:
+    """Acciones que DEBERÍA haber en XTB según `bitacora_broker.csv`, por símbolo.
+
+    Compras ejecutadas menos ventas ejecutadas, desde el arranque. Es la otra
+    mitad de la reconciliación: la posición del simulador dice qué debería
+    estar abierto según la estrategia; esto dice qué debería estar abierto
+    según lo que el propio sistema MANDÓ. Una venta hecha en XTB que no está
+    aquí —un push que la perdió, un cierre a mano en xStation 5— aparece como
+    XTB con menos acciones de las que dice el libro.
+    """
+    desde = desde or config.EJECUCION_DESDE
+    ruta = ARCHIVO_BITACORA_BROKER
+    libro: dict[str, int] = {}
+    if not ruta.exists():
+        return libro
+    import csv
+    with open(ruta, encoding="utf-8", newline="") as f:
+        for fila in csv.DictReader(f, restval=""):
+            if fila.get("estado") != "ejecutada" or str(fila.get("sesion", "")) < desde:
+                continue
+            try:
+                n = int(float(fila.get("acciones") or 0))
+            except ValueError:
+                continue
+            signo = 1 if lado_de(fila.get("tipo", "")) == "compra" else -1
+            simbolo = fila.get("simbolo_xtb") or simbolo_xtb(fila["ticker"])
+            libro[simbolo] = libro.get(simbolo, 0) + signo * n
+    return libro

@@ -248,6 +248,11 @@ CARTERA_BROKER = "A"
 #: admite una orden pendiente de venta por acción (medido el 2026-10-05) y la
 #: stop es la protección que importa cuando nadie mira.
 STOP_EN_XTB = True
+#: Si el precio cruza un stop que YA está en XTB, el vigilante espera esto a
+#: que salte en el servidor antes de vender él a mercado como respaldo. Vender
+#: los dos a la vez no puede (la stop reserva las acciones), y la stop de XTB
+#: es la ejecución buena: no depende de que llegue un tick al runner.
+VIGILANTE_GRACIA_STOP_XTB_SEG = 90
 
 #: NÚMERO DE LA CUENTA DEMO QUE SE OPERA. El candado exige que la sesión
 #: conectada sea EXACTAMENTE esta, y vive aquí —en el código versionado— y no

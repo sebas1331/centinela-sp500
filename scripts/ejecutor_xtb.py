@@ -844,33 +844,9 @@ def _compras_rechazadas_sin_reponer(posiciones: list[dict]) -> dict:
 
 
 def libro_de_acciones(desde: str | None = None) -> dict[str, int]:
-    """Acciones que DEBERÍA haber en XTB según `bitacora_broker.csv`, por símbolo.
-
-    Compras ejecutadas menos ventas ejecutadas, desde el arranque. Es la otra
-    mitad de la reconciliación: la posición del simulador dice qué debería
-    estar abierto según la estrategia; esto dice qué debería estar abierto
-    según lo que el propio sistema MANDÓ. Una venta hecha en XTB que no está
-    aquí —un push que la perdió, un cierre a mano en xStation 5— aparece como
-    XTB con menos acciones de las que dice el libro.
-    """
-    desde = desde or config.EJECUCION_DESDE
-    ruta = ords.ARCHIVO_BITACORA_BROKER
-    libro: dict[str, int] = {}
-    if not ruta.exists():
-        return libro
-    import csv
-    with open(ruta, encoding="utf-8", newline="") as f:
-        for fila in csv.DictReader(f, restval=""):
-            if fila.get("estado") != "ejecutada" or str(fila.get("sesion", "")) < desde:
-                continue
-            try:
-                n = int(float(fila.get("acciones") or 0))
-            except ValueError:
-                continue
-            signo = 1 if ords.lado_de(fila.get("tipo", "")) == "compra" else -1
-            simbolo = fila.get("simbolo_xtb") or ords.simbolo_xtb(fila["ticker"])
-            libro[simbolo] = libro.get(simbolo, 0) + signo * n
-    return libro
+    """Ver `ordenes.libro_de_acciones` (vive allí para que el vigilante de
+    precios también lo use al detectar una stop que saltó en XTB)."""
+    return ords.libro_de_acciones(desde)
 
 
 def cuadrar_libro(broker: bx.BrokerXTB) -> list[str]:
@@ -962,9 +938,46 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     for t in sorted((reales - simuladas) & comprado_hoy):
         log(f"{t}: comprada hoy; el simulador la convertirá en posición en el "
             f"post-cierre. No es una diferencia.")
+    # La stop de cada posición en el servidor de XTB (centinela/proteccion.py).
+    # ANTES del libro: si una stop saltó, esa venta se registra aquí y el
+    # libro cuadra; si no, saldría como "venta que el sistema no tiene".
+    problemas.extend(revisar_stops(broker))
     # Y el libro: lo que el sistema mandó contra lo que XTB tiene.
     problemas.extend(cuadrar_libro(broker))
     return problemas
+
+
+def revisar_stops(broker) -> list[str]:
+    """Cada posición abierta con UNA stop en XTB, cantidad y precio exactos.
+
+    Primero se intenta dejarlo bien (reponer la que falte, ajustar la que no
+    cuadre): la reconciliación no está para denunciar lo que puede arreglar.
+    Lo que siga mal DESPUÉS es rojo: una posición sin su stop en el servidor
+    solo está protegida mientras el vigilante esté vivo.
+    """
+    if not config.STOP_EN_XTB or not hasattr(broker, "ordenes_contado"):
+        return []
+    from centinela import proteccion
+    try:
+        r = proteccion.revisar(broker, log=log)
+        problemas = [f"{i['simbolo']}: no se pudo dejar la stop en XTB — {i['error']}"
+                     for i in r["informe"] if not i["ok"]]
+        problemas.extend(proteccion.verificar(
+            broker, proteccion.stops_deseados(broker.posiciones())))
+    except Exception as exc:  # noqa: BLE001 — no poder mirarlo es rojo, no verde
+        return [f"no se pudo comprobar las stops en XTB: {exc!r}"]
+    # Una misma posición no se denuncia dos veces (fallo al poner + verificar).
+    vistos, unicos = set(), []
+    for p in problemas:
+        clave = p.split(":", 1)[0]
+        if clave not in vistos:
+            vistos.add(clave)
+            unicos.append(p)
+    for i in r["informe"]:
+        if i["ok"]:
+            log(f"  {i['simbolo']}: stop en XTB #{i['orden']} x{i['acciones']} "
+                f"@ {i['stop']} ({i['accion']})")
+    return unicos
 
 
 # --------------------------------------------------------------------------- #

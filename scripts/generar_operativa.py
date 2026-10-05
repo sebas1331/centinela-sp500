@@ -237,6 +237,9 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
     hoy_niveles = _niveles_comprados_hoy(ahora.date().isoformat())
     manana = _proxima_sesion(ahora)
 
+    # Las stops vivas en XTB según la misma foto. None = no se pudieron leer:
+    # no se dice "solo vigilante" de lo que no se sabe.
+    stops_xtb = estado_broker.get("stops")
     filas = []
     for p in estado_broker.get("posiciones", []):
         tk = str(p.get("ticker", "")).replace(".US", "").replace("-", ".")
@@ -265,6 +268,16 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
             "precio_actual": actual,
             "objetivo": objetivo,
             "stop": stop,
+            # Dónde vive cada nivel. El objetivo, siempre en el vigilante: XTB
+            # solo admite una orden pendiente de venta por acción y esa es la
+            # stop (centinela/proteccion.py).
+            "objetivo_en": "vigilante" if objetivo else None,
+            "stop_en": (None if not stop else
+                        "?" if stops_xtb is None else
+                        "xtb" if (stops_xtb.get(p.get("ticker")) or {}).get("orden")
+                        else "vigilante"),
+            "stop_orden_xtb": ((stops_xtb or {}).get(p.get("ticker")) or {}).get("orden"),
+            "stop_precio_xtb": ((stops_xtb or {}).get(p.get("ticker")) or {}).get("precio"),
             "dist_objetivo_pct": (_r(100.0 * (objetivo / actual - 1.0))
                                   if objetivo and actual else None),
             "dist_stop_pct": (_r(100.0 * (actual / stop - 1.0))

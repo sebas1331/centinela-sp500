@@ -773,7 +773,7 @@ inversa de xStation5. Tres limitaciones, todas medidas:
 
 | Limitación | Impacto medido |
 |---|---|
-| **XTB ignora el stop y el take profit** en acciones al contado | La Cartera A pasa de +12,07 % / −10,44 % a **+9,32 % / −12,50 %** con el stop vigilado 1 vez al día |
+| **XTB solo admite UNA orden pendiente de venta por acción** (medido el 05/10/2026) | La stop va en el servidor de XTB como orden pendiente; el objetivo lo ejecuta el vigilante de precios a mercado (`centinela/proteccion.py`). Antes del 05/10 ninguno de los dos iba en XTB: el cliente mandaba los niveles en un campo equivocado (ver `vendor/xtb_api/CAMBIOS.md`, parche 3) |
 | No se puede cerrar una posición por id | Se vende el mismo volumen; en acciones al contado eso netea (comprobado) |
 | Sin acciones fraccionadas por la API | Con $30.000 y 20 slots, 4 de 141 entradas no caben. Desde $50.000, ninguna |
 
