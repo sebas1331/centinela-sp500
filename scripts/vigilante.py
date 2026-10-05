@@ -352,7 +352,16 @@ def revisar_ejecutor(n_sesiones: int, ahora: datetime | None = None) -> list[str
              "exigibles: nada que reportar.")
         return problemas
 
-    sin_enviar = [o for o in esperadas if o.id not in enviadas]
+    # Una orden RECHAZADA también está reportada: tiene su fila en
+    # bitacora_broker.csv aunque no esté entre las enviadas (solo se marcan las
+    # que XTB aceptó). Contarla como "no reportada" daba un falso rojo diario
+    # (03/10 y 04/10, la compra de CTVA del 02/10); el rechazo ya pinta rojo
+    # por su propio camino, con su causa, en la página.
+    en_bitacora = set()
+    for sesion in sesiones:
+        en_bitacora |= {f.get("id") for f in ords.filas_de_sesion(sesion)}
+    sin_enviar = [o for o in esperadas
+                  if o.id not in enviadas and o.id not in en_bitacora]
     _log(f"Órdenes exigibles al ejecutor: {len(esperadas)} | "
          f"sin constancia de envío: {len(sin_enviar)}")
     for o in sin_enviar:

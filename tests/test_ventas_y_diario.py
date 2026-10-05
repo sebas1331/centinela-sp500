@@ -493,3 +493,25 @@ def test_el_historial_de_un_relevo_sigue_el_de_hoy_y_no_el_de_ayer():
     previo = {"historial": [{"cuando": "2026-10-02T15:58:00-04:00"},
                             {"cuando": "2026-10-05T09:31:00-04:00"}]}
     assert len(lat.historial_de_hoy(previo, "2026-10-05")) == 1
+
+
+def test_el_arranque_del_vigilante_no_se_cae_cuando_el_ejecutor_muere():
+    """05/10: el ejecutor murió sin escribir `posiciones_xtb` y GitHub, que
+    compara '' y '0' como el número 0, dejó el vigilante sin arrancar."""
+    import yaml
+    d = yaml.safe_load((RAIZ / ".github/workflows/preapertura.yml").read_text())
+    cond = d["jobs"]["arrancar_vigilante"]["if"]
+    assert "format(" in cond and "!= '0'" not in cond
+
+
+def test_una_orden_rechazada_cuenta_como_reportada(monkeypatch):
+    import vigilante
+    o = ords.Orden(id="2026-10-02|A|CTVA|compra", tipo=ords.COMPRA, cartera="A",
+                   ticker="CTVA", acciones=134, sesion="2026-10-02")
+    ords.guardar_pendientes([o], "2026-10-02", "A")
+    monkeypatch.setattr(vigilante, "sesiones_a_exigir", lambda *_a: ["2026-10-02"])
+    assert len(vigilante.revisar_ejecutor(1)) == 1     # sin rastro: problema
+    ords.registrar_ejecucion(o, bx.Ejecucion(
+        ticker="CTVA.US", lado="compra", acciones=134, estado="rechazada",
+        cuando="2026-10-02T09:30:19-04:00"))
+    assert vigilante.revisar_ejecutor(1) == []          # rechazada, pero reportada

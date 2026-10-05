@@ -5,6 +5,36 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-05 — Prueba real superada; dos fallos del arranque corregidos
+
+**Prueba real en la demo** (run 37320179922, 09:53 ET): compra de 1 acción de
+F a 12,18; el vigilante, con un objetivo artificial en 12,14, vio el bid 12,17,
+vendió y la confirmación dijo **ejecutada** («F.US bajó de 1 a 0 acciones») en
+5,9 s. Precio deducido del saldo: 12,17.
+
+**Modelo de saldo de XTB, medido: CAJA.** Al comprar, el saldo bajó exactamente
+el importe (29.891,88 → 29.879,70, Δ −12,18 = 1 × 12,18). Las ventas se deducen
+con `saldo-caja`; el cálculo del modelo `pnl` se mantiene como contraste, pero
+ya no es una incógnita.
+
+**Fallos del arranque de hoy:**
+
+- **El vigilante no arrancó tras la compra fallida de WDC.** El ejecutor murió
+  sin escribir `posiciones_xtb`, y GitHub compara `'' != '0'` convirtiendo los
+  dos en el número 0: la condición dio falso. Ahora compara texto con `format`.
+- **Falso rojo del Vigilante general el 03/10 y el 04/10**: daba por «no
+  reportada» la compra RECHAZADA de CTVA del 02/10, porque solo miraba las
+  órdenes enviadas. Una orden con fila en `bitacora_broker.csv` está reportada;
+  el rechazo ya pinta rojo por su propio camino.
+
+**Abierto, pendiente de decisión:** la compra de WDC se mandó a las 09:30:31
+(11 s después de abrir) y XTB la aceptó y la descartó (orden 917440474; 0
+posiciones y saldo intacto en la auditoría de las 09:51). El 02/10 CTVA falló
+igual a las 09:30:19 — atribuido entonces a los niveles, pero hoy no se mandaron
+niveles. Las compras que sí entraron fueron a las 09:52, 09:53 y 10:06.
+
+---
+
 ## 2026-10-02 (5) — Las ventas, de verdad; y un semáforo que no miente
 
 La auditoría del día dio «no listo»: las compras funcionaban, pero **las ventas

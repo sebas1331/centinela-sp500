@@ -368,7 +368,10 @@ jobs:
   # abierto—: los peldaños "ya procesado" de la escalera no lo relanzan.
   arrancar_vigilante:
     needs: [preapertura, ejecutor]
-    if: always() && needs.ejecutor.result != 'skipped' && needs.ejecutor.outputs.posiciones_xtb != '0'
+    # La comparación va con `format` a propósito: GitHub convierte '' y '0' en
+    # el número 0 al compararlos, así que `posiciones_xtb != '0'` daba FALSO
+    # justo cuando el ejecutor moría sin escribir la salida (05/10, WDC).
+    if: always() && needs.ejecutor.result != 'skipped' && format('n{0}', needs.ejecutor.outputs.posiciones_xtb) != 'n0'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
