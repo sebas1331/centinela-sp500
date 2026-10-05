@@ -787,3 +787,20 @@ def test_el_job_de_salud_puede_escribir(fichero):
     wf = _wf(fichero)
     permisos = wf["jobs"]["salud"].get("permissions") or wf.get("permissions") or {}
     assert permisos.get("contents") == "write", f"{fichero}: salud sin escritura"
+
+
+def test_una_compra_de_hoy_cuenta_como_posicion_que_vigilar():
+    """05/10: WDC comprada a las 09:58 contaba 0 posiciones que vigilar, porque
+    el simulador no le pone niveles hasta el post-cierre. Si el vigilante
+    muriera, la página no se habría puesto roja."""
+    from centinela import broker_xtb as bx2, ordenes as o2
+    hoy = AHORA.date().isoformat()
+    o2.registrar_ejecucion(
+        o2.Orden(id=f"{hoy}|A|WDC|entrada_tardia", tipo=o2.ENTRADA_TARDIA,
+                 cartera="A", ticker="WDC", acciones=4, sesion=hoy),
+        bx2.Ejecucion(ticker="WDC.US", lado="compra", acciones=4,
+                      estado="ejecutada", precio=439.71,
+                      cuando=AHORA.isoformat()))
+    v = go.bloque_vigilante_precios(AHORA, [{"ticker": "WDC", "stop": None,
+                                             "objetivo": None}])
+    assert v["posiciones_a_vigilar"] == 1

@@ -424,6 +424,13 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
 # --------------------------------------------------------------------------- #
 # El vigilante de precios
 # --------------------------------------------------------------------------- #
+def _comprados_hoy(hoy: str) -> set[str]:
+    """Tickers con una compra EJECUTADA hoy en XTB (compra o entrada tardía)."""
+    return {f["ticker"] for f in ords.filas_de_sesion(hoy)
+            if f.get("estado") == "ejecutada"
+            and f.get("tipo") in ords.TIPOS_COMPRA}
+
+
 def bloque_vigilante_precios(ahora: datetime, posiciones: list[dict]) -> dict:
     """De dónde sacar el latido y cuándo exigirlo.
 
@@ -458,10 +465,17 @@ def bloque_vigilante_precios(ahora: datetime, posiciones: list[dict]) -> dict:
         # Y las que salen HOY por tiempo, aunque no tengan nivel: desde el
         # 2026-10-02 esas ventas las hace el vigilante antes del cierre, así
         # que sin vigilante se quedan sin vender.
+        #
+        # Y las COMPRADAS HOY: el simulador no les pone niveles hasta el
+        # post-cierre, así que contaban 0 y la página no se ponía roja si el
+        # vigilante moría con ellas abiertas (05/10, WDC). Sus niveles están en
+        # la fila de la compra en bitacora_broker.csv, y de ahí los lee el
+        # vigilante.
         "posiciones_a_vigilar": sum(
             1 for p in posiciones
             if p.get("stop") is not None or p.get("objetivo") is not None
-            or p.get("fecha_limite") == hoy.isoformat()),
+            or p.get("fecha_limite") == hoy.isoformat()
+            or p.get("ticker") in _comprados_hoy(hoy.isoformat())),
         # El umbral de un corte en el historial del latido: el mismo que el de
         # "muerto". La página lo usa para decir si la sesión estuvo cubierta.
         "corte_minutos": lat.MUERTO_MINUTOS,
