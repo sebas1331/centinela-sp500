@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-05T11:18:44.863677-04:00",
+  "actualizado": "2026-10-05T11:56:30.711443-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-02T15:49:15.933355-04:00",
@@ -51,11 +51,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37079912483"
     },
     "vigilante": {
-      "cuando": "2026-10-05T11:18:44.863677-04:00",
+      "cuando": "2026-10-05T11:56:30.711443-04:00",
       "detalle": "",
       "resultado": "ok",
-      "run": "37331618582",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37331618582"
+      "run": "37336722449",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37336722449"
     },
     "vigilante_precios": {
       "cuando": "2026-10-05T09:58:12.806240-04:00",
