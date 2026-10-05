@@ -243,6 +243,12 @@ EJECUCION_BROKER = True
 #: está acotado por nada (ver centinela/riesgo.py).
 CARTERA_BROKER = "A"
 
+#: El stop de cada posición va como "Orden Stop de venta" en el servidor de
+#: XTB (centinela/proteccion.py), además de vigilado. El objetivo NO: XTB solo
+#: admite una orden pendiente de venta por acción (medido el 2026-10-05) y la
+#: stop es la protección que importa cuando nadie mira.
+STOP_EN_XTB = True
+
 #: NÚMERO DE LA CUENTA DEMO QUE SE OPERA. El candado exige que la sesión
 #: conectada sea EXACTAMENTE esta, y vive aquí —en el código versionado— y no
 #: solo en las credenciales a propósito.

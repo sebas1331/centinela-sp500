@@ -252,6 +252,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--operar", action="store_true", help="hacer la prueba (abre y cierra 1 acción)")
     ap.add_argument("--revisar", action="store_true", help="solo listar")
+    ap.add_argument("--proteger", action="store_true",
+                    help="poner/ajustar en XTB la stop de las posiciones reales")
     ap.add_argument("--limpiar", action="store_true",
                     help="cancelar las órdenes vivas de F.US y cerrar su posición")
     args = ap.parse_args()
@@ -260,6 +262,18 @@ def main() -> int:
         with bx.BrokerXTB(cred) as b:
             log("CONECTADO — candado de cuenta demo superado")
             revisar(b)
+            if args.proteger:
+                from centinela import proteccion
+                deseados = proteccion.stops_deseados(b.posiciones())
+                log(f"stops deseados: {deseados}")
+                inf = proteccion.sincronizar(b, deseados, log=log)
+                for r in inf:
+                    log(f"   {r}")
+                problemas = proteccion.verificar(b, deseados)
+                revisar(b)
+                for p in problemas:
+                    log(f"PROBLEMA: {p}")
+                return 1 if problemas else 0
             if args.limpiar:
                 ok = limpiar(b)
                 log(f"LIMPIEZA: {'cuenta limpia' if ok else '¡QUEDAN RESTOS!'}")

@@ -73,9 +73,14 @@ ENTRADA_TARDIA = "entrada_tardia"
 #: contarse como una salida por stop ni por tiempo. Se manda a mano y queda
 #: fuera de las estadísticas de la demo, como la operación que cierra.
 VENTA_DATO_ERRONEO = "venta_dato_erroneo"
+#: La stop que vive en el SERVIDOR de XTB como orden pendiente
+#: (centinela/proteccion.py) y que saltó sola. Nombre propio porque no la
+#: disparó nadie de este sistema: su precio registrado es el nivel de la orden
+#: (`precio_fuente = nivel`), no uno devuelto por XTB.
+VENTA_STOP_XTB = "stop_xtb"
 TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
          VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA,
-         ENTRADA_TARDIA, VENTA_DATO_ERRONEO)
+         ENTRADA_TARDIA, VENTA_DATO_ERRONEO, VENTA_STOP_XTB)
 
 #: Las que COMPRAN. Todo lo demás vende. Hace falta saberlo para confirmar una
 #: orden contra XTB: una compra se confirma porque la posición CRECE y una venta

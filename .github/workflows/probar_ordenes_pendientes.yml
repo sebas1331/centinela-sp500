@@ -16,6 +16,10 @@ on:
         description: "Hacer la prueba (abre y cierra 1 acción de F.US)"
         type: boolean
         default: false
+      proteger:
+        description: "Poner/ajustar en XTB la stop de las posiciones reales (no opera nada más)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -55,4 +59,4 @@ jobs:
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
         run: |
           python scripts/probar_ordenes_pendientes.py \
-            ${{ inputs.operar && '--operar' || '--revisar' }}
+            ${{ inputs.proteger && '--proteger' || (inputs.operar && '--operar' || '--revisar') }}

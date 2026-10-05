@@ -612,6 +612,7 @@ class BrokerXTB:
         la posición desapareció de verdad.
         """
         self._exigir_entero(acciones)
+        self.liberar_acciones(ticker)
         r = self._ejecutar(self._cliente.sell(ticker, volume=acciones))
         return self._traducir(r, ticker, "venta", acciones)
 
@@ -666,6 +667,31 @@ class BrokerXTB:
         if o.orden is None:
             o.orden = int(orden)
         return o
+
+    def liberar_acciones(self, ticker: str) -> list[int]:
+        """Cancela las órdenes pendientes de VENTA del símbolo antes de vender.
+
+        Una stop puesta en XTB (centinela/proteccion.py) reserva las acciones:
+        con ella viva, la venta a mercado no tiene acciones libres. Va aquí, en
+        el único sitio por el que vende todo el sistema (objetivo, tiempo,
+        diferida, limpieza), para que ningún camino se olvide de hacerlo. Si
+        la venta luego falla, la próxima sincronización repone la stop.
+
+        Un cliente sin la lista de contado (los dobles de los tests antiguos)
+        no tiene nada que liberar.
+        """
+        if not hasattr(self._cliente, "get_cash_orders"):
+            return []
+        vivas = [o["orden"] for o in self.ordenes_contado()["ordenes"]
+                 if o["ticker"] == ticker and o["lado"] == "sell"]
+        if not vivas:
+            return []
+        r = self.cancelar_ordenes(vivas)
+        malas = {n: e for n, (ok, e) in r.items() if not ok}
+        print(f"[liberar] {ticker}: canceladas {sorted(set(vivas) - set(malas))} "
+              f"antes de vender" + (f"; NO se pudo con {malas}" if malas else ""),
+              flush=True)
+        return [n for n in vivas if n not in malas]
 
     def cancelar_ordenes(self, ordenes: list[int]) -> dict[int, tuple[bool, str | None]]:
         """{orden: (cancelada_de_verdad, error)}. Lee la rama de error de CADA

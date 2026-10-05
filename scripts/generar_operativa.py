@@ -307,6 +307,8 @@ NOMBRE_TIPO = {
     # estrategia, así que no puede llamarse como una venta por stop ni por
     # tiempo: ver centinela/datos_erroneos.py.
     ords.VENTA_DATO_ERRONEO: "Cierre por dato erróneo",
+    # La stop puesta como orden pendiente en XTB, que saltó en su servidor.
+    ords.VENTA_STOP_XTB: "Stop en XTB",
 }
 #: Grupos de los chips de filtro.
 GRUPO_TIPO = {
@@ -316,6 +318,7 @@ GRUPO_TIPO = {
     ords.VENTA_STOP_INTRADIA: "ventas", ords.VENTA_OBJETIVO_INTRADIA: "ventas",
     ords.ENTRADA_TARDIA: "compras",
     ords.VENTA_DATO_ERRONEO: "ventas",
+    ords.VENTA_STOP_XTB: "ventas",
 }
 
 
