@@ -42,6 +42,10 @@ on:
         description: "Vigilar solo este rato, en minutos (pruebas)"
         type: string
         default: ""
+      rescate_de:
+        description: "Run cuyo vigilante dejó de latir (lo rellena el guardián)"
+        type: string
+        default: ""
   # Respaldo: si el workflow de compras no pudo llamar a nadie. Cada peldaño se
   # va enseguida si ya hay un vigilante vivo.
   #   verano  (EDT, sesión 13:30-20:00 UTC)
@@ -69,7 +73,10 @@ permissions:
 # fallaba en rojo. Un vigilante que arranca con la sesión ya abierta llega al
 # cierre antes de necesitar relevo, así que el relevo de un relevo no existe.
 concurrency:
-  group: vigilante-precios${{ inputs.relevo_de && '-relevo' || '' }}
+#
+# Y EL RESCATE, EN EL SUYO: lo lanza el guardián cuando el runner del vigilante
+# murió, y no puede esperar a que GitHub dé por terminado el run muerto.
+  group: vigilante-precios${{ inputs.relevo_de && '-relevo' || '' }}${{ inputs.rescate_de && '-rescate' || '' }}
   cancel-in-progress: false
 
 jobs:
@@ -97,6 +104,7 @@ jobs:
         env:
           FORZAR: ${{ inputs.forzar && 'si' || '' }}
           RELEVO_DE: ${{ inputs.relevo_de }}
+          RESCATE_DE: ${{ inputs.rescate_de }}
         run: python scripts/hace_falta_vigilante.py
 
   vigilar:
@@ -139,16 +147,14 @@ jobs:
           XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Aviso externo (ver centinela/aviso.py). Sin ellos el vigilante
-          # funciona igual, pero lo dice: nadie recibiría un email si muere.
-          HEALTHCHECKS_PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
-          HEALTHCHECKS_API_KEY: ${{ secrets.HEALTHCHECKS_API_KEY }}
         run: |
           ARGS=""
           if [ -n "${{ inputs.relevo_de }}" ]; then ARGS="$ARGS --relevo-de ${{ inputs.relevo_de }}"; fi
           if [ "${{ inputs.forzar }}" = "true" ]; then ARGS="$ARGS --forzar"; fi
           if [ -n "${{ inputs.minutos }}" ]; then ARGS="$ARGS --minutos ${{ inputs.minutos }}"; fi
-          python scripts/vigilante_precios.py $ARGS
+          # Por el SUPERVISOR: si el proceso muere o se cuelga, lo relanza en
+          # segundos dentro de este mismo job (scripts/supervisor_vigilante.py).
+          python scripts/supervisor_vigilante.py $ARGS
 
       # Por el diario, sin rebase. El vigilante publica cada venta en cuanto la
       # hace; esto recoge lo que quedara pendiente si murió a mitad, con
@@ -158,11 +164,37 @@ jobs:
         run: |
           python scripts/publicar_diario.py --mensaje "vigilante de precios: cierre de sesión [skip ci]"
 
+  # EL GUARDIÁN: en OTRO runner, mira el latido publicado y, si el vigilante
+  # deja de latir más de 11 min con la sesión abierta (su runner murió y el
+  # supervisor con él), lanza un vigilante de rescate en su propio grupo.
+  guardian:
+    needs: hace_falta
+    if: needs.hace_falta.outputs.arrancar == 'si'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Vigilar al vigilante
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/guardian_vigilante.py
+
   # LA SALUD de los componentes de este workflow. Va por el diario: no rebasa,
   # no choca y no tiene grupo de concurrencia, así que GitHub no la puede
   # cancelar por estar esperando turno (ver centinela/diario.py).
   salud:
-    needs: [hace_falta, vigilar]
+    needs: [hace_falta, vigilar, guardian]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10

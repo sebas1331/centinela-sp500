@@ -94,7 +94,8 @@ HISTORIAL_MAX = 240
 def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
               relevo: str | None = None, motivo: str = "",
               historial: list[dict] | None = None,
-              broker: dict | None = None, aviso: dict | None = None) -> dict:
+              broker: dict | None = None,
+              error_broker: str | None = None, reinicios: int = 0) -> dict:
     """El contenido del latido. Sin un solo dato de sesión: es público.
 
     `motivo` solo tiene sentido con `en-reposo`, y ahí es obligatorio de hecho:
@@ -125,8 +126,11 @@ def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
         # la de estado/broker.json cuando es más nueva: así la cuenta que se
         # ve tiene como mucho la edad del latido, no la del último commit.
         "broker": broker,
-        # Si el aviso externo (healthchecks.io) está montado y responde.
-        "aviso": aviso,
+        # Si la última lectura de la cuenta falló, por qué (si no, None).
+        "error_broker": error_broker,
+        # Cuántas veces el supervisor ha tenido que levantar el proceso en este
+        # job (ver scripts/supervisor_vigilante.py). La página lo enseña.
+        "reinicios": int(reinicios),
         "arrancado": arrancado,
         "estado": estado,
         "motivo": motivo or None,
@@ -190,6 +194,20 @@ def preparar(trabajo: Path) -> None:
         _git("config", "user.email", "actions@users.noreply.github.com",
              cwd=trabajo)
         _git("remote", "add", "origin", remoto_autenticado(), cwd=trabajo)
+
+
+def tocar(trabajo: Path) -> None:
+    """Marca en disco que el proceso sigue vivo, SIN publicar nada.
+
+    La usa el vigilante mientras espera a la apertura: no hay nada que anunciar,
+    pero el supervisor (que juzga por la fecha de este fichero) no puede
+    confundir esa espera con un proceso colgado.
+    """
+    trabajo.mkdir(parents=True, exist_ok=True)
+    f = trabajo / ARCHIVO
+    if not f.exists():
+        f.write_text("{}\n", encoding="utf-8")
+    os.utime(f, None)
 
 
 def publicar(datos: dict, trabajo: Path) -> None:

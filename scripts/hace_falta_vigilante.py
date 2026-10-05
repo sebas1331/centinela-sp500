@@ -31,8 +31,14 @@ def _salida(arrancar: bool, motivo: str) -> int:
     return 0
 
 
-def decidir(latido: dict | None, ahora: datetime, forzado: bool) -> tuple[bool, str]:
-    """La regla, separada del mundo para poder probarla."""
+def decidir(latido: dict | None, ahora: datetime, forzado: bool,
+            posiciones_xtb: int | None = None) -> tuple[bool, str]:
+    """La regla, separada del mundo para poder probarla.
+
+    `posiciones_xtb` es lo que dice la última foto publicada de la cuenta
+    (estado/broker.json); None si no se sabe. Solo se usa para no levantar un
+    vigilante cuando el anterior se fue en reposo y no hay nada que vigilar.
+    """
     if forzado:
         return True, "lanzado a mano"
     if not calendario.es_dia_de_mercado(ahora.date()):
@@ -43,10 +49,19 @@ def decidir(latido: dict | None, ahora: datetime, forzado: bool) -> tuple[bool, 
     apertura, cierre = ac
     if ahora >= cierre:
         return False, "la sesión ya cerró"
+    # Muy antes de abrir no se arranca: el vigilante se iría en reposo igual
+    # (no vigila el pre-mercado) y cada peldaño de la escalera dejaría un run
+    # inútil. Ya lo arrancará el job de compras o un peldaño posterior.
+    faltan = (apertura - ahora).total_seconds() / 60.0
+    if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
+        return False, f"faltan {faltan:.0f} min para la apertura"
 
     minutos = lat.minutos_desde(latido, ahora)
     if minutos is None:
         return True, "no hay ningún latido: nadie está vigilando"
+    if lat.en_reposo(latido) and posiciones_xtb == 0:
+        return False, ("el último vigilante quedó en reposo y XTB no tiene "
+                       "posiciones (estado/broker.json): nada que vigilar")
     if lat.en_reposo(latido):
         # Terminó bien, pero eso fue ANTES. Si ahora hay algo que vigilar —una
         # compra que acaba de entrar— hay que levantar otro: el que se fue no
@@ -59,6 +74,20 @@ def decidir(latido: dict | None, ahora: datetime, forzado: bool) -> tuple[bool, 
                       f"(más de {lat.MUERTO_MINUTOS}): el vigilante está muerto")
     return False, (f"hay un vigilante vivo (run {latido.get('run')}), último "
                    f"latido hace {minutos:.1f} min")
+
+
+def posiciones_publicadas() -> int | None:
+    """Cuántas posiciones tiene XTB según la última foto publicada, o None."""
+    import json
+    ruta = config.ESTADO_DIR / "broker.json"
+    if not ruta.exists():
+        return None
+    try:
+        return len(json.loads(ruta.read_text(encoding="utf-8"))["posiciones"])
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"broker.json ilegible ({exc!r}): no se sabe cuántas posiciones "
+              f"hay, así que se actúa como si las hubiera.", flush=True)
+        return None
 
 
 def main() -> int:
@@ -78,9 +107,11 @@ def main() -> int:
     # peldaño de la escalera, el 02/10 hubo once vigilantes en cola cancelados
     # uno detrás de otro. Ahora un dispatch sin forzar mira el latido como los
     # crons de respaldo: si hay uno vivo, no arranca otro.
-    forzado = bool(os.environ.get("FORZAR") or os.environ.get("RELEVO_DE"))
+    forzado = bool(os.environ.get("FORZAR") or os.environ.get("RELEVO_DE")
+                   or os.environ.get("RESCATE_DE"))
     arrancar, motivo = decidir(lat.leer(trabajo),
-                               datetime.now(config.TZ_ET), forzado)
+                               datetime.now(config.TZ_ET), forzado,
+                               posiciones_publicadas())
     return _salida(arrancar, motivo)
 
 

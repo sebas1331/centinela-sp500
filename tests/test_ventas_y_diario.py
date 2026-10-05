@@ -26,7 +26,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
-from centinela import (ambiguas as amb, aviso, broker_xtb as bx, config,  # noqa: E402
+from centinela import (ambiguas as amb, broker_xtb as bx, config,  # noqa: E402
                        diario, fiabilidad, latido as lat, ordenes as ords, salud)
 import ejecutor_xtb as ej  # noqa: E402
 
@@ -431,39 +431,6 @@ def test_el_resultado_de_ventas_distingue_las_tres_cosas():
     assert ej.resultado_explicito("ventas") == "ok: 2 vendidas"
     ej.ENVIADAS[ords.VENTA_TIEMPO] = {"decididas": 2, "enviadas": 0, "ya_estaban": 2}
     assert "vigilante" in ej.resultado_explicito("ventas")
-
-
-# --------------------------------------------------------------------------- #
-# 6. El aviso externo
-# --------------------------------------------------------------------------- #
-def test_sin_url_no_hay_ping_y_no_revienta():
-    assert not aviso.configurado()
-    assert aviso.ping() is False
-
-
-def test_el_ping_y_la_pausa_van_donde_toca(monkeypatch):
-    monkeypatch.setenv("HEALTHCHECKS_PING_URL", "https://hc-ping.com/abc-123")
-    monkeypatch.setenv("HEALTHCHECKS_API_KEY", "clave")
-    vistas = []
-
-    def abrir(req):
-        vistas.append((req.full_url, req.get_method(), dict(req.header_items())))
-        return 200
-
-    assert aviso.ping("3 posiciones", abrir=abrir)
-    assert aviso.pausar("la sesión cerró", abrir=abrir)
-    assert vistas[0][0] == "https://hc-ping.com/abc-123"
-    assert vistas[1][0] == "https://healthchecks.io/api/v3/checks/abc-123/pause"
-    assert vistas[1][2].get("X-api-key") == "clave"
-
-
-def test_un_ping_que_no_sale_no_mata_al_vigilante(monkeypatch):
-    monkeypatch.setenv("HEALTHCHECKS_PING_URL", "https://hc-ping.com/abc")
-
-    def roto(_req):
-        raise OSError("sin red")
-
-    assert aviso.ping(abrir=roto) is False
 
 
 # --------------------------------------------------------------------------- #

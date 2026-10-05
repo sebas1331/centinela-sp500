@@ -381,6 +381,7 @@ footer a{color:var(--acento)}
   <div id="huecos" class="huecos" hidden></div>
   <div id="vigia" class="vigia" hidden></div>
   <div id="fiab" class="vigia" hidden></div>
+  <div id="coste" class="vigia" hidden></div>
   <div id="semaforo" class="semaforo"></div>
 
   <h2>Componentes</h2>
@@ -547,6 +548,7 @@ function iniciar(D){
      Va después del semáforo porque puede empeorarlo. */
   pintarVigilante(D);
   pintarFiabilidad(D.fiabilidad || {});
+  pintarCoste(D.coste_ejecucion);
   pintarComponentes(D.componentes || []);
   pintarSesionXTB(D.sesion_xtb);
   B0 = D.broker || {};
@@ -722,11 +724,14 @@ function mostrarLatido(caja, det, V, L){
     if(H[i-1].estado !== "en-reposo" && gap > (V.corte_minutos || 10))
       cortes.push(Math.round(gap) + " min a las " + horaEc(H[i-1].cuando).split(", ").pop());
   }
-  if(cortes.length) ambarSemaforo("El vigilante de precios tuvo " + cortes.length
-    + " corte(s) hoy: " + cortes.join("; ") + ".");
-  if(importa && L.aviso && L.aviso.configurado === false)
-    ambarSemaforo("Sin aviso externo (healthchecks.io): si el vigilante muere, "
-      + "nadie recibe un email. Ver README, «Aviso externo».");
+  /* Un corte del latido es ROJO aunque ya se haya recuperado: durante ese rato
+     hubo posiciones sin nadie mirando sus niveles. */
+  if(cortes.length) empeorarSemaforo("El latido del vigilante de precios se "
+    + "cortó " + cortes.length + " vez/veces hoy: " + cortes.join("; ") + ".");
+  /* Los reinicios del supervisor no dejan hueco (segundos), pero un vigilante
+     que se cae es un fallo aunque se levante solo. */
+  if(L.reinicios) ambarSemaforo("El supervisor tuvo que relanzar el vigilante "
+    + L.reinicios + " vez/veces en este run.");
   var min = (ahora - new Date(L.cuando).getTime()) / 60000;
   var n = (L.vigiladas || []).length;
   /* EN REPOSO NO ES MUERTO. Un vigilante que terminó porque no había nada que
@@ -754,6 +759,7 @@ function mostrarLatido(caja, det, V, L){
   partes.push(n + (n === 1 ? " posición vigilada" : " posiciones vigiladas"));
   if(H.length) partes.push(cortes.length ? cortes.length + " corte(s) hoy"
                                           : "sin cortes hoy (" + H.length + " latidos)");
+  if(L.reinicios) partes.push(L.reinicios + " reinicio(s)");
   if(L.estado && L.estado !== "vivo") partes.push(L.estado);
   det.textContent = partes.join(" · ");
 
@@ -814,6 +820,24 @@ function empeorarSemaforo(motivo){
 /* El 2026-09-29 el endpoint de trading devolvió cuerpo vacío en 7 de 8 compras
    y el sistema no lo medía: se supo porque alguien estaba mirando. Esto es para
    que la próxima vez se vea sin que nadie mire. */
+/* Coste de ejecución: lo pagado en XTB frente a la apertura del simulador,
+   compras normales y entradas tardías por separado. */
+function pintarCoste(C){
+  var caja = document.getElementById("coste");
+  if(!C || (!C.compras.n && !C.entradas_tardias.n)){ caja.hidden = true; return; }
+  caja.hidden = false; caja.textContent = "";
+  caja.className = "vigia" + ((C.compras.ambar || C.entradas_tardias.ambar) ? " mal" : "");
+  caja.appendChild(el("span","luzp"));
+  caja.appendChild(el("b","","Coste de ejecución"));
+  [["compras", C.compras], ["entradas tardías", C.entradas_tardias]].forEach(function(p){
+    var g = p[1], s = el("span","det", p[0] + ": ");
+    s.appendChild(el("span","cifra" + (g.ambar ? " mala" : ""),
+      g.n ? pct(g.media_ultimas, 2) : "sin datos"));
+    if(g.n) s.appendChild(document.createTextNode(" (últimas " + g.ultimas.length + ")"));
+    caja.appendChild(s);
+  });
+}
+
 function pintarFiabilidad(F){
   var caja = document.getElementById("fiab");
   if(!F || !F.enviadas){

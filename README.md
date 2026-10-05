@@ -145,6 +145,15 @@ python -m http.server 8000 --directory docs   # /operativa.html
 
 ---
 
+### Coste de ejecución de las compras
+
+La página Operativa compara el precio pagado en XTB con el de **apertura del
+simulador**, compras normales y **entradas tardías por separado** (una entrada
+tardía es cara por diseño y no puede esconder ni inflar el coste de comprar al
+abrir). Se muestra la media de las **últimas 10** de cada grupo, y el semáforo
+pasa a **ámbar** si alguna media supera el **0,5 %** (el simulador ya descuenta
+0,25 % por compra). Excluye las operaciones de series rotas.
+
 ## 📱 Cómo consultar la bitácora desde el celular
 
 Todo el registro vive en el propio repositorio. Desde el navegador del teléfono:
@@ -335,9 +344,9 @@ de semana.
 
 ## 🆘 Emergencia: cerrar las posiciones a mano desde xStation 5
 
-Si el sistema falla con posiciones abiertas —el vigilante no late, llega el
-email de healthchecks.io, la página está en rojo y no sabes por qué—, **las
-posiciones no tienen stop en XTB** (no lo acepta en acciones al contado). Ciérralas
+Si el sistema falla con posiciones abiertas —el vigilante no late y no se
+levanta solo, la página está en rojo y no sabes por qué—, **las posiciones no
+tienen stop en XTB** (no lo acepta en acciones al contado). Ciérralas
 tú:
 
 1. **Entra en xStation 5** (web `xstation5.xtb.com` o la app móvil de XTB) y, en
@@ -353,32 +362,26 @@ tú:
    tiene registrada»: es a propósito —un cierre a mano nunca pasa
    desapercibido— y se apaga cuando la venta se anota en `bitacora_broker.csv`.
 
-## 📨 Aviso externo: healthchecks.io
+## 🔁 Si el vigilante se cae: se levanta solo y la página lo pinta en rojo
 
-Si el vigilante de precios muere con posiciones abiertas, nadie lo vigila: los
-crons de este repositorio llegan con horas de retraso y la página solo lo dice a
-quien la mire. **healthchecks.io** avisa por email: el vigilante le hace *ping*
-cada minuto mientras tenga posiciones con el mercado abierto, y si los pings se
-cortan **más de 5 minutos**, te llega un correo. Al terminar la sesión el
-vigilante **pausa** el check, así que el silencio de la noche no avisa; el
-primer ping de la sesión siguiente lo reactiva solo (`centinela/aviso.py`).
+No hay emails. Si el vigilante de precios deja de latir con posiciones abiertas
+y el mercado abierto, el sistema lo relanza por su cuenta, en tres capas de la
+más rápida a la más lenta:
 
-Montarlo (una vez, plan gratuito):
+| Qué falla | Quién lo levanta | Cuánto tarda |
+|---|---|---|
+| El proceso muere o se cuelga (excepción del cliente de XTB, WebSocket que no vuelve) | el **supervisor**, en el mismo job (`scripts/supervisor_vigilante.py`): lo reinicia si termina mal o si su latido local lleva 6 min quieto | segundos |
+| El runner entero muere (y el supervisor con él) | el **guardián**, un job paralelo en otra máquina (`scripts/guardian_vigilante.py`): si el latido publicado lleva más de 11 min parado, lanza un vigilante de **rescate** en su propio grupo de concurrencia | 11 min + lo que tarde el nuevo runner en arrancar (instalar Chromium ha llegado a 14 min) |
+| Fallan los dos | la **escalera del pre-apertura**: cada peldaño llama al vigilante, que arranca si el latido está muerto o si hay posiciones en XTB | lo que tarde el siguiente peldaño (≈30-60 min en sesión) |
 
-1. Crea una cuenta en <https://healthchecks.io> (*Sign Up*, con tu correo).
-2. *Add Check* → nombre `centinela-vigilante` → *Schedule*: **Simple**,
-   *Period* **1 minute**, *Grace Time* **4 minutes** → *Save*. Comprueba en
-   *Integrations* del check que el **Email** está activado.
-3. Copia la **Ping URL** del check (`https://hc-ping.com/…`).
-4. *Project Settings → API Access → Create API key* (la de lectura y escritura)
-   y cópiala. Solo se usa para pausar el check fuera de sesión.
-5. Guárdalas como secrets del repositorio (*Settings → Secrets and variables →
-   Actions*) con estos nombres: `HEALTHCHECKS_PING_URL` y
-   `HEALTHCHECKS_API_KEY`.
-6. Para el email de prueba: *Integrations → Email → Test!*.
+El umbral del guardián está a propósito por encima de los 10 minutos que tarda
+un vigilante vivo pero sin poder publicar en retirarse solo: así nunca hay dos
+vigilando la misma posición.
 
-Sin la URL el vigilante funciona igual, pero lo dice en su log y la página pasa
-a **ámbar** («Sin aviso externo») mientras haya posiciones que vigilar.
+**En la página**: un latido de más de 10 minutos con posiciones que vigilar es
+**rojo**, y un corte en el historial del día también, aunque ya se haya
+recuperado. Los reinicios del supervisor salen en **ámbar** (no dejaron hueco,
+pero el proceso se cayó), y el job termina en rojo para que conste.
 
 ## 🚨 Antes de pasar a dinero real
 
@@ -710,9 +713,9 @@ tener hasta 7 minutos —nunca da falso rojo, pero un vigilante muerto tarda 10-
 minutos en verse ahí—. Quien lo comprueba **sin margen** es el Vigilante general,
 que lee la rama directamente y es el que relanza.
 
-**Si no está activo**, el respaldo de ventas sigue evaluando objetivo y stop
-cuando llega —que puede ser tarde—, healthchecks.io te avisa por email y la
-página se pone en rojo. Si hay que cerrar a mano, ver «🆘 Emergencia».
+**Si no está activo**, se relanza solo (ver «🔁 Si el vigilante se cae»), la
+página se pone en rojo y el respaldo de ventas sigue evaluando objetivo y stop
+cuando llega. Si hay que cerrar a mano, ver «🆘 Emergencia».
 
 **Probado contra XTB con el mercado abierto** (2026-09-29): comprando 1 acción y
 poniéndole un nivel pegado al precio, disparó por **objetivo** (bid 12,29 cruzó

@@ -57,7 +57,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from centinela import (ambiguas as amb, aviso, calendario, config,  # noqa: E402
+from centinela import (ambiguas as amb, calendario, config,  # noqa: E402
                        broker_xtb as bx, diario, estado_broker, latido as lat,
                        niveles as niv, ordenes as ords, estado as est_mod,
                        salud)
@@ -552,14 +552,18 @@ class Sesion:
         self.error_broker: str | None = None
         self.ultima_foto_ok = mono()
         self.ultimo_latido_ok = mono()
-        self.aviso_ok: bool | None = None
         ahora = mono()
         self.proximo_latido = ahora
         self.proximo_respaldo = ahora + RESPALDO_SEGUNDOS
         self.proximo_refresco = ahora + config.VIGILANTE_REFRESCO_SEG
-        self.proximo_ping = ahora
         self.proximo_reintento = ahora + 60
-        self.relevo_a_las = ahora + RELEVO_TRAS_HORAS * 3600
+        # El relevo se cuenta desde que arrancó el JOB, no este proceso: si el
+        # supervisor lo reinicia a mitad, el límite de 6 h de GitHub sigue
+        # siendo el del job.
+        ya = max(0.0, time.time() - float(os.environ.get("CENTINELA_JOB_INICIO")
+                                          or time.time()))
+        self.relevo_a_las = ahora + RELEVO_TRAS_HORAS * 3600 - ya
+        self.reinicios = int(os.environ.get("CENTINELA_REINICIOS") or 0)
 
     @property
     def hoy(self) -> str:
@@ -670,14 +674,13 @@ class Sesion:
             self.fotografiar()
         return resultado
 
-    # --- latido y aviso ----------------------------------------------------
+    # --- latido -----------------------------------------------------------
     def construir_latido(self, estado: str = lat.VIVO, motivo: str = "",
                          relevo: str | None = None) -> dict:
         datos = lat.construir(
             self.arrancado, self.vigiladas, estado=estado, motivo=motivo,
             relevo=relevo, historial=self.historial, broker=self.foto_broker,
-            aviso={"configurado": aviso.configurado(), "ultimo_ping_ok": self.aviso_ok,
-                   "error_broker": self.error_broker})
+            error_broker=self.error_broker, reinicios=self.reinicios)
         self.historial = datos["historial"]
         return datos
 
@@ -690,12 +693,6 @@ class Sesion:
             self.ultimo_latido_ok = lat.publicar_tolerante(
                 datos, self.trabajo, self.ultimo_latido_ok, self.mono())
         self.proximo_latido = self.mono() + lat.CADA_SEGUNDOS
-
-    def avisar(self) -> None:
-        """Ping a healthchecks mientras haya posiciones y la sesión esté abierta."""
-        if self.vigiladas and self.reloj() < self.cierre:
-            self.aviso_ok = aviso.ping(f"{len(self.vigiladas)} posición(es)")
-        self.proximo_ping = self.mono() + aviso.CADA_SEGUNDOS
 
     # --- una vuelta --------------------------------------------------------
     def paso(self) -> None:
@@ -720,8 +717,6 @@ class Sesion:
             if not self.caido["si"] and self.broker.conectado:
                 suscribir_todo(self.broker, self.vigiladas)
                 self.precios.ultimo_tick = ahora
-        if ahora >= self.proximo_ping:
-            self.avisar()
         if ahora >= self.proximo_latido:
             self.latir()
         if ahora >= self.proximo_reintento:
@@ -736,11 +731,7 @@ class Sesion:
         return bool(self.vigiladas)
 
     def terminar(self) -> str:
-        """Último latido, en reposo y diciendo por qué; y el aviso, pausado.
-
-        Pausar el check de healthchecks es lo que evita que el silencio de la
-        noche mande un email: vuelve solo con el primer ping de mañana.
-        """
+        """Último latido, en reposo y diciendo por qué."""
         self.fotografiar()
         quedan = len(self.vigiladas)
         motivo = ("la sesión cerró" if not quedan and self.reloj() >= self.cierre
@@ -748,8 +739,6 @@ class Sesion:
                   else f"la sesión cerró con {quedan} posición(es) abiertas")
         latir(self.construir_latido(estado=lat.EN_REPOSO, motivo=motivo),
               self.trabajo)
-        if not en_prueba():
-            aviso.pausar(motivo)
         return motivo
 
     def arrancar(self) -> None:
@@ -762,7 +751,6 @@ class Sesion:
         datos = self.construir_latido()
         latir(datos, self.trabajo)             # el primero sí es mortal
         self.proximo_latido = self.mono() + lat.CADA_SEGUNDOS
-        self.avisar()
 
 
 def main() -> int:
@@ -793,22 +781,17 @@ def main() -> int:
     hoy = ahora.date()
     arrancado = ahora.isoformat()
     trabajo = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "centinela-latido"
-    if not aviso.configurado():
-        print("::warning::sin HEALTHCHECKS_PING_URL: no hay aviso externo si "
-              "este vigilante muere. Ver README, «Aviso externo».", flush=True)
 
     def reposo(motivo: str, resultado: str) -> int:
-        """Terminar bien, dejándolo dicho — y callando el aviso externo.
+        """Terminar bien, dejándolo dicho.
 
         Un vigilante que se va porque no hay trabajo tiene que decirlo: si no,
-        un latido viejo envejece hasta que la página lo da por muerto. Y tiene
-        que pausar el check de healthchecks, o su silencio mandaría un email.
+        un latido viejo envejece hasta que la página lo da por muerto.
         """
         log(motivo)
         latir(lat.construir(arrancado, [], estado=lat.EN_REPOSO, motivo=motivo),
              trabajo)
         if not en_prueba():
-            aviso.pausar(motivo)
             salud.registrar("vigilante_precios", resultado)
         return 0
 
@@ -835,7 +818,10 @@ def main() -> int:
                           f"arrancará el job de compras tras abrir",
                           "omitido:antes-de-apertura")
         log(f"faltan {faltan:.0f} min para la apertura: se espera.")
-        time.sleep(max(0.0, faltan * 60.0))
+        while datetime.now(config.TZ_ET) < apertura:
+            lat.tocar(trabajo)              # vivo, para el supervisor
+            time.sleep(min(60.0, max(1.0, (apertura - datetime.now(
+                config.TZ_ET)).total_seconds())))
 
     mi_run = os.environ.get("GITHUB_RUN_ID", "local")
     credenciales = bx.credenciales_del_entorno_o_llavero()

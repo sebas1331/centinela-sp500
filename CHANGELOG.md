@@ -5,6 +5,59 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-05 (2) — Sin healthchecks.io: el vigilante se relanza solo; semáforo en sesiones; coste de ejecución
+
+### Fuera healthchecks.io
+
+Decisión del usuario: no se usa. Se retira entera la integración del 02/10:
+`centinela/aviso.py`, los pings y la pausa del vigilante, los secrets que el
+workflow esperaba (`HEALTHCHECKS_PING_URL`, `HEALTHCHECKS_API_KEY`; nunca se
+llegaron a crear), su sección del README, el campo `aviso` del latido y el ámbar
+«Sin aviso externo» de la página.
+
+### En su lugar: relanzar, sin emails
+
+Si el latido se corta con posiciones abiertas y el mercado abierto:
+
+1. **Supervisor** (`scripts/supervisor_vigilante.py`), en el mismo job: si el
+   proceso termina mal o se cuelga (su latido local quieto 6 min), lo reinicia
+   en segundos. Cada reinicio es `::error::`, va en el latido y el job acaba en
+   rojo. El relevo de las 5 h 45 se cuenta desde el inicio del job, no del
+   proceso.
+2. **Guardián** (`scripts/guardian_vigilante.py`), job paralelo en otro runner:
+   si el latido publicado lleva más de 11 min parado, lanza un vigilante de
+   **rescate** en su propio grupo de concurrencia (no espera a que GitHub dé por
+   muerto el run viejo). 11 > 10: un vigilante vivo que no puede publicar se
+   retira solo a los 10, así que nunca vigilan dos a la vez. En un relevo, el
+   guardián del sucesor no confunde al saliente —que sigue latiendo— con un
+   reemplazo: «más nuevo» es «arrancó después», no «latió después».
+3. **Escalera**: cada peldaño del pre-apertura vuelve a llamar al vigilante;
+   `hace_falta` arranca uno si el latido está muerto o si hay posiciones en XTB
+   (`estado/broker.json`), y no si falta más de 45 min para abrir.
+
+En la página, un corte del latido es **rojo** (antes ámbar), también si ya se
+recuperó; los reinicios, ámbar.
+
+### Semáforo: antigüedad en sesiones de mercado
+
+«No corre desde hace» ya no cuenta horas (30 h) sino **sesiones completas**
+saltadas. Los cuatro ámbares de esta mañana —«60 h»— eran un fin de semana.
+
+### Coste de ejecución de las compras
+
+Precio pagado en XTB frente a la apertura del simulador, compras normales y
+entradas tardías por separado, media de las últimas 10 de cada grupo; **ámbar si
+alguna supera el 0,5 %**. Hoy: compras normales sin datos (todas las enviadas a
+XTB fueron rechazadas) y entradas tardías +2,27 % (WDC, la única; CTVA queda
+fuera por serie rota). El semáforo está, por tanto, en ámbar por el coste de las
+entradas tardías.
+
+### Publicado también
+
+`e2355b4`: una compra de hoy cuenta como posición que vigilar.
+
+---
+
 ## 2026-10-05 — Prueba real superada; dos fallos del arranque corregidos
 
 **Prueba real en la demo** (run 37320179922, 09:53 ET): compra de 1 acción de

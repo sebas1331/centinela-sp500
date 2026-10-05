@@ -497,6 +497,73 @@ def bloque_reconciliacion(datos_salud: dict) -> dict:
     }
 
 
+#: Coste de ejecución de compras: cuántas se promedian y a partir de qué media
+#: se avisa (umbral fijado por el usuario el 2026-10-05). Como referencia, el
+#: simulador ya descuenta 0,25 % por compra a mercado (0,15 % de slippage +
+#: 0,10 % de comisión y spread, ver config): un 0,5 % de media es el doble.
+COSTE_ULTIMAS = 10
+COSTE_AMBAR_PCT = 0.5
+
+
+def bloque_coste_ejecucion(desde: str | None = None) -> dict:
+    """Precio pagado en XTB frente al precio de apertura del simulador.
+
+    Positivo = se pagó MÁS que la apertura que el simulador supone. Se separan
+    las compras normales (al abrir) de las entradas tardías (horas después, a
+    propósito): mezclarlas haría que una entrada tardía, que es cara por
+    diseño, escondiera o inflara el coste real de comprar a la apertura.
+
+    La apertura del simulador sale de su propia entrada en bitacora.csv (misma
+    sesión, ticker y cartera); si el simulador aún no la ha registrado —lo hace
+    en el post-cierre—, de la apertura guardada en la orden. Las operaciones
+    de una serie rota (datos_erroneos) se excluyen, como en el resto de cifras.
+    """
+    import csv as _csv
+    from centinela import datos_erroneos
+    desde = desde or config.EJECUCION_DESDE
+    excluidos = datos_erroneos.tickers()
+    apertura_sim: dict[tuple, float] = {}
+    ruta_bit = config.BASE_DIR / "bitacora.csv"
+    if ruta_bit.exists():
+        with open(ruta_bit, encoding="utf-8", newline="") as f:
+            for r in _csv.DictReader(f):
+                if r.get("portafolio") == config.CARTERA_BROKER and r.get("precio_entrada"):
+                    apertura_sim[(r["ticker"], r["fecha_entrada"])] = float(r["precio_entrada"])
+    grupos = {ords.COMPRA: [], ords.ENTRADA_TARDIA: []}
+    ruta = ords.ARCHIVO_BITACORA_BROKER
+    if ruta.exists():
+        with open(ruta, encoding="utf-8", newline="") as f:
+            for r in _csv.DictReader(f, restval=""):
+                if r.get("tipo") not in grupos or r.get("estado") != "ejecutada":
+                    continue
+                if str(r.get("sesion", "")) < desde or r["ticker"] in excluidos:
+                    continue
+                if not r.get("precio"):
+                    continue
+                ap = apertura_sim.get((r["ticker"], r["sesion"]))
+                if ap is None and r.get("precio_simulador"):
+                    ap = float(r["precio_simulador"])
+                if not ap:
+                    continue
+                pagado = float(r["precio"])
+                grupos[r["tipo"]].append({
+                    "sesion": r["sesion"], "ticker": r["ticker"],
+                    "pagado": round(pagado, 4), "apertura": round(ap, 4),
+                    "coste_pct": round(100.0 * (pagado / ap - 1.0), 3)})
+
+    def resumen(filas):
+        filas = sorted(filas, key=lambda x: x["sesion"])
+        ult = filas[-COSTE_ULTIMAS:]
+        media = (round(sum(x["coste_pct"] for x in ult) / len(ult), 3)
+                 if ult else None)
+        return {"n": len(filas), "ultimas": ult, "media_ultimas": media,
+                "ambar": media is not None and media > COSTE_AMBAR_PCT}
+
+    return {"umbral_pct": COSTE_AMBAR_PCT, "ultimas_n": COSTE_ULTIMAS,
+            "compras": resumen(grupos[ords.COMPRA]),
+            "entradas_tardias": resumen(grupos[ords.ENTRADA_TARDIA])}
+
+
 def bloque_alertas() -> list[dict]:
     """Los últimos avisos del Vigilante y del ejecutor, de los logs del repo."""
     alertas = []
@@ -535,6 +602,7 @@ def construir(ahora: datetime | None = None) -> dict:
         "vigilante_precios": bloque_vigilante_precios(ahora, posiciones),
         "fiabilidad": fiabilidad.resumen(DIAS_FIABILIDAD, ahora=ahora,
                                          desde=incidentes.ultimo_arreglo()),
+        "coste_ejecucion": bloque_coste_ejecucion(),
         "incidentes": incidentes.cargar(),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
@@ -570,7 +638,24 @@ def construir(ahora: datetime | None = None) -> dict:
 CRITICOS = ("preapertura", "postcierre", "compras", "apertura", "ventas",
             "reconcilia", "vigilante")
 #: Cuántas horas de retraso sobre lo esperado se toleran antes de avisar.
-RETRASO_AMBAR_HORAS = 30
+#: Cuántas SESIONES DE MERCADO enteras puede saltarse un componente antes de
+#: avisar. En sesiones y no en horas (2026-10-05): con un umbral de 30 h, cada
+#: lunes por la mañana salían cuatro ámbares falsos —«no corre desde hace 60 h»—
+#: por un fin de semana en el que no tenía que correr nada.
+SESIONES_SIN_CORRER_AMBAR = 1
+
+
+def sesiones_sin_correr(visto: datetime, ahora: datetime) -> int:
+    """Sesiones de mercado COMPLETAS entre el último run y hoy (las dos fuera).
+
+    Ni el día en que corrió ni hoy cuentan: hoy todavía puede tocarle. Un run
+    del viernes mirado el lunes da 0; uno del viernes mirado el martes, 1.
+    """
+    desde = (visto.date() + timedelta(days=1)).isoformat()
+    hasta = (ahora.date() - timedelta(days=1)).isoformat()
+    if desde > hasta:
+        return 0
+    return len(calendario.sesiones_en_rango(desde, hasta))
 #: Cuántos días atrás se miran las órdenes rechazadas.
 DIAS_RECHAZOS = 3
 
@@ -715,11 +800,12 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             visto = datetime.fromisoformat(r["cuando"])
         except ValueError:
             continue
-        retraso = (ahora - visto).total_seconds() / 3600
-        if retraso > RETRASO_AMBAR_HORAS:
+        saltadas = sesiones_sin_correr(visto, ahora)
+        if saltadas >= SESIONES_SIN_CORRER_AMBAR:
             ambares.append(
                 f"{salud.COMPONENTES[clave][0]} no corre desde hace "
-                f"{retraso:.0f} h.")
+                f"{saltadas} sesión(es) de mercado (último: "
+                f"{visto.date().isoformat()}).")
 
     # --- ROJO: una orden del día aceptada y sin ejecutar -------------------
     # "en_cola" es un estado legítimo mientras la sesión está abierta, pero una
@@ -763,6 +849,17 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
         rojos.append(
             f"XTB RECHAZÓ el {o.get('sesion')} la {o.get('tipo_nombre')} de "
             f"{o.get('ticker')}: {o.get('error') or 'sin motivo'}.")
+
+    # --- ÁMBAR: comprar en XTB está saliendo caro --------------------------
+    coste = bloque_coste_ejecucion()
+    for clave, nombre in (("compras", "las compras normales"),
+                          ("entradas_tardias", "las entradas tardías")):
+        g = coste[clave]
+        if g["ambar"]:
+            ambares.append(
+                f"Coste de ejecución de {nombre}: {g['media_ultimas']:+.2f} % de "
+                f"media sobre la apertura del simulador en las últimas "
+                f"{len(g['ultimas'])} (umbral {COSTE_AMBAR_PCT} %).")
 
     color = "rojo" if rojos else ("ambar" if ambares else "verde")
     titulo = {"rojo": "Problema", "ambar": "Atención",

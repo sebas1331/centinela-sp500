@@ -13,7 +13,7 @@ al ejecutar) y el reloj.
   10:30  el vigilante muere; 15 minutos sin latir; se relanza
   11:00  BBB cruza su stop -> venta
   15:45  CCC sale por tiempo, 15 minutos antes del cierre
-  16:00  cierre: latido en reposo, aviso externo pausado
+  16:00  cierre: latido en reposo
   después  la reconciliación cuadra XTB contra lo registrado
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
-from centinela import (ambiguas as amb, aviso, broker_xtb as bx, config,  # noqa: E402
+from centinela import (ambiguas as amb, broker_xtb as bx, config,  # noqa: E402
                        diario, estado as est_mod, estado_broker, latido as lat,
                        ordenes as ords, salud)
 import ejecutor_xtb as ej  # noqa: E402
@@ -173,18 +173,8 @@ def dia(tmp_path, monkeypatch):
 
     publicados = []
     monkeypatch.setattr(lat, "publicar", lambda d, _t: publicados.append(d))
-    pings = []
-    monkeypatch.setenv("HEALTHCHECKS_PING_URL", "https://hc-ping.com/uuid-de-prueba")
-    monkeypatch.setenv("HEALTHCHECKS_API_KEY", "clave")
-
-    def abrir(req):
-        pings.append((reloj.ahora(), req.full_url))
-        return 200
-    monkeypatch.setattr(aviso, "_abrir", abrir)
-    monkeypatch.setattr(aviso.ping, "__defaults__", ("", abrir))
-    monkeypatch.setattr(aviso.pausar, "__defaults__", (abrir,))
     return {"reloj": reloj, "xtb": xtb, "bare": bare, "job": job, "otro": otro,
-            "latidos": publicados, "pings": pings, "tmp": tmp_path}
+            "latidos": publicados, "tmp": tmp_path}
 
 
 def _filas():
@@ -230,7 +220,6 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     assert set(vigiladas) == {"AAA", "BBB", "CCC"}
     assert vigiladas["CCC"]["sale_hoy"] and not vigiladas["AAA"]["sale_hoy"]
     assert vigiladas["AAA"]["objetivo"] == 110.0, "niveles de la compra de hoy"
-    assert d["pings"], "con posiciones abiertas tiene que hacer ping"
 
     # --- 10:05 AAA cruza el objetivo; al publicar, CHOQUE de push ------------
     _correr(d, s, datetime(2026, 10, 5, 10, 5, tzinfo=config.TZ_ET))
@@ -275,7 +264,6 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     ultimo = d["latidos"][-1]
     assert "AAA" not in {v["ticker"] for v in ultimo["vigiladas"]}, \
         "el latido anuncia una posición que ya no existe"
-    pings_antes = len(d["pings"])
     reloj.hasta(10, 45)                      # silencio: no hay paso() en 15 min
     arrancar, motivo = hf.decidir(ultimo, reloj.ahora(), forzado=False)
     assert arrancar and "muerto" in motivo
@@ -283,7 +271,6 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     s2.arrancar()
     cortes = lat.huecos(s2.historial)
     assert len(cortes) == 1 and cortes[0]["minutos"] >= 15
-    assert len(d["pings"]) > pings_antes, "el relevo vuelve a hacer ping"
 
     # --- 11:00 BBB cruza su stop ---------------------------------------------
     reloj.hasta(11, 0)
@@ -310,10 +297,9 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     assert ej.ENVIADAS[ords.VENTA_TIEMPO]["enviadas"] == 0
     assert len([f for f in _filas() if f["tipo"] == ords.VENTA_TIEMPO]) == 1
 
-    # --- cierre: reposo y aviso pausado --------------------------------------
+    # --- cierre: reposo ------------------------------------------------------
     motivo = s2.terminar()
     assert d["latidos"][-1]["estado"] == lat.EN_REPOSO
-    assert d["pings"][-1][1].endswith("/pause"), "el aviso externo no se pausó"
     assert "no queda nada" in motivo or "cerró" in motivo
 
     # --- la reconciliación: XTB cuadra con lo registrado ---------------------

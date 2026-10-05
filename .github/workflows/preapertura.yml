@@ -371,7 +371,12 @@ jobs:
     # La comparación va con `format` a propósito: GitHub convierte '' y '0' en
     # el número 0 al compararlos, así que `posiciones_xtb != '0'` daba FALSO
     # justo cuando el ejecutor moría sin escribir la salida (05/10, WDC).
-    if: always() && needs.ejecutor.result != 'skipped' && format('n{0}', needs.ejecutor.outputs.posiciones_xtb) != 'n0'
+    #
+    # Y TAMBIÉN desde los peldaños que no compran (ejecutor saltado): son la
+    # escalera de respaldo que levanta un vigilante caído. No es ruido: el
+    # vigilante decide con su latido y con estado/broker.json, y no arranca si
+    # hay uno vivo, si falta mucho para abrir o si no hay nada que vigilar.
+    if: always() && (needs.ejecutor.result == 'skipped' || format('n{0}', needs.ejecutor.outputs.posiciones_xtb) != 'n0')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

@@ -85,7 +85,4 @@ def nada_toca_el_estado_real(tmp_path, monkeypatch):
                             "un test intentó publicar el diario de verdad"))
     # La cuenta permitida, en los tests, es la de prueba.
     monkeypatch.setattr(config, "CUENTA_DEMO_HUELLA", huella_prueba())
-    # Y nada de pings a healthchecks.io.
-    monkeypatch.delenv("HEALTHCHECKS_PING_URL", raising=False)
-    monkeypatch.delenv("HEALTHCHECKS_API_KEY", raising=False)
     return tmp_path

@@ -134,7 +134,9 @@ def test_schema_de_operativa_json(datos):
                           "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
                           "vigilante_precios", "fiabilidad", "sesion_xtb",
-                          "incidentes"}
+                          "incidentes", "coste_ejecucion"}
+    assert set(datos["coste_ejecucion"]) == {"umbral_pct", "ultimas_n", "compras",
+                                             "entradas_tardias"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
                                  "decididas", "enviadas", "ejecutadas", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
@@ -256,11 +258,21 @@ def test_la_caducidad_se_informa_sin_color(datos):
         assert set(datos["sesion_xtb"]) == {"horas", "caducada"}
 
 
-def test_ambar_si_un_componente_lleva_demasiado_sin_correr():
-    viejo = (AHORA - timedelta(hours=40)).isoformat()
+def test_ambar_si_un_componente_se_salta_una_sesion_entera():
+    """Martes 20/10: la última vez fue el viernes 16 -> se saltó el lunes 19."""
+    viejo = datetime(2026, 10, 16, 18, 0, tzinfo=config.TZ_ET).isoformat()
     s = _sem({"runs": {"vigilante": {"cuando": viejo, "resultado": "ok"}}})
     assert s["color"] == "ambar"
-    assert any("no corre desde hace" in m for m in s["motivos"])
+    assert any("no corre desde hace 1 sesión" in m for m in s["motivos"])
+
+
+def test_un_fin_de_semana_NO_es_retraso():
+    """El lunes por la mañana, lo último del viernes no ha faltado a nada: antes
+    salía «no corre desde hace 60 h» en cuatro componentes."""
+    lunes = datetime(2026, 10, 19, 9, 40, tzinfo=config.TZ_ET)
+    viernes = datetime(2026, 10, 16, 20, 0, tzinfo=config.TZ_ET)
+    assert go.sesiones_sin_correr(viernes, lunes) == 0
+    assert go.sesiones_sin_correr(viernes, AHORA) == 1
 
 
 def test_una_orden_rechazada_es_ROJA():
@@ -804,3 +816,59 @@ def test_una_compra_de_hoy_cuenta_como_posicion_que_vigilar():
     v = go.bloque_vigilante_precios(AHORA, [{"ticker": "WDC", "stop": None,
                                              "objetivo": None}])
     assert v["posiciones_a_vigilar"] == 1
+
+
+
+# --------------------------------------------------------------------------- #
+# Coste de ejecución de compras
+# --------------------------------------------------------------------------- #
+def _compra(tipo, ticker, sesion, pagado, apertura=None, estado="ejecutada"):
+    from centinela import broker_xtb as bx2, ordenes as o2
+    o2.registrar_ejecucion(
+        o2.Orden(id=f"{sesion}|A|{ticker}|{tipo}", tipo=tipo, cartera="A",
+                 ticker=ticker, acciones=1, sesion=sesion,
+                 precio_simulador=apertura),
+        bx2.Ejecucion(ticker=f"{ticker}.US", lado="compra", acciones=1,
+                      estado=estado, precio=pagado,
+                      cuando=f"{sesion}T09:36:00-04:00"))
+
+
+def test_el_coste_separa_compras_normales_de_entradas_tardias(monkeypatch):
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    _compra(o2.COMPRA, "AAA", "2026-10-06", 100.2, apertura=100.0)
+    _compra(o2.ENTRADA_TARDIA, "WDC", "2026-10-05", 439.71, apertura=429.935)
+    _compra(o2.COMPRA, "BBB", "2026-10-06", 50.0, apertura=40.0, estado="rechazada")
+    c = go.bloque_coste_ejecucion()
+    assert c["compras"]["n"] == 1 and c["compras"]["media_ultimas"] == 0.2
+    assert not c["compras"]["ambar"]
+    assert c["entradas_tardias"]["media_ultimas"] == pytest.approx(2.274, abs=0.001)
+    assert c["entradas_tardias"]["ambar"]
+
+
+def test_el_coste_promedia_solo_las_ultimas_diez(monkeypatch):
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    _compra(o2.COMPRA, "VIEJA", "2026-10-01", 110.0, apertura=100.0)   # +10 %
+    for i in range(10):
+        _compra(o2.COMPRA, f"T{i}", f"2026-10-{10 + i:02d}", 100.1, apertura=100.0)
+    c = go.bloque_coste_ejecucion()["compras"]
+    assert c["n"] == 11 and len(c["ultimas"]) == 10
+    assert c["media_ultimas"] == pytest.approx(0.1) and not c["ambar"]
+
+
+def test_un_coste_alto_pinta_ambar_en_el_semaforo(monkeypatch):
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    _compra(o2.COMPRA, "AAA", "2026-10-06", 101.0, apertura=100.0)     # +1 %
+    s = _sem({"runs": {}})
+    assert any("Coste de ejecución de las compras normales" in m
+               for m in s["motivos"])
+
+
+def test_el_coste_excluye_las_series_rotas(monkeypatch):
+    from centinela import datos_erroneos, ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    monkeypatch.setattr(datos_erroneos, "tickers", lambda *_a: {"CTVA"})
+    _compra(o2.ENTRADA_TARDIA, "CTVA", "2026-10-02", 12.71, apertura=12.385)
+    assert go.bloque_coste_ejecucion()["entradas_tardias"]["n"] == 0
