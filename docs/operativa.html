@@ -888,7 +888,7 @@ function pintarCoste(C){
   var caja = document.getElementById("coste");
   if(!C || (!C.compras.n && !C.entradas_tardias.n)){ caja.hidden = true; return; }
   caja.hidden = false; caja.textContent = "";
-  caja.className = "vigia" + ((C.compras.ambar || C.entradas_tardias.ambar) ? " mal" : "");
+  caja.className = "vigia" + ((C.compras.ambar || C.repuestas.ambar) ? " mal" : "");
   caja.appendChild(el("span","luzp"));
   caja.appendChild(el("b","","Coste de ejecución"));
   [["compras", C.compras], ["entradas tardías", C.entradas_tardias]].forEach(function(p){
@@ -898,6 +898,12 @@ function pintarCoste(C){
     if(g.n) s.appendChild(document.createTextNode(" (últimas " + g.ultimas.length + ")"));
     caja.appendChild(s);
   });
+  /* Las tardías no se juzgan por su coste (son caras por diseño), sino por
+     cuántas hacen falta: muchas = la compra normal sigue fallando. */
+  var r = C.repuestas, t = el("span","det","repuestas tarde: ");
+  t.appendChild(el("span","cifra" + (r.ambar ? " mala" : ""),
+    r.tardias + " de " + r.decididas));
+  caja.appendChild(t);
 }
 
 function pintarFiabilidad(F){
