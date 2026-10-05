@@ -1,8 +1,8 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 28133.03,
-  "leido": "2026-10-05T09:58:11.147706-04:00",
+  "equity": 28241.11,
+  "leido": "2026-10-05T15:45:23.538178-04:00",
   "posiciones": [
     {
       "acciones": 4.0,
@@ -13,5 +13,5 @@
       "ticker": "WDC.US"
     }
   ],
-  "saldo": 28133.03
+  "saldo": 28241.11
 }
