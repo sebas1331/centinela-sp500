@@ -43,11 +43,21 @@ def esperadas() -> set[str]:
     ejecutor y nunca existieron en el broker.
     """
     estado = est_mod.cargar()
-    return {
+    del_simulador = {
         ords.simbolo_xtb(p["ticker"])
         for p in estado.get("posiciones", {}).get(config.CARTERA_BROKER, [])
         if str(p.get("fecha_entrada", "")) >= config.EJECUCION_DESDE
     }
+    # Y LO QUE EL PROPIO SISTEMA COMPRÓ Y REGISTRÓ (fallo del 2026-10-05). Una
+    # compra de hoy no es posición del simulador hasta el post-cierre, y esta
+    # auditoría marcaba WDC —comprada a las 09:58 por entrada tardía— como «NO
+    # DEBERÍA ESTAR». Con `--cerrar`, la habría VENDIDO. El libro de acciones de
+    # bitacora_broker.csv (compras menos ventas ejecutadas) es lo que el sistema
+    # sabe que mandó: lo que está ahí no sobra.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ejecutor_xtb as ej
+    registradas = {s for s, n in ej.libro_de_acciones().items() if n > 0}
+    return del_simulador | registradas
 
 
 def main() -> int:

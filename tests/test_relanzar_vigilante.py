@@ -203,3 +203,19 @@ def test_ningun_workflow_instala_chromium_con_apt_directamente():
                     assert paso.get("uses") == "./.github/actions/chromium", f.name
     accion = (RAIZ / ".github/actions/chromium/action.yml").read_text(encoding="utf-8")
     assert "~/.cache/ms-playwright" in accion and "probar_chromium.py" in accion
+
+
+def test_la_auditoria_no_da_por_sobrante_una_compra_registrada_de_hoy(monkeypatch):
+    """05/10: marcó WDC (entrada tardía de las 09:58) como «NO DEBERÍA ESTAR»;
+    con --cerrar la habría vendido."""
+    import auditar_cuenta_xtb as au
+    from centinela import broker_xtb as bx, estado as est_mod, ordenes as ords
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    monkeypatch.setattr(est_mod, "cargar", lambda: {"posiciones": {"A": []}})
+    assert "WDC.US" not in au.esperadas()
+    ords.registrar_ejecucion(
+        ords.Orden(id="2026-10-05|A|WDC|entrada_tardia", tipo=ords.ENTRADA_TARDIA,
+                   cartera="A", ticker="WDC", acciones=4, sesion=LUNES),
+        bx.Ejecucion(ticker="WDC.US", lado="compra", acciones=4,
+                     estado="ejecutada", precio=439.71))
+    assert "WDC.US" in au.esperadas()
