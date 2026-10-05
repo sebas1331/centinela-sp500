@@ -324,3 +324,17 @@ def test_pagina_no_inventa_si_no_se_pudieron_leer_las_stops():
     sim = {"posiciones": {"A": [{"ticker": "WDC", "stop": 1.0, "objetivo": 3.0}]}}
     f = go.bloque_posiciones(broker, sim, datetime(2026, 10, 5, 15, 0, tzinfo=config.TZ_ET))[0]
     assert f["stop_en"] == "?"
+
+
+def test_vigilante_no_confunde_la_venta_de_otro_runner_con_la_stop(tmp_path, monkeypatch):
+    """Otro runner vendió (y canceló la stop) y la bitácora local no lo sabe:
+    con el precio lejos del stop, el vigilante no lo registra como stop_xtb."""
+    monkeypatch.setattr(ords, "ARCHIVO_BITACORA_BROKER", tmp_path / "b.csv")
+    monkeypatch.setattr(ords, "libro_de_acciones", lambda desde=None: {"WDC.US": 4})
+    monkeypatch.setattr(prot, "stops_deseados", lambda pos, hoy=None: {})
+    x = XTBFalso({"WDC.US": 0})
+    antes = {"WDC.US": {"orden": 1, "precio": 365.46, "acciones": 4.0}}
+    r = prot.revisar(x, antes, "2026-10-06", log=lambda *_: None, bids={"WDC.US": 450.0})
+    assert r["ejecutadas"] == []
+    r = prot.revisar(x, antes, "2026-10-06", log=lambda *_: None, bids={"WDC.US": 364.0})
+    assert [o.tipo for o in r["ejecutadas"]] == [ords.VENTA_STOP_XTB]

@@ -646,7 +646,8 @@ class Sesion:
         if self.stops_vistos is None:
             self.stops_vistos = proteccion.stops_de_la_ultima_foto()
         try:
-            r = proteccion.revisar(self.broker, self.stops_vistos, self.hoy, log=log)
+            r = proteccion.revisar(self.broker, self.stops_vistos, self.hoy, log=log,
+                                  bids=dict(self.precios.bid))
         except Exception as exc:  # noqa: BLE001
             print(f"::warning::no se pudo revisar las stops en XTB ({exc!r}); "
                   f"el vigilante sigue vigilándolas.", flush=True)

@@ -292,8 +292,15 @@ def stops_de_la_ultima_foto() -> dict[str, dict]:
         return {}
 
 
+#: El vigilante solo da por "saltó la stop" una desaparición con el precio a
+#: menos de esto por encima del stop. Más lejos, lo más probable es una venta
+#: a mercado de OTRO runner (que cancela la stop al vender) que su bitácora
+#: local todavía no tiene; eso lo decide la reconciliación, con la completa.
+MARGEN_PRECIO_STOP = 0.02
+
+
 def revisar(broker, antes: dict[str, dict] | None = None, hoy: str | None = None,
-            log=print) -> dict:
+            log=print, bids: dict[str, float] | None = None) -> dict:
     """La vuelta completa: detectar las stops que saltaron, y sincronizar.
 
     1. Una stop que estaba (`antes`), ya no está, y a XTB le faltan acciones
@@ -307,6 +314,12 @@ def revisar(broker, antes: dict[str, dict] | None = None, hoy: str | None = None
     ahora = stops_por_simbolo(broker)
     ejecutadas = []
     for e in stops_ejecutadas(posiciones, antes, ahora, ords.libro_de_acciones()):
+        bid = (bids or {}).get(e["simbolo"])
+        if bids is not None and (bid is None or bid > e["precio"] * (1 + MARGEN_PRECIO_STOP)):
+            log(f"[proteccion] {e['simbolo']}: la stop {e['orden']} y la posición "
+                f"ya no están, pero el precio ({bid}) no está en el stop "
+                f"({e['precio']}); no se registra aquí: lo decide la reconciliación.")
+            continue
         o = registrar_stop_ejecutada(e, hoy)
         log(f"[proteccion] {e['simbolo']}: la stop {e['orden']} SALTÓ en XTB — "
             f"{e['acciones']} acciones vendidas a ~{e['precio']} (registrada como "
