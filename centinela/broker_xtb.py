@@ -264,6 +264,7 @@ _ESTADOS = {
 
 #: Vocabulario del repo -> vocabulario del cliente.
 _TIPO_CLIENTE = {"limitada": "limit", "stop": "stop"}
+_TIPO_REPO = {"limit": "limitada", "stop": "stop", "market": "mercado"}
 
 
 @dataclass
@@ -620,6 +621,29 @@ class BrokerXTB:
         return str(getattr(r, "status", r))
 
     # ------------------------------------------------ órdenes pendientes --
+    def ordenes_contado(self) -> dict:
+        """Las órdenes de acciones al contado que XTB tiene, con su ESTADO.
+
+        `ordenes_pendientes()` (getAllOrders del WebSocket) no las ve: medido el
+        2026-10-05 con una limitada y una stop aceptadas, devolvió cero. Esta
+        es la lista que usa la web (OrderService). Devuelve
+        {"ordenes": [...], "reglas": {simbolo: {"limitada"|"stop": {"cancelar", "modificar"}}}}
+        con solo las órdenes VIVAS en "ordenes" y todas en "todas".
+        """
+        from xtb_api.grpc.proto import ORDER_STATUS_VIVA
+        foto = self._ejecutar(self._cliente.get_cash_orders())
+        todas = [{
+            "orden": o["order_id"], "ticker": o["symbol"],
+            "tipo": _TIPO_REPO.get(o["type"], o["type"]), "lado": o["side"],
+            "acciones": o["volume"], "precio": o["price"], "estado": o["status"],
+            "viva": o["status"] in ORDER_STATUS_VIVA, "creada": o["create_time"],
+            "vence": o["expiration"],
+        } for o in foto["orders"]]
+        reglas = {s: {_TIPO_REPO[k]: {"cancelar": v["delete"], "modificar": v["modify"]}
+                      for k, v in r.items()} for s, r in foto["rules"].items()}
+        return {"ordenes": [o for o in todas if o["viva"]], "todas": todas,
+                "reglas": reglas}
+
     def poner_orden_venta(self, ticker: str, acciones: int, tipo: str,
                           precio: float) -> "OrdenPendiente":
         """Venta pendiente en el servidor de XTB, sin vencimiento.

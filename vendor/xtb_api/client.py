@@ -337,6 +337,15 @@ class XTBClient:
             return await grpc.modify_stop_order(order_number, price)
         raise ValueError(f"kind debe ser 'limit' o 'stop', no {kind!r}")
 
+    async def get_cash_orders(self) -> dict:
+        """Foto de las órdenes de contado: {"orders": [...], "rules": {...}}.
+
+        ``get_orders()`` (WebSocket, getAllOrders) no las ve; esta sí. Cada
+        orden lleva su estado (ACCEPTED, REJECTED, CANCELED, FILLED…), así que
+        "viva" se decide con ``ORDER_STATUS_VIVA`` y no por aparecer en la lista.
+        """
+        return await self._ensure_grpc().cash_orders_snapshot()
+
     async def cancel_pending_orders(self, order_numbers: list[int]):
         """Cancela y dice, orden a orden, si XTB la canceló DE VERDAD."""
         return await self._ensure_grpc().delete_orders_checked(order_numbers)

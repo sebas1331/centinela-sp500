@@ -9,15 +9,20 @@ Responde con evidencia, sobre una posición de prueba de 1 acción barata:
   3. Cuando una se ejecuta (se fuerza con un nivel artificial pegado al
      mercado), ¿qué pasa con la otra: XTB la cancela, la rechaza o la deja viva?
 
-Y, con `--revisar`, la parte del día siguiente: lista lo que sigue en cola.
+Y, con `--revisar`, la parte del día siguiente: lista lo que sigue vivo.
 
-Todo va con el dato crudo de XTB al lado (lo que devuelve `getAllOrders`), para
-que la conclusión no dependa de cómo lo interprete el cliente. Al terminar deja
-la cuenta como estaba: sin la posición de prueba y sin órdenes suyas.
+LA LISTA QUE VALE ES LA DE `OrderService` (ordenes_contado), no la de
+`getAllOrders`: la primera ronda (run 37338861588) demostró que getAllOrders no
+ve las órdenes de contado, y que "aceptada" en la respuesta NO significa viva:
+la stop puesta después de la limitada se aceptó y luego no se pudo ni
+modificar ni cancelar ("Order modification not allowed"). Por eso cada paso
+enseña el ESTADO de cada orden según XTB unos segundos después.
 
-Solo se lanza a mano (workflow "Probar órdenes pendientes"), y operar exige
-`--operar`: una prueba que opera por defecto acaba operando cuando alguien solo
-quería mirar.
+Al terminar deja la cuenta como estaba: sin la posición de prueba y sin
+órdenes vivas suyas.
+
+Solo se lanza a mano (workflow "Probar órdenes pendientes XTB"), y operar exige
+`--operar`.
 """
 from __future__ import annotations
 
@@ -35,8 +40,6 @@ from centinela import broker_xtb as bx  # noqa: E402
 TICKER = "F.US"
 _t0 = time.time()
 CONCLUSIONES: dict = {}
-#: Todo número de orden que XTB nos haya dado, por si la lista usa otro id.
-PUESTAS: set[int] = set()
 
 
 def log(msg: str) -> None:
@@ -44,70 +47,30 @@ def log(msg: str) -> None:
 
 
 def _mismo(ticker: str) -> bool:
-    return ticker.upper().replace(".US", "") == TICKER.upper().replace(".US", "")
+    return str(ticker).upper().replace(".US", "") == TICKER.upper().replace(".US", "")
 
 
-def crudo(b) -> list[dict]:
-    """Los elementos de `getAllOrders` tal cual llegan, solo los del ticker."""
-    from xtb_api.types.enums import SubscriptionEid
-    ws = b._cliente.ws
-    res = b._ejecutar(ws.send("getAllOrders",
-                              {"getAndSubscribeElement": {"eid": SubscriptionEid.ORDERS}}))
-    out = []
-    for el in ws._extract_elements(res):
-        t = (el or {}).get("value", {}).get("xcfdtrade") or {}
-        if _mismo(str(t.get("symbol", ""))):
-            out.append(t)
-    return out
+def foto(b, etiqueta: str, solo: set[int] | None = None) -> dict:
+    """Posiciones y órdenes de F.US, con el estado de cada orden según XTB.
 
-
-def foto(b, etiqueta: str) -> tuple[list[dict], list[dict]]:
+    Devuelve {orden: estado} de las órdenes de F.US (todas, vivas o no)."""
     pos = [p for p in b.posiciones() if _mismo(p["ticker"])]
-    ords = [o for o in b.ordenes_pendientes() if _mismo(o["ticker"])]
-    log(f"--- {etiqueta}: posiciones {TICKER}={[(p['acciones'], p['lado'], p['orden']) for p in pos]}")
-    for o in ords:
-        log(f"      orden {o['orden']} lado={o['lado']} tipo={o['tipo']} "
-            f"acciones={o['acciones']} precio={o['precio']}")
-    try:
-        for t in crudo(b):
-            log("      crudo: " + json.dumps(t, default=str, sort_keys=True))
-    except Exception as exc:  # el crudo es evidencia extra, no condición
-        log(f"      (no se pudo leer el crudo: {exc!r})")
-    return pos, ords
-
-
-def limpiar(b) -> bool:
-    """Cancela las órdenes del ticker y vende lo que quede. True si queda limpio."""
-    if PUESTAS:
-        log(f"   cancelando las que pusimos {sorted(PUESTAS)}: "
-            f"{b.cancelar_ordenes(sorted(PUESTAS))}")
-        PUESTAS.clear()
-        time.sleep(2)
-    for intento in range(3):
-        pos, ords = foto(b, f"limpieza {intento + 1}")
-        if ords:
-            log(f"   cancelando {[o['orden'] for o in ords]}: "
-                f"{b.cancelar_ordenes([int(o['orden']) for o in ords])}")
-            time.sleep(3)
-            pos, ords = foto(b, "tras cancelar")
-        for p in pos:
-            if p["lado"] == "buy":
-                c = b.vender(TICKER, int(p["acciones"]))
-                log(f"   venta de limpieza: {c.estado} precio={c.precio} error={c.error}")
-            else:
-                c = b.comprar(TICKER, int(p["acciones"]))
-                log(f"   ¡había una CORTA! recompra: {c.estado} error={c.error}")
-        time.sleep(4)
-        pos, ords = foto(b, "comprobación final")
-        if not pos and not ords:
-            return True
-    return False
-
-
-def _anotar(o):
-    if o is not None and getattr(o, "orden", None):
-        PUESTAS.add(int(o.orden))
-    return o
+    log(f"--- {etiqueta}: posiciones {TICKER}="
+        f"{[(p['acciones'], p['lado'], p['orden']) for p in pos]}")
+    oc = b.ordenes_contado()
+    estados = {}
+    for o in oc["todas"]:
+        if not _mismo(o["ticker"]):
+            continue
+        if solo is not None and o["orden"] not in solo:
+            continue
+        estados[o["orden"]] = o["estado"]
+        log(f"      orden {o['orden']} {o['tipo']}/{o['lado']} x{o['acciones']} "
+            f"@ {o['precio']} -> {o['estado']}")
+    if TICKER in oc["reglas"]:
+        log(f"      reglas {TICKER}: {oc['reglas'][TICKER]}")
+    return {"estados": estados, "posiciones": pos, "vivas": [
+        o for o in oc["ordenes"] if _mismo(o["ticker"])]}
 
 
 def esperar(cond, segundos: int, cada: float = 5.0) -> bool:
@@ -119,9 +82,51 @@ def esperar(cond, segundos: int, cada: float = 5.0) -> bool:
     return cond()
 
 
+def estado_de(b, numero) -> str | None:
+    if not numero:
+        return None
+    for o in b.ordenes_contado()["todas"]:
+        if o["orden"] == numero:
+            return o["estado"]
+    return "NO_LISTADA"
+
+
+def poner(b, tipo: str, precio: float):
+    o = b.poner_orden_venta(TICKER, 1, tipo, precio)
+    log(f"PONER {tipo} venta 1 @ {precio}: {o.estado} orden={o.orden} error={o.error}")
+    time.sleep(4)
+    o.xtb = estado_de(b, o.orden)
+    log(f"   estado en XTB a los 4 s: {o.xtb}")
+    return o
+
+
+def limpiar(b) -> bool:
+    """Cancela las órdenes vivas de F.US y vende lo que quede."""
+    for intento in range(3):
+        f = foto(b, f"limpieza {intento + 1}")
+        vivas = [o["orden"] for o in f["vivas"]]
+        if vivas:
+            log(f"   cancelando vivas {vivas}: {b.cancelar_ordenes(vivas)}")
+            time.sleep(4)
+            f = foto(b, "tras cancelar")
+        for p in f["posiciones"]:
+            if p["lado"] == "buy":
+                c = b.vender(TICKER, int(p["acciones"]))
+                log(f"   venta de limpieza: {c.estado} precio={c.precio} error={c.error}")
+        time.sleep(5)
+        f = foto(b, "comprobación final")
+        if not any(p["lado"] == "buy" for p in f["posiciones"]) and not f["vivas"]:
+            return True
+    return False
+
+
+def hay_posicion(b) -> bool:
+    return any(p["lado"] == "buy" for p in b.posiciones() if _mismo(p["ticker"]))
+
+
 def prueba(b) -> int:
-    pos, ords = foto(b, "antes de empezar")
-    if pos or ords:
+    f = foto(b, "antes de empezar")
+    if f["vivas"] or any(p["lado"] == "buy" for p in f["posiciones"]):
         log("Hay restos de una prueba anterior; se limpian primero.")
         if not limpiar(b):
             log("NO se pudo limpiar; no se empieza.")
@@ -131,144 +136,136 @@ def prueba(b) -> int:
     bid = q["bid"]
     log(f"cotización {TICKER}: bid={bid} ask={q['ask']}")
 
-    # 1. posición de prueba
     e = b.comprar(TICKER, 1)
     log(f"COMPRA 1 x {TICKER}: {e.estado} precio={e.precio} orden={e.orden} error={e.error}")
-    if not e.ok:
+    if not e.ok or not esperar(lambda: hay_posicion(b), 30):
+        log("la compra no aparece como posición; se para")
         return 1
-    if not esperar(lambda: any(p["lado"] == "buy" for p in b.posiciones() if _mismo(p["ticker"])), 30):
-        log("la compra no aparece como posición; se limpia y se para")
-        limpiar(b)
-        return 1
-    foto(b, "tras la compra")
 
-    # 2. las dos órdenes sobre la MISMA cantidad (niveles lejanos: no se tocan)
-    lim_lejos, stop_lejos = round(bid * 1.30, 2), round(bid * 0.70, 2)
-    lim = _anotar(b.poner_orden_venta(TICKER, 1, "limitada", lim_lejos))
-    log(f"LIMITADA venta 1 @ {lim_lejos}: {lim.estado} orden={lim.orden} error={lim.error}")
-    stp = _anotar(b.poner_orden_venta(TICKER, 1, "stop", stop_lejos))
-    log(f"STOP venta 1 @ {stop_lejos}: {stp.estado} orden={stp.orden} error={stp.error}")
-    time.sleep(3)
-    _, ords = foto(b, "tras poner las dos")
-    vivas = {int(o["orden"]) for o in ords if o["orden"] is not None}
-    CONCLUSIONES["limitada_aceptada"] = lim.ok
-    CONCLUSIONES["stop_aceptada"] = stp.ok
-    CONCLUSIONES["numeros"] = {"limitada": lim.orden, "stop": stp.orden}
-    CONCLUSIONES["en_lista"] = sorted(vivas)
-    CONCLUSIONES["dos_a_la_vez"] = (
-        "aceptadas" if lim.ok and stp.ok else "solo una" if lim.ok or stp.ok else "ninguna")
-    log(f"==> DOS ÓRDENES SOBRE LA MISMA CANTIDAD: {CONCLUSIONES['dos_a_la_vez']}")
+    lejos_lim, lejos_stop = round(bid * 1.30, 2), round(bid * 0.70, 2)
 
-    # Si la stop no entró con la limitada puesta, ¿entra sola? (orden inverso)
-    if lim.ok and not stp.ok:
+    # --- 1. las dos sobre la misma acción --------------------------------
+    lim = poner(b, "limitada", lejos_lim)
+    stp = poner(b, "stop", lejos_stop)
+    time.sleep(6)
+    f = foto(b, "las dos puestas, +10 s")
+    lim.xtb, stp.xtb = f["estados"].get(lim.orden), f["estados"].get(stp.orden)
+    vivas = {"ACCEPTED", "NEW", "PENDING_NEW"}
+    CONCLUSIONES["A_limitada_luego_stop"] = {"limitada": lim.xtb, "stop": stp.xtb}
+
+    # --- 2. el orden inverso: stop primero -------------------------------
+    if lim.xtb in vivas:
         r = b.cancelar_ordenes([lim.orden])
-        log(f"   cancelo la limitada para probar la stop sola: {r}")
-        time.sleep(2)
-        stp = _anotar(b.poner_orden_venta(TICKER, 1, "stop", stop_lejos))
-        log(f"   STOP sola: {stp.estado} orden={stp.orden} error={stp.error}")
-        lim2 = _anotar(b.poner_orden_venta(TICKER, 1, "limitada", lim_lejos))
-        log(f"   y la LIMITADA después de la stop: {lim2.estado} error={lim2.error}")
-        CONCLUSIONES["orden_inverso"] = {"stop_sola": stp.ok, "limitada_despues": lim2.ok}
-        lim = lim2 if lim2.ok else lim
-        if not lim2.ok:
-            lim.orden = None
-
-    # 3. modificar precio
-    if lim.ok and lim.orden:
-        m = _anotar(b.modificar_orden(lim.orden, "limitada", round(bid * 1.25, 2)))
-        log(f"MODIFICAR limitada -> {round(bid * 1.25, 2)}: {m.estado} orden={m.orden} error={m.error}")
-        CONCLUSIONES["modificar_limitada"] = m.ok
-        CONCLUSIONES["modificar_mantiene_numero"] = (m.orden == lim.orden)
-        if m.orden and m.orden != lim.orden:
-            log(f"   OJO: modificar devolvió OTRO número ({m.orden}); se sigue con él")
-            lim.orden = m.orden
-    if stp.ok and stp.orden:
-        m = _anotar(b.modificar_orden(stp.orden, "stop", round(bid * 0.75, 2)))
-        log(f"MODIFICAR stop -> {round(bid * 0.75, 2)}: {m.estado} orden={m.orden} error={m.error}")
-        CONCLUSIONES["modificar_stop"] = m.ok
-        if m.orden and m.orden != stp.orden:
-            stp.orden = m.orden
-    time.sleep(3)
-    _, ords = foto(b, "tras modificar")
-    precios = {int(o["orden"]): o["precio"] for o in ords if o["orden"] is not None}
-    CONCLUSIONES["precios_en_lista_tras_modificar"] = precios
-
-    # 4. cancelar (la stop) y reponerla
-    if stp.ok and stp.orden:
+        log(f"CANCELAR limitada {lim.orden}: {r}")
+        time.sleep(4)
+        CONCLUSIONES["cancelar_limitada"] = {"respuesta": r.get(lim.orden),
+                                             "estado": estado_de(b, lim.orden)}
+    if stp.xtb in vivas:
         r = b.cancelar_ordenes([stp.orden])
         log(f"CANCELAR stop {stp.orden}: {r}")
-        time.sleep(3)
-        _, ords = foto(b, "tras cancelar la stop")
-        CONCLUSIONES["cancelar"] = (r.get(stp.orden, (False,))[0]
-                                    and all(int(o["orden"]) != stp.orden for o in ords if o["orden"]))
-        # cancelar dos veces: ¿dice que no la encuentra? (para no confundir
-        # "cancelada" con "ya no existía")
-        r2 = b.cancelar_ordenes([stp.orden])
-        log(f"CANCELAR otra vez la misma: {r2}")
-        CONCLUSIONES["cancelar_inexistente"] = r2.get(stp.orden)
-        stp = _anotar(b.poner_orden_venta(TICKER, 1, "stop", stop_lejos))
-        log(f"REPONER stop @ {stop_lejos}: {stp.estado} orden={stp.orden} error={stp.error}")
+        time.sleep(4)
+        CONCLUSIONES["cancelar_stop_con_limitada"] = {"respuesta": r.get(stp.orden),
+                                                      "estado": estado_de(b, stp.orden)}
+    foto(b, "tras cancelar las dos")
+    stp = poner(b, "stop", lejos_stop)
+    lim = poner(b, "limitada", lejos_lim)
+    time.sleep(6)
+    f = foto(b, "stop primero y limitada después, +10 s")
+    lim.xtb, stp.xtb = f["estados"].get(lim.orden), f["estados"].get(stp.orden)
+    CONCLUSIONES["B_stop_luego_limitada"] = {"stop": stp.xtb, "limitada": lim.xtb}
+    ambas = lim.xtb in vivas and stp.xtb in vivas
+    CONCLUSIONES["dos_a_la_vez"] = "aceptadas" if ambas else (
+        "solo una" if (lim.xtb in vivas or stp.xtb in vivas) else "ninguna")
+    log(f"==> DOS ÓRDENES SOBRE LA MISMA CANTIDAD: {CONCLUSIONES['dos_a_la_vez']}")
 
-    # 5. OCO: forzar que la limitada se ejecute y mirar la stop
-    if lim.ok and lim.orden:
+    # --- 3. modificar ----------------------------------------------------
+    for o, tipo, nuevo in ((lim, "limitada", round(bid * 1.25, 2)),
+                           (stp, "stop", round(bid * 0.75, 2))):
+        if o.xtb not in vivas:
+            continue
+        m = b.modificar_orden(o.orden, tipo, nuevo)
+        log(f"MODIFICAR {tipo} {o.orden} -> {nuevo}: {m.estado} orden={m.orden} error={m.error}")
+        time.sleep(4)
+        precio = next((x["precio"] for x in b.ordenes_contado()["todas"]
+                       if x["orden"] == o.orden), None)
+        CONCLUSIONES[f"modificar_{tipo}"] = {"respuesta": m.estado, "error": m.error,
+                                             "mismo_numero": m.orden == o.orden,
+                                             "precio_en_xtb": precio,
+                                             "estado": estado_de(b, o.orden)}
+    foto(b, "tras modificar")
+
+    # --- 4. OCO: forzar la limitada y mirar la stop ---------------------
+    if lim.xtb in vivas:
         q = b.cotizacion(TICKER)
-        ejecutada = False
-        for nivel in (round(q["bid"] * 0.99, 2), round(q["bid"], 2)):
-            m = _anotar(b.modificar_orden(lim.orden, "limitada", nivel))
-            log(f"FORZAR limitada a {nivel} (bid {q['bid']}): {m.estado} error={m.error}")
-            if m.orden and m.orden != lim.orden:
-                lim.orden = m.orden
-            if m.ok and esperar(lambda: not any(
-                    p["lado"] == "buy" for p in b.posiciones() if _mismo(p["ticker"])), 120):
-                ejecutada = True
-                break
-        CONCLUSIONES["limitada_ejecutada"] = ejecutada
+        nivel = round(q["bid"] * 0.99, 2)
+        m = b.modificar_orden(lim.orden, "limitada", nivel)
+        log(f"FORZAR limitada a {nivel} (bid {q['bid']}): {m.estado} error={m.error}")
+        if not m.ok:
+            # Si no deja modificarla, se cancela y se pone otra ya ejecutable.
+            r = b.cancelar_ordenes([lim.orden])
+            log(f"   no se pudo modificar; cancelo {lim.orden}: {r}")
+            time.sleep(3)
+            lim = poner(b, "limitada", nivel)
+        ejecutada = esperar(lambda: not hay_posicion(b), 90)
+        f = foto(b, "tras forzar la limitada")
+        CONCLUSIONES["limitada_forzada"] = {"posicion_cerrada": ejecutada,
+                                            "estado_limitada": f["estados"].get(lim.orden)}
         if ejecutada:
-            log("==> la limitada se ejecutó: la posición desapareció")
-            estados = []
+            evol = []
             for i in range(4):
-                time.sleep(20)
-                pos, ords = foto(b, f"la otra pata, +{20 * (i + 1)} s")
-                viva = any(o["orden"] is not None and int(o["orden"]) == stp.orden for o in ords)
-                estados.append({"viva": viva, "posiciones": [(p['acciones'], p['lado']) for p in pos]})
-            CONCLUSIONES["otra_pata"] = estados
-            ultima = estados[-1]
-            if ultima["viva"]:
-                CONCLUSIONES["al_ejecutarse_una"] = "viva"
-            elif stp.ok:
-                CONCLUSIONES["al_ejecutarse_una"] = "cancelada por XTB"
-            log(f"==> AL EJECUTARSE UNA, LA OTRA: {CONCLUSIONES.get('al_ejecutarse_una')}")
-            if stp.ok and stp.orden:
+                time.sleep(15)
+                evol.append(estado_de(b, stp.orden))
+                log(f"   la stop {stp.orden}, +{15 * (i + 1)} s: {evol[-1]}")
+            CONCLUSIONES["otra_pata"] = evol
+            final = evol[-1]
+            CONCLUSIONES["al_ejecutarse_una"] = (
+                "viva" if final in vivas else
+                "cancelada por XTB" if final == "CANCELED" else
+                "rechazada" if final == "REJECTED" else final)
+            log(f"==> AL EJECUTARSE UNA, LA OTRA: {CONCLUSIONES['al_ejecutarse_una']}")
+            if final in vivas:
                 r = b.cancelar_ordenes([stp.orden])
-                log(f"cancelar la otra pata tras la ejecución: {r}")
-                CONCLUSIONES["cancelar_otra_pata"] = r.get(stp.orden)
+                time.sleep(4)
+                CONCLUSIONES["cancelar_otra_pata"] = {"respuesta": r.get(stp.orden),
+                                                      "estado": estado_de(b, stp.orden)}
+                log(f"   cancelada a mano: {CONCLUSIONES['cancelar_otra_pata']}")
         else:
-            log("la limitada NO llegó a ejecutarse con niveles pegados al mercado")
+            log("la limitada no se ejecutó con el nivel pegado al mercado")
     return 0
 
 
 def revisar(b) -> int:
-    """Día siguiente: qué sigue en cola, con el crudo."""
-    ords = b.ordenes_pendientes()
-    log(f"ÓRDENES PENDIENTES: {len(ords)}")
-    for o in ords:
-        log(f"   {o}")
+    """Lo que hay ahora: posiciones y órdenes de contado (todas, con estado)."""
     for p in b.posiciones():
-        log(f"   posición {p['ticker']} x{p['acciones']} {p['lado']}")
+        log(f"posición {p['ticker']} x{p['acciones']} {p['lado']} ({p['orden']})")
+    oc = b.ordenes_contado()
+    log(f"ÓRDENES DE CONTADO: {len(oc['todas'])} en la lista, {len(oc['ordenes'])} vivas")
+    for o in oc["todas"]:
+        log(f"   {o['orden']} {o['ticker']} {o['tipo']}/{o['lado']} x{o['acciones']} "
+            f"@ {o['precio']} -> {o['estado']} (creada {o['creada']}, vence {o['vence']})")
+    for s, r in oc["reglas"].items():
+        log(f"   reglas {s}: {r}")
     return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--operar", action="store_true", help="hacer la prueba (abre y cierra 1 acción)")
-    ap.add_argument("--revisar", action="store_true", help="solo listar órdenes pendientes")
+    ap.add_argument("--revisar", action="store_true", help="solo listar")
+    ap.add_argument("--limpiar", action="store_true",
+                    help="cancelar las órdenes vivas de F.US y cerrar su posición")
     args = ap.parse_args()
     try:
         cred = bx.credenciales_del_entorno_o_llavero()
         with bx.BrokerXTB(cred) as b:
             log("CONECTADO — candado de cuenta demo superado")
-            if args.revisar or not args.operar:
-                return revisar(b)
+            revisar(b)
+            if args.limpiar:
+                ok = limpiar(b)
+                log(f"LIMPIEZA: {'cuenta limpia' if ok else '¡QUEDAN RESTOS!'}")
+                return 0 if ok else 1
+            if not args.operar:
+                return 0
             rc = 1
             try:
                 rc = prueba(b)

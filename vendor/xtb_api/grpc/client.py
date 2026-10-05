@@ -48,9 +48,11 @@ from xtb_api.grpc.proto import (  # CENTINELA (CAMBIOS.md, parche 3)
     GRPC_MODIFY_STOP_ORDER_ENDPOINT,
     GRPC_NEW_LIMIT_ORDER_ENDPOINT,
     GRPC_NEW_STOP_ORDER_ENDPOINT,
+    GRPC_SUBSCRIBE_ORDER_GROUPS_ENDPOINT,
     build_modify_pending_order,
     build_new_pending_order,
     parse_delete_orders_full,
+    parse_order_groups,
     parse_pending_order_response,
     split_grpc_web,
 )
@@ -458,6 +460,63 @@ class GrpcClient:
             out[n] = GrpcCancelResult(success=ok, order_number=n, grpc_status=status or 0,
                                       error=None if ok else f"{codigo}{': ' + msg if msg else ''}")
         return out
+
+    async def cash_orders_snapshot(self, timeout: float = 20.0) -> dict:
+        """La foto de TODAS las órdenes de contado (OrderService/SubscribeOrderGroups).
+
+        Es un stream de servidor: se abre, se lee hasta el primer mensaje
+        completo —la foto, eventType SNAPSHOT— y se cierra. En gRPC-web-text
+        cada mensaje llega como un trozo base64 independiente (con su propio
+        relleno), así que se decodifica trozo a trozo y no todo de golpe.
+
+        Lanza si no llega la foto: una lista vacía por un fallo sería decirle a
+        la reconciliación "no hay órdenes", que es justo lo que no se puede
+        confundir con "no lo sé".
+        """
+        import asyncio
+        import re
+
+        jwt = await self._ensure_jwt()
+        headers = {
+            "Content-Type": GRPC_WEB_TEXT_CONTENT_TYPE,
+            "Accept": GRPC_WEB_TEXT_CONTENT_TYPE,
+            "X-Grpc-Web": "1",
+            "x-user-agent": "grpc-web-javascript/0.1",
+            "Authorization": f"Bearer {jwt}",
+        }
+        body = build_grpc_web_text_body(b"")
+        client = await self._ensure_http()
+        texto, binario = "", b""
+
+        async def leer() -> dict:
+            nonlocal texto, binario
+            async with client.stream("POST", GRPC_SUBSCRIBE_ORDER_GROUPS_ENDPOINT,
+                                     content=body, headers=headers) as resp:
+                resp.raise_for_status()
+                if "grpc-status" in resp.headers and resp.headers.get("grpc-status") != "0":
+                    raise RuntimeError(f"SubscribeOrderGroups: {_centinela_motivo(resp.headers)}")
+                async for trozo in resp.aiter_text():
+                    texto += trozo
+                    # Trozos base64 completos: hasta un relleno '=' o múltiplo de 4.
+                    partes = re.split(r"(?<==)(?=[^=])", texto)
+                    completos, texto = partes[:-1], partes[-1]
+                    if len(texto) % 4 == 0 and texto:
+                        completos.append(texto)
+                        texto = ""
+                    for c in completos:
+                        binario += base64.b64decode(c)
+                    datos, status, message = split_grpc_web(binario)
+                    if status not in (None, 0):
+                        raise RuntimeError(f"SubscribeOrderGroups grpc-status {status}: {message}")
+                    for d in datos:
+                        foto = parse_order_groups(d)
+                        if foto["event"] == "SNAPSHOT":
+                            return foto
+                    if status == 0:
+                        break
+            raise RuntimeError("SubscribeOrderGroups terminó sin enviar la foto (SNAPSHOT)")
+
+        return await asyncio.wait_for(leer(), timeout=timeout)
 
     def _parse_cancel_response(self, response_bytes: bytes, order_numbers: list[int]) -> list[GrpcCancelResult]:
         """Parse a DeleteOrders response into one result per requested order.

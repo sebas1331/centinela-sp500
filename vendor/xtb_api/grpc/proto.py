@@ -519,3 +519,111 @@ def parse_delete_orders_full(payload: bytes) -> dict:
         else:
             out["resultados"][oid] = (False, "sin_resultado", None)
     return out
+
+
+# --------------------------------------------------------------------------- #
+# CENTINELA (CAMBIOS.md, parche 3) — la lista de órdenes de contado
+# --------------------------------------------------------------------------- #
+# `getAllOrders` del WebSocket (el que usaba el cliente) NO devuelve las órdenes
+# de acciones al contado: medido el 2026-10-05, con una limitada y una stop
+# aceptadas sobre F.US, devolvió cero. La web las lista con este servicio
+# (microfrontend `portfolio`, `order-service-proto/v1`), que es un stream: el
+# primer mensaje es la foto completa (eventType = SNAPSHOT) y luego llegan
+# cambios. Aquí solo se lee la foto.
+#
+#   OrderGroupEvent { EventType eventType = 1; repeated {int32 key=1; OrderGroup value=2} orderGroups = 2; }
+#   OrderGroup      { int32 instrumentId = 1; oneof { CashOrderGroup cash = 2; CfdOrderGroup cfd = 3; } }
+#   CashOrderGroup  { Instrument instrument = 1; repeated {int64 key=1; CashOrder value=2} orders = 2; }
+#   CashOrder       { int64 signed_order_id = 1; OrderBaseInfo baseInfo = 2;
+#                     CashOrderDetails details = 3; int64 unsigned_order_id = 4; }
+#   OrderBaseInfo   { OrderSide side=1; OrderType type=2; OrderName name=3;
+#                     oneof { Volume volume=4; int64 amount=5; } string orderPrice=6;
+#                     optional int64 expiration=7; optional double marketPrice=8; }
+#   CashOrderDetails{ int64 nominalValue=1; int64 createTime=2; Origin origin=3; ...
+#                     OrderStatus orderStatus=7; bool is_extended_trading_hours=8; }
+#   Instrument      { int32 idInstrument=1; string ticker=2; ... TradingRules tradingRules=12; }
+#   TradingRules    { ...; LimitOrder limitOrder=5; StopOrder stopOrder=6; }
+#   LimitOrder/StopOrder { bool isDeleteAllowed=6; bool isModifyAllowed=7; }
+
+GRPC_SUBSCRIBE_ORDER_GROUPS_ENDPOINT = (
+    f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.order.v1.OrderService/SubscribeOrderGroups"
+)
+
+ORDER_SIDE = {0: "not_set", 1: "buy", 2: "sell"}
+ORDER_TYPE = {0: "not_set", 1: "market", 2: "limit", 3: "stop"}
+ORDER_NAME = {0: "NOT_SET", 1: "BUY", 2: "SELL", 3: "BUY_STOP", 4: "SELL_STOP",
+              5: "BUY_LIMIT", 6: "SELL_LIMIT"}
+ORDER_STATUS = {0: "NOT_SET", 1: "PENDING_NEW", 2: "NEW", 3: "ACCEPTED", 4: "REJECTED",
+                5: "PENDING_CANCEL", 6: "CANCELED", 7: "PENDING_MODIFY", 8: "EXPIRED",
+                9: "FILLED", 10: "PARTIAL_FILLED"}
+#: Estados en los que la orden sigue viva en el servidor de XTB.
+ORDER_STATUS_VIVA = {"PENDING_NEW", "NEW", "ACCEPTED", "PENDING_MODIFY", "PARTIAL_FILLED"}
+
+
+def _uno(campos: dict, n: int, defecto=None):
+    v = campos.get(n)
+    return v[0][1] if v else defecto
+
+
+def _sub(campos: dict, n: int) -> dict:
+    v = _uno(campos, n)
+    return parse_proto_fields(v) if isinstance(v, bytes) else {}
+
+
+def _double(b) -> float | None:
+    return struct.unpack("<d", b)[0] if isinstance(b, bytes) and len(b) == 8 else None
+
+
+def _signed64(v: int | None) -> int | None:
+    if v is None:
+        return None
+    return v - (1 << 64) if v >= (1 << 63) else v
+
+
+def parse_order_groups(payload: bytes) -> dict:
+    """OrderGroupEvent -> {"event": "SNAPSHOT"|"UPDATE"|..., "orders": [dict], "rules": {ticker: dict}}."""
+    campos = parse_proto_fields(payload)
+    out: dict = {"event": {0: "NOT_SET", 1: "SNAPSHOT", 2: "UPDATE"}.get(_uno(campos, 1, 0), "?"),
+                 "orders": [], "rules": {}}
+    for _, entrada in campos.get(2, []):
+        if not isinstance(entrada, bytes):
+            continue
+        grupo = _sub(parse_proto_fields(entrada), 2)
+        cash = _sub(grupo, 2)
+        if not cash:
+            continue                                   # CFD: este sistema no los opera
+        instr = _sub(cash, 1)
+        ticker = _texto(_uno(instr, 2, b""))
+        reglas = _sub(instr, 12)
+        out["rules"][ticker] = {
+            rol: {"delete": bool(_uno(_sub(reglas, n), 6, 0)),
+                  "modify": bool(_uno(_sub(reglas, n), 7, 0))}
+            for rol, n in (("limit", 5), ("stop", 6))
+        }
+        for _, oe in cash.get(2, []):
+            if not isinstance(oe, bytes):
+                continue
+            o = _sub(parse_proto_fields(oe), 2)
+            base, det = _sub(o, 2), _sub(o, 3)
+            vol = _sub(base, 4)
+            escala = _uno(vol, 2, 0) or 0
+            volumen = (_uno(vol, 1, 0) or 0) / (10 ** escala) if vol else None
+            precio = _texto(_uno(base, 6, b"")) or None
+            out["orders"].append({
+                "order_id": _uno(o, 4) or _signed64(_uno(o, 1)),
+                "signed_order_id": _signed64(_uno(o, 1)),
+                "instrument_id": _uno(grupo, 1) or _uno(instr, 1),
+                "symbol": ticker,
+                "side": ORDER_SIDE.get(_uno(base, 1, 0), "?"),
+                "type": ORDER_TYPE.get(_uno(base, 2, 0), "?"),
+                "name": ORDER_NAME.get(_uno(base, 3, 0), "?"),
+                "volume": volumen,
+                "amount": _uno(base, 5),
+                "price": float(precio) if precio else None,
+                "expiration": _uno(base, 7),
+                "market_price": _double(_uno(base, 8)),
+                "status": ORDER_STATUS.get(_uno(det, 7, 0), "?"),
+                "create_time": _uno(det, 2),
+                "origin": _uno(det, 3),
+            })
+    return out
