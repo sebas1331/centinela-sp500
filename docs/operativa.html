@@ -1097,6 +1097,20 @@ var ETIQ_POS = {ticker:"Ticker", acc:"Acciones", entrada:"Entrada",
   actual:"Actual", objetivo:"Objetivo", stop:"Stop", alstop:"Al stop",
   dias:"Días", sale:"Sale", pnl:"P&L"};
 
+/* Dónde vive cada nivel: "en XTB nº…" (orden pendiente confirmada en el
+   servidor) o "solo vigilante" (lo ejecuta el vigilante de precios a mercado). */
+function nivelDonde(texto, donde, orden){
+  var caja = el("span","");
+  caja.appendChild(el("span","num", texto));
+  if(!donde) return caja;
+  var etiqueta = donde === "xtb" ? "en XTB nº " + orden
+               : donde === "vigilante" ? "solo vigilante" : "sin dato de XTB";
+  var s = el("span","donde " + (donde === "xtb" ? "pos" : "neu"), etiqueta);
+  s.style.display = "block"; s.style.fontSize = "0.75em";
+  caja.appendChild(s);
+  return caja;
+}
+
 function pintarPosiciones(pos){
   var cuerpo = document.getElementById("cuerpo-pos");
   cuerpo.textContent = "";
@@ -1115,8 +1129,9 @@ function pintarPosiciones(pos){
     c("acc", p.acciones === null ? "—" : String(p.acciones), "n");
     c("entrada", precio(p.precio_entrada), "n");
     c("actual", precio(p.precio_actual), "n");
-    c("objetivo", precio(p.objetivo), "n");
-    c("stop", p.stop === null ? "sin stop" : precio(p.stop), "n");
+    c("objetivo", nivelDonde(precio(p.objetivo), p.objetivo_en, null), "n");
+    c("stop", p.stop === null ? "sin stop"
+      : nivelDonde(precio(p.stop), p.stop_en, p.stop_orden_xtb), "n");
     c("alstop", el("span","num" + (p.cerca_del_stop ? " neg" : ""),
                    pct(p.dist_stop_pct, 1)), "n");
     c("dias", p.dias_en_posicion === null ? "—" : String(p.dias_en_posicion), "n");
