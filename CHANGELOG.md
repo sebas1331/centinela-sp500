@@ -27,7 +27,10 @@ ya no es una incógnita.
   órdenes enviadas. Una orden con fila en `bitacora_broker.csv` está reportada;
   el rechazo ya pinta rojo por su propio camino.
 
-**Abierto, pendiente de decisión:** la compra de WDC se mandó a las 09:30:31
+**Decidido el mismo día: las compras salen 5 minutos después de abrir**
+(`EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (5, 60)`). Es hipótesis con dos casos:
+si una compra a las 09:35 vuelve a perderse, queda descartada. Contexto:
+la compra de WDC se mandó a las 09:30:31
 (11 s después de abrir) y XTB la aceptó y la descartó (orden 917440474; 0
 posiciones y saldo intacto en la auditoría de las 09:51). El 02/10 CTVA falló
 igual a las 09:30:19 — atribuido entonces a los niveles, pero hoy no se mandaron

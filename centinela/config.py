@@ -339,7 +339,13 @@ SESION_AVISO_HORAS = 3
 #: van de la apertura al envío —y eso se mide, por eso las entradas tardías
 #: tienen tipo propio— pero una orden que se ejecuta de verdad vale más que una
 #: que encaja perfecto con el simulador y no existe.
-EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (0, 60)       # desde la apertura, 60 min
+#:
+#: Y NO EN LOS PRIMEROS SEGUNDOS (decisión del 2026-10-05). Las dos compras
+#: mandadas nada más abrir —CTVA a las 09:30:19 del 02/10 y WDC a las 09:30:31
+#: del 05/10— XTB las aceptó y las descartó; las mandadas de 09:52 a 10:06
+#: entraron. Con dos casos es una hipótesis, no una ley: se espera 5 minutos y,
+#: si una compra a las 09:35 vuelve a perderse, la hipótesis queda descartada.
+EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (5, 60)       # de 5 a 60 min tras abrir
 #: Cuánto puede dormir el ejecutor de compras esperando a que abra. El
 #: pre-apertura procesa hasta 4 h antes de la apertura (PREAPERTURA_MAX_ANTES),
 #: y su ejecutor es el ÚNICO que compra ese día: los peldaños siguientes de la

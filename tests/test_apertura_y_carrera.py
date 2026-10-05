@@ -380,9 +380,13 @@ def test_con_el_mercado_cerrado_la_compra_NO_se_manda():
 
 
 def test_justo_despues_de_abrir_si_se_manda():
+    """Cinco minutos después, no en el primer segundo (decisión del 05/10:
+    las compras de las 09:30:19 y 09:30:31 se perdieron)."""
     from centinela import calendario
     ac = calendario.apertura_cierre_et(HOY)
     ok, _ = ej.en_ventana("compras", ac[0] + timedelta(seconds=30))
+    assert ok is ej.ESPERAR
+    ok, _ = ej.en_ventana("compras", ac[0] + timedelta(minutes=5))
     assert ok is True
 
 

@@ -515,3 +515,12 @@ def test_una_orden_rechazada_cuenta_como_reportada(monkeypatch):
         ticker="CTVA.US", lado="compra", acciones=134, estado="rechazada",
         cuando="2026-10-02T09:30:19-04:00"))
     assert vigilante.revisar_ejecutor(1) == []          # rechazada, pero reportada
+
+
+def test_las_compras_no_salen_en_los_primeros_cinco_minutos():
+    """05/10: compras a las 09:30:19 y 09:30:31, aceptadas y descartadas."""
+    apertura = datetime(2026, 10, 5, 9, 30, tzinfo=config.TZ_ET)
+    from datetime import timedelta
+    assert ej.en_ventana("compras", apertura + timedelta(seconds=31))[0] is ej.ESPERAR
+    assert ej.en_ventana("compras", apertura + timedelta(minutes=4))[0] is ej.ESPERAR
+    assert ej.en_ventana("compras", apertura + timedelta(minutes=5))[0] is True

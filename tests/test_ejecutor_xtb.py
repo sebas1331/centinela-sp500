@@ -235,7 +235,7 @@ def test_las_compras_se_mandan_DESPUES_de_la_apertura():
     devolvió "en cola" (orden 916785162); tres minutos después no había ni
     posición ni orden.
     """
-    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:31:00"))
+    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:35:00"))
     assert ok is True
     ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "10:00:00"))
     assert ok is True

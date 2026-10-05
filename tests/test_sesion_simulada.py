@@ -106,7 +106,7 @@ class XTBEnVivo(XTBDeMentira):
 @pytest.fixture
 def dia(tmp_path, monkeypatch):
     """El mundo del día: estado del simulador, órdenes, reloj, remoto git."""
-    reloj = Reloj(datetime(2026, 10, 5, 9, 31, tzinfo=config.TZ_ET))
+    reloj = Reloj(datetime(2026, 10, 5, 9, 36, tzinfo=config.TZ_ET))
 
     class R(datetime):
         @classmethod
@@ -210,9 +210,9 @@ def _correr(d, s, hasta: datetime, cada: float = 30.0):
 def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     d, xtb, reloj = dia, dia["xtb"], dia["reloj"]
 
-    # --- 09:31 compras tras la apertura -------------------------------------
+    # --- 09:36 compras, 5 min tras la apertura -------------------------------
     ok, _ = ej.en_ventana("compras", reloj.ahora())
-    assert ok is True, "a las 09:31 la ventana de compras tiene que estar abierta"
+    assert ok is True, "a las 09:36 la ventana de compras tiene que estar abierta"
     registro = ords.cargar_enviadas()
     hechas = ej.enviar(xtb, ords.cargar_pendientes(), "compras", registro)
     ords.guardar_enviadas(registro)
@@ -222,8 +222,8 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     assert compras["AAA"]["precio"] == "100.01"
     assert compras["AAA"]["precio_fuente"] == "posicion"
 
-    # --- 09:35 arranca el vigilante -----------------------------------------
-    reloj.hasta(9, 35)
+    # --- 09:38 arranca el vigilante -----------------------------------------
+    reloj.hasta(9, 38)
     s = _sesion(d)
     s.arrancar()
     vigiladas = {v["ticker"]: v for v in s.vigiladas}
