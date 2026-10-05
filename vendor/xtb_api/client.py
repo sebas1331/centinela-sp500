@@ -307,6 +307,40 @@ class XTBClient:
             error_code=error_code,
         )
 
+    # ── CENTINELA (CAMBIOS.md, parche 3): órdenes pendientes ─────
+
+    async def place_pending_order(self, symbol: str, volume: int, kind: str,
+                                  price: float, side: str = "sell"):
+        """Orden pendiente sobre la ACCIÓN al contado, sin vencimiento.
+
+        kind: "limit" (venta: a `price` o mejor, por encima del mercado) o
+        "stop" (venta: al tocar `price`, por debajo del mercado). Devuelve un
+        ``GrpcPendingOrderResult``; ``order_number`` es el número que luego
+        aparece en ``get_orders()`` y el que piden modificar y cancelar.
+        """
+        if kind not in ("limit", "stop"):
+            raise ValueError(f"kind debe ser 'limit' o 'stop', no {kind!r}")
+        if not isinstance(volume, int) or volume < 1:
+            raise ValueError(f"volumen entero >= 1, no {volume!r}")
+        grpc = self._ensure_grpc()
+        instrument_id = await self._resolve_instrument_id(symbol)
+        lado = SIDE_SELL if side == "sell" else SIDE_BUY
+        fn = grpc.new_limit_order if kind == "limit" else grpc.new_stop_order
+        return await fn(instrument_id, volume, lado, price)
+
+    async def modify_pending_order(self, order_number: int, kind: str, price: float):
+        """Cambia el precio de una orden pendiente existente (no crea otra)."""
+        grpc = self._ensure_grpc()
+        if kind == "limit":
+            return await grpc.modify_limit_order(order_number, price)
+        if kind == "stop":
+            return await grpc.modify_stop_order(order_number, price)
+        raise ValueError(f"kind debe ser 'limit' o 'stop', no {kind!r}")
+
+    async def cancel_pending_orders(self, order_numbers: list[int]):
+        """Cancela y dice, orden a orden, si XTB la canceló DE VERDAD."""
+        return await self._ensure_grpc().delete_orders_checked(order_numbers)
+
     # ── Real-time Events ─────────────────────────────────────────
 
     def on(self, event: str, callback: Callable[..., Any]) -> None:

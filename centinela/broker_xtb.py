@@ -262,6 +262,41 @@ _ESTADOS = {
 }
 
 
+#: Vocabulario del repo -> vocabulario del cliente.
+_TIPO_CLIENTE = {"limitada": "limit", "stop": "stop"}
+
+
+@dataclass
+class OrdenPendiente:
+    """Resultado de poner o modificar una orden pendiente de venta."""
+
+    ticker: str
+    tipo: str                    # limitada | stop
+    acciones: int
+    precio: float
+    estado: str                  # aceptada | rechazada | ambigua
+    orden: int | None = None
+    error: str | None = None
+    cuando: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.estado == "aceptada"
+
+    @classmethod
+    def de_resultado(cls, r, ticker, tipo, acciones, precio) -> "OrdenPendiente":
+        if getattr(r, "success", False):
+            estado = "aceptada"
+        elif getattr(r, "ambiguous", False):
+            estado = "ambigua"
+        else:
+            estado = "rechazada"
+        return cls(ticker=ticker, tipo=tipo, acciones=acciones, precio=precio,
+                   estado=estado, orden=getattr(r, "order_number", None),
+                   error=getattr(r, "error", None),
+                   cuando=datetime.now(config.TZ_ET).isoformat())
+
+
 # --------------------------------------------------------------------------- #
 # El broker
 # --------------------------------------------------------------------------- #
@@ -531,9 +566,13 @@ class BrokerXTB:
         return bool(getattr(self._cliente, "is_connected", False))
 
     def ordenes_pendientes(self) -> list[dict]:
+        """Todo lo que XTB tiene en cola: compras a mercado esperando la
+        apertura Y, desde el parche 3, las ventas limitadas/stop que protegen
+        las posiciones. `lado` y `tipo` son los que permiten distinguirlas."""
         return [
             {"ticker": o.symbol, "acciones": float(o.volume),
-             "precio": float(o.price), "lado": o.side, "orden": o.order_id}
+             "precio": float(o.price), "lado": o.side, "orden": o.order_id,
+             "tipo": getattr(o, "order_type", None)}
             for o in self._ejecutar(self._cliente.get_orders())
         ]
 
@@ -579,6 +618,38 @@ class BrokerXTB:
         """Cancela una orden que sigue en cola."""
         r = self._ejecutar(self._cliente.cancel_order(numero_orden))
         return str(getattr(r, "status", r))
+
+    # ------------------------------------------------ órdenes pendientes --
+    def poner_orden_venta(self, ticker: str, acciones: int, tipo: str,
+                          precio: float) -> "OrdenPendiente":
+        """Venta pendiente en el servidor de XTB, sin vencimiento.
+
+        tipo "limitada" = objetivo (Orden Limitada de venta, por encima del
+        mercado); tipo "stop" = stop (Orden Stop de venta, por debajo). La
+        cantidad tiene que ser EXACTAMENTE la de la posición: con más, XTB no
+        la acepta porque sería ir en corto (comprobado a mano en xStation 5).
+        """
+        self._exigir_entero(acciones)
+        r = self._ejecutar(self._cliente.place_pending_order(
+            ticker, acciones, _TIPO_CLIENTE[tipo], float(precio)))
+        return OrdenPendiente.de_resultado(r, ticker, tipo, acciones, float(precio))
+
+    def modificar_orden(self, orden: int, tipo: str, precio: float) -> "OrdenPendiente":
+        """Cambia el precio de una orden pendiente que YA existe. No crea otra."""
+        r = self._ejecutar(self._cliente.modify_pending_order(
+            int(orden), _TIPO_CLIENTE[tipo], float(precio)))
+        o = OrdenPendiente.de_resultado(r, "", tipo, 0, float(precio))
+        if o.orden is None:
+            o.orden = int(orden)
+        return o
+
+    def cancelar_ordenes(self, ordenes: list[int]) -> dict[int, tuple[bool, str | None]]:
+        """{orden: (cancelada_de_verdad, error)}. Lee la rama de error de CADA
+        orden: "no la encuentro" NO es "cancelada"."""
+        if not ordenes:
+            return {}
+        r = self._ejecutar(self._cliente.cancel_pending_orders([int(n) for n in ordenes]))
+        return {int(n): (bool(v.success), v.error) for n, v in r.items()}
 
     def modificar_objetivo(self, *_a, **_k):
         """No se puede: el cliente no expone modificar una posición abierta.

@@ -23,3 +23,20 @@ class GrpcCancelResult(BaseModel):
     cancellation_id: str | None = None
     grpc_status: int = 0
     error: str | None = None
+
+
+class GrpcPendingOrderResult(BaseModel):
+    """CENTINELA (CAMBIOS.md, parche 3). Resultado de New/Modify Limit/Stop.
+
+    ``ambiguous=True``: XTB no contestó nada legible; la orden puede existir o
+    no y hay que mirarlo en la lista de órdenes antes de repetirla.
+    """
+
+    success: bool
+    rpc: str = ""
+    order_number: int | None = None
+    trace_id: str | None = None
+    grpc_status: int = 0
+    error: str | None = None
+    error_kind: str | None = None
+    ambiguous: bool = False

@@ -1,0 +1,58 @@
+name: Probar órdenes pendientes XTB
+
+# ---------------------------------------------------------------------------
+# Prueba MANUAL de las órdenes pendientes de venta (limitada = objetivo,
+# stop = stop) sobre 1 acción de prueba en la demo. Ver el docstring de
+# scripts/probar_ordenes_pendientes.py: qué pregunta responde y cómo limpia.
+#
+# Sin marcar "operar" solo lista lo que hay en cola (la revisión del día
+# siguiente). Con el mercado cerrado no tiene sentido operar: la compra de
+# prueba se quedaría en cola.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      operar:
+        description: "Hacer la prueba (abre y cierra 1 acción de F.US)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        uses: ./.github/actions/chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Probar órdenes pendientes
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          python scripts/probar_ordenes_pendientes.py \
+            ${{ inputs.operar && '--operar' || '--revisar' }}

@@ -41,7 +41,20 @@ from xtb_api.grpc.proto import (
     parse_delete_orders_response,
     parse_new_market_order_response,
 )
-from xtb_api.grpc.types import GrpcCancelResult, GrpcTradeResult
+from xtb_api.grpc.proto import (  # CENTINELA (CAMBIOS.md, parche 3)
+    ERRORES_MODIFICAR,
+    ERRORES_NUEVA,
+    GRPC_MODIFY_LIMIT_ORDER_ENDPOINT,
+    GRPC_MODIFY_STOP_ORDER_ENDPOINT,
+    GRPC_NEW_LIMIT_ORDER_ENDPOINT,
+    GRPC_NEW_STOP_ORDER_ENDPOINT,
+    build_modify_pending_order,
+    build_new_pending_order,
+    parse_delete_orders_full,
+    parse_pending_order_response,
+    split_grpc_web,
+)
+from xtb_api.grpc.types import GrpcCancelResult, GrpcPendingOrderResult, GrpcTradeResult
 
 logger = logging.getLogger(__name__)
 
@@ -346,6 +359,105 @@ class GrpcClient:
             return [GrpcCancelResult(success=False, order_number=n, error=str(e)) for n in order_numbers]
 
         return self._parse_cancel_response(response_bytes, order_numbers)
+
+    # ------------------------------------------------------------------ #
+    # CENTINELA (CAMBIOS.md, parche 3) — órdenes pendientes al contado
+    # ------------------------------------------------------------------ #
+    async def _pending_call(self, endpoint: str, proto_msg: bytes,
+                            nombres_error: dict[int, str]) -> GrpcPendingOrderResult:
+        """Una llamada de orden pendiente, con TODO lo que XTB contesta.
+
+        A diferencia de `execute_order`, un cuerpo vacío no lanza: se devuelve
+        `ambiguous=True` con el motivo de las cabeceras, y quien llama decide
+        mirando la lista de órdenes. Para una orden pendiente eso basta —no hay
+        dinero moviéndose hasta que se ejecute— y evita duplicarla a ciegas.
+        """
+        jwt = await self._ensure_jwt()
+        nombre = endpoint.rsplit("/", 1)[-1]
+        body_b64 = build_grpc_web_text_body(proto_msg)
+        try:
+            raw = await self._grpc_call(endpoint, body_b64, jwt=jwt)
+        except httpx.HTTPError as e:
+            logger.warning("gRPC %s network error: %s", nombre, e)
+            return GrpcPendingOrderResult(success=False, ambiguous=True, rpc=nombre,
+                                          error=f"red: {e}")
+        if not raw:
+            motivo = CENTINELA_ULTIMO_ERROR.get("motivo") or "respuesta vacía"
+            # Un trailers-only con grpc-status != 0 es un RECHAZO, no una duda:
+            # XTB ha contestado y ha dicho que no.
+            rechazo = "(0)" not in motivo and motivo != "respuesta vacía"
+            return GrpcPendingOrderResult(success=False, ambiguous=not rechazo, rpc=nombre,
+                                          error=motivo)
+        datos, status, message = split_grpc_web(raw)
+        if status not in (0, None) and not datos:
+            return GrpcPendingOrderResult(success=False, rpc=nombre, grpc_status=status,
+                                          error=f"grpc-status {status}: {message or ''}")
+        r = parse_pending_order_response(datos[0] if datos else b"", nombres_error)
+        if r["order_id"] is not None and r["error"] is None:
+            logger.info("gRPC %s OK: order_id=%s", nombre, r["order_id"])
+            return GrpcPendingOrderResult(success=True, rpc=nombre, order_number=r["order_id"],
+                                          trace_id=r["trace_id"], grpc_status=status or 0)
+        detalle = r["error"] or "sin resultado"
+        if r["error_message"] or r["error_code"] is not None:
+            detalle += f" (code={r['error_code']}: {r['error_message']})"
+        logger.warning("gRPC %s rechazada: %s", nombre, detalle)
+        return GrpcPendingOrderResult(success=False, rpc=nombre, trace_id=r["trace_id"],
+                                      grpc_status=status or 0, error=detalle,
+                                      error_kind=r["error"])
+
+    async def new_limit_order(self, instrument_id: int, volume: int, side: int,
+                              price: float) -> GrpcPendingOrderResult:
+        """Orden limitada (sin vencimiento). Venta: se ejecuta a `price` o mejor."""
+        return await self._pending_call(
+            GRPC_NEW_LIMIT_ORDER_ENDPOINT,
+            build_new_pending_order(instrument_id, volume, side, price), ERRORES_NUEVA)
+
+    async def new_stop_order(self, instrument_id: int, volume: int, side: int,
+                             price: float) -> GrpcPendingOrderResult:
+        """Orden stop (sin vencimiento). Venta: al tocar `price` sale a mercado."""
+        return await self._pending_call(
+            GRPC_NEW_STOP_ORDER_ENDPOINT,
+            build_new_pending_order(instrument_id, volume, side, price), ERRORES_NUEVA)
+
+    async def modify_limit_order(self, order_id: int, price: float) -> GrpcPendingOrderResult:
+        return await self._pending_call(
+            GRPC_MODIFY_LIMIT_ORDER_ENDPOINT,
+            build_modify_pending_order(order_id, price), ERRORES_MODIFICAR)
+
+    async def modify_stop_order(self, order_id: int, price: float) -> GrpcPendingOrderResult:
+        return await self._pending_call(
+            GRPC_MODIFY_STOP_ORDER_ENDPOINT,
+            build_modify_pending_order(order_id, price), ERRORES_MODIFICAR)
+
+    async def delete_orders_checked(self, order_numbers: list[int]) -> dict[int, GrpcCancelResult]:
+        """DeleteOrders leyendo la rama success/error de CADA orden.
+
+        `cancel_orders` (original) da por cancelada una orden con que su número
+        vuelva en la respuesta, y vuelve también cuando XTB contesta
+        ERROR_CODE_CANNOT_FIND_ORDER. Para emular un OCO eso no vale: hay que
+        saber si la otra pata se canceló de verdad.
+        """
+        jwt = await self._ensure_jwt()
+        body_b64 = build_grpc_web_text_body(build_delete_orders_request(order_numbers))
+        try:
+            raw = await self._grpc_call(GRPC_DELETE_ORDERS_ENDPOINT, body_b64, jwt=jwt)
+        except httpx.HTTPError as e:
+            return {n: GrpcCancelResult(success=False, order_number=n, error=f"red: {e}")
+                    for n in order_numbers}
+        if not raw:
+            motivo = CENTINELA_ULTIMO_ERROR.get("motivo") or "respuesta vacía"
+            return {n: GrpcCancelResult(success=False, order_number=n, error=motivo)
+                    for n in order_numbers}
+        datos, status, message = split_grpc_web(raw)
+        res: dict[int, tuple] = {}
+        for d in datos:
+            res.update(parse_delete_orders_full(d)["resultados"])
+        out: dict[int, GrpcCancelResult] = {}
+        for n in order_numbers:
+            ok, codigo, msg = res.get(n, (False, f"sin_resultado (grpc-status {status}: {message})", None))
+            out[n] = GrpcCancelResult(success=ok, order_number=n, grpc_status=status or 0,
+                                      error=None if ok else f"{codigo}{': ' + msg if msg else ''}")
+        return out
 
     def _parse_cancel_response(self, response_bytes: bytes, order_numbers: list[int]) -> list[GrpcCancelResult]:
         """Parse a DeleteOrders response into one result per requested order.

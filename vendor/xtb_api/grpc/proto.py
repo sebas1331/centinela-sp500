@@ -319,3 +319,203 @@ GRPC_CLOSE_POSITION_ENDPOINT = (
 GRPC_DELETE_ORDERS_ENDPOINT = (
     f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService/DeleteOrders"
 )
+
+
+# --------------------------------------------------------------------------- #
+# CENTINELA (CAMBIOS.md, parche 3) — órdenes pendientes de acciones al contado
+# --------------------------------------------------------------------------- #
+# Esquema sacado de los descriptores protobuf que la propia web de xStation 5
+# lleva embebidos (microfrontend `trading-web-cmp`, fichero
+# `cash-trading-neworder-service-proto/v1/*.proto`, paquete
+# `pl.xtb.ipax.pub.grpc.cashtradingneworder.v1`). Mismo servicio y misma vía que
+# `NewMarketOrder`, que es lo que este cliente ya usaba:
+#
+#   message NewLimitOrderRequest {          message NewStopOrderRequest {
+#     int32  instrumentId   = 1;              int32  instrumentId    = 1;
+#     Size   size           = 2;              Size   size            = 2;
+#     Side   side           = 3;              Side   side            = 3;
+#     Price  limitPrice     = 4;              Price  activationPrice = 4;
+#     optional int64 expirationDate = 5;      optional int64 expirationDate = 5;
+#     bool   process_eth    = 6;              bool   process_eth     = 6;
+#   }                                       }
+#   message ModifyLimitOrderRequest { int64 orderId = 1; Price limitPrice = 2;
+#                                     optional int64 expirationDate = 3; ... }
+#   message ModifyStopOrderRequest  { int64 orderId = 1; Price activationPrice = 2;
+#                                     optional int64 expirationDate = 3; ... }
+#   message Size   { oneof value { int64 amount = 1; Volume volume = 2; } }
+#   message Volume { int64 value = 1; int32 scale = 2; }
+#   message Price  { int64 value = 1; int32 scale = 2; }
+#
+#   Respuesta (las cuatro): { string traceId = 1;
+#                             oneof result { Success success = 2; Error error = 3; } }
+#     Success { int64 orderId = 1; }
+#     Error   { oneof error { ... } }   (nombres por RPC: ERRORES_NUEVA / ERRORES_MODIFICAR)
+#
+# Sin `expirationDate` la orden no vence: es lo que hace la web con el
+# interruptor "Vencimiento de la orden" apagado (el campo solo se rellena si
+# viene una fecha).
+
+GRPC_NEW_LIMIT_ORDER_ENDPOINT = (
+    f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService/NewLimitOrder"
+)
+GRPC_NEW_STOP_ORDER_ENDPOINT = (
+    f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService/NewStopOrder"
+)
+GRPC_MODIFY_LIMIT_ORDER_ENDPOINT = (
+    f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService/ModifyLimitOrder"
+)
+GRPC_MODIFY_STOP_ORDER_ENDPOINT = (
+    f"{GRPC_BASE_URL}/pl.xtb.ipax.pub.grpc.cashtradingneworder.v1.CashTradingNewOrderService/ModifyStopOrder"
+)
+
+#: Nombres del `oneof error` de NewLimitOrderResponse / NewStopOrderResponse.
+ERRORES_NUEVA = {1: "otherError", 2: "kidConsentRequiredForETF",
+                 3: "invalidParameter", 4: "accountNotTradeable", 5: "noMoney",
+                 6: "orderValueLowerThanMinimum"}
+#: Nombres del `oneof error` de ModifyLimitOrderResponse / ModifyStopOrderResponse.
+ERRORES_MODIFICAR = {1: "otherError", 2: "invalidParameter",
+                     3: "accountNotTradeable", 4: "noMoney",
+                     5: "orderValueLowerThanMinimum", 6: "orderNotExists"}
+#: DeleteOrderResponse.Error.code
+ERRORES_CANCELAR = {0: "ERROR_CODE_NOT_SET", 1: "ERROR_CODE_CANNOT_FIND_ORDER",
+                    2: "ERROR_CODE_UNEXPECTED_ERROR", 3: "ERROR_CODE_UNKNOWN_RESPONSE",
+                    4: "ERROR_CODE_INVALID_PARAMETER"}
+
+
+def precio_a_proto(precio: float, max_decimales: int = 4) -> tuple[int, int]:
+    """1.0850 -> (10850, 4); 495.49 -> (49549, 2); 12 -> (12, 0).
+
+    Por la representación decimal y no por aritmética binaria: 0.1+0.2 no es
+    0.3 en coma flotante, y un precio de orden no puede salir con un céntimo
+    de más. Se quitan los ceros de cola para mandar la escala mínima, que es lo
+    que hace la web.
+    """
+    from decimal import ROUND_HALF_UP, Decimal
+
+    if precio is None or precio <= 0:
+        raise ValueError(f"precio de orden no válido: {precio!r}")
+    d = Decimal(str(precio)).quantize(Decimal(1).scaleb(-max_decimales), rounding=ROUND_HALF_UP)
+    d = d.normalize()
+    exp = d.as_tuple().exponent
+    escala = max(0, -int(exp))
+    valor = int(d.scaleb(escala))
+    return valor, escala
+
+
+def _encode_size_volume(volume: int) -> bytes:
+    """Size { volume = 2: Volume { value = 1; scale = 2 (0: se omite) } }."""
+    return encode_field_bytes(2, encode_field_varint(1, volume))
+
+
+def build_new_pending_order(instrument_id: int, volume: int, side: int, precio: float) -> bytes:
+    """NewLimitOrderRequest / NewStopOrderRequest: la forma es idéntica, solo
+    cambia el nombre del campo 4 (limitPrice / activationPrice). Sin
+    expirationDate: sin vencimiento."""
+    valor, escala = precio_a_proto(precio)
+    return (
+        encode_field_varint(1, instrument_id)
+        + encode_field_bytes(2, _encode_size_volume(volume))
+        + encode_field_varint(3, side)
+        + encode_field_bytes(4, _encode_price(valor, escala))
+    )
+
+
+def build_modify_pending_order(order_id: int, precio: float) -> bytes:
+    """ModifyLimitOrderRequest / ModifyStopOrderRequest (mismo cableado)."""
+    valor, escala = precio_a_proto(precio)
+    return encode_field_varint(1, order_id) + encode_field_bytes(2, _encode_price(valor, escala))
+
+
+def split_grpc_web(response_bytes: bytes) -> tuple[list[bytes], int | None, str | None]:
+    """Separa una respuesta gRPC-web en (frames de datos, grpc-status, grpc-message)."""
+    datos: list[bytes] = []
+    status: int | None = None
+    message: str | None = None
+    pos = 0
+    while pos + 5 <= len(response_bytes):
+        flag = response_bytes[pos]
+        length = struct.unpack(">I", response_bytes[pos + 1 : pos + 5])[0]
+        pos += 5
+        if pos + length > len(response_bytes):
+            break
+        frame = response_bytes[pos : pos + length]
+        pos += length
+        if flag & 0x80:
+            for line in frame.decode("latin-1", errors="replace").split("\r\n"):
+                if line.startswith("grpc-status:"):
+                    try:
+                        status = int(line.split(":", 1)[1].strip())
+                    except ValueError:
+                        pass
+                elif line.startswith("grpc-message:"):
+                    message = line.split(":", 1)[1].strip()
+        else:
+            datos.append(frame)
+    return datos, status, message
+
+
+def _texto(b) -> str:
+    return b.decode("utf-8", errors="replace") if isinstance(b, bytes) else str(b)
+
+
+def parse_pending_order_response(payload: bytes, nombres_error: dict[int, str]) -> dict:
+    """Respuesta de New/Modify Limit/Stop -> dict con lo que importa.
+
+    {"trace_id", "order_id" (si success), "error" (nombre del oneof),
+     "error_code", "error_message" (solo otherError)}
+    """
+    campos = parse_proto_fields(payload)
+    out: dict = {"trace_id": None, "order_id": None, "error": None,
+                 "error_code": None, "error_message": None}
+    if 1 in campos:
+        out["trace_id"] = _texto(campos[1][0][1])
+    if 2 in campos:
+        exito = parse_proto_fields(campos[2][0][1]) if isinstance(campos[2][0][1], bytes) else {}
+        if 1 in exito and isinstance(exito[1][0][1], int):
+            out["order_id"] = exito[1][0][1]
+        else:
+            out["order_id"] = 0  # éxito sin número: no debería pasar, pero es éxito
+    elif 3 in campos:
+        err = parse_proto_fields(campos[3][0][1]) if isinstance(campos[3][0][1], bytes) else {}
+        if err:
+            num = next(iter(err))
+            out["error"] = nombres_error.get(num, f"error#{num}")
+            interno = err[num][0][1]
+            if num == 1 and isinstance(interno, bytes):  # OtherError {code, message}
+                oe = parse_proto_fields(interno)
+                if 1 in oe:
+                    out["error_code"] = oe[1][0][1]
+                if 2 in oe:
+                    out["error_message"] = _texto(oe[2][0][1])
+        else:
+            out["error"] = "error"
+    return out
+
+
+def parse_delete_orders_full(payload: bytes) -> dict:
+    """DeleteOrdersResponse completo -> {"trace_id", "resultados": {orderId: (ok, codigo, mensaje)}}.
+
+    El parser original (`parse_delete_orders_response`) solo leía el PRIMER
+    resultado y daba por buena la cancelación con que viniera el número de
+    orden, que viene TAMBIÉN cuando XTB contesta "no encuentro esa orden" (la
+    rama `error = 3`). Este distingue las dos ramas.
+    """
+    campos = parse_proto_fields(payload)
+    out: dict = {"trace_id": None, "resultados": {}}
+    if 1 in campos:
+        out["trace_id"] = _texto(campos[1][0][1])
+    for _, sub in campos.get(2, []):
+        if not isinstance(sub, bytes):
+            continue
+        r = parse_proto_fields(sub)
+        oid = r.get(1, [(0, None)])[0][1]
+        if 2 in r:
+            out["resultados"][oid] = (True, None, None)
+        elif 3 in r:
+            e = parse_proto_fields(r[3][0][1]) if isinstance(r[3][0][1], bytes) else {}
+            codigo = e.get(1, [(0, 0)])[0][1]
+            msg = _texto(e[2][0][1]) if 2 in e else None
+            out["resultados"][oid] = (False, ERRORES_CANCELAR.get(codigo, str(codigo)), msg)
+        else:
+            out["resultados"][oid] = (False, "sin_resultado", None)
+    return out
