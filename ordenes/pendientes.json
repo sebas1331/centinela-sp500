@@ -1,21 +1,21 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-02T18:01:44.218289-04:00",
+  "generado": "2026-10-05T08:46:28.943106-04:00",
   "ordenes": [
     {
-      "acciones": 134,
+      "acciones": 4,
       "cartera": "A",
-      "fecha_limite": "2026-10-15",
-      "id": "2026-10-02|A|CTVA|compra",
+      "fecha_limite": "2026-10-16",
+      "id": "2026-10-05|A|WDC|compra",
       "id_operacion": null,
-      "objetivo": 26.16,
+      "objetivo": 495.49,
       "precio_simulador": null,
-      "referencia": 12.57,
-      "sesion": "2026-10-02",
-      "stop": 11.06,
-      "ticker": "CTVA",
+      "referencia": 415.29,
+      "sesion": "2026-10-05",
+      "stop": 365.46,
+      "ticker": "WDC",
       "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-02"
+  "sesion": "2026-10-05"
 }
