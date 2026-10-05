@@ -895,6 +895,7 @@ def test_sin_precio_de_mercado_no_hay_equity_inventado():
         "posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71,
                         "precio_actual": 0.0}]})
     assert b["equity"] is None and b["pnl_abierto"] is None
+    assert b["valor_posiciones"] is None, "un 0,00 sería un valor falso"
 
 
 def test_la_tabla_usa_los_niveles_de_la_compra_de_hoy_y_no_finge_precio():

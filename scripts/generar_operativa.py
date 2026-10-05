@@ -184,7 +184,7 @@ def bloque_cuenta_broker(estado_broker: dict | None) -> dict:
         # Sin el precio de alguna posición, no hay equity: uno a medias sería
         # falso. La página lo completa con el bid del latido si lo tiene.
         "equity": _r((saldo or 0.0) + (valor or 0.0)) if completo else None,
-        "valor_posiciones": valor,
+        "valor_posiciones": valor if completo else None,
         "invertido": invertido,
         "efectivo": saldo,
         "pnl_abierto": pnl if completo else None,
