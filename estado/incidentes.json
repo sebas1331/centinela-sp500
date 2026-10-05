@@ -1,5 +1,5 @@
 {
- "actualizado": "2026-10-02T15:45:37.423590-04:00",
+ "actualizado": "2026-10-05T10:06:06.659623-04:00",
  "incidentes": [
   {
    "arreglado": "2026-10-02",
@@ -53,6 +53,20 @@
    "fecha": "2026-09-29",
    "ordenes": [],
    "titulo": "Choques al publicar: 'could not apply ... operativa'"
+  },
+  {
+   "arreglado": "2026-10-05",
+   "arreglo": "Las compras salen 5 minutos después de abrir (EJECUTOR_COMPRAS_MIN_TRAS_APERTURA = (5, 60)). WDC se repuso como entrada tardía a las 09:58 (4 a 439,71, orden 917455892). Si una compra a las 09:35 vuelve a perderse, la hipótesis queda descartada.",
+   "causa": "La compra de WDC se mandó a las 09:30:31 (11 s tras la apertura); XTB la aceptó (orden 917440474) y la descartó: 0 posiciones y saldo intacto en la auditoría de las 09:51. CTVA falló igual el 02/10 a las 09:30:19. Hipótesis con dos casos: XTB no ejecuta en los primeros segundos de la sesión.",
+   "commit": "783e63e",
+   "componentes": [
+    "compras"
+   ],
+   "fecha": "2026-10-05",
+   "ordenes": [
+    "2026-10-05|A|WDC|compra"
+   ],
+   "titulo": "Compra descartada por XTB al mandarla nada más abrir"
   }
  ]
 }
