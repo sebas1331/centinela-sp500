@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-06T06:07:01.582583-04:00",
+  "actualizado": "2026-10-06T09:35:21.931551-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-05T17:54:02.922783-04:00",
@@ -9,11 +9,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37378755700"
     },
     "compras": {
-      "cuando": "2026-10-05T09:31:29.348772-04:00",
+      "cuando": "2026-10-06T09:35:21.931551-04:00",
       "detalle": "",
-      "resultado": "fallo:job-en-rojo",
-      "run": "37299354036",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37299354036"
+      "resultado": "ok: 0 órdenes — 2 señal(es) descartada(s): FICO — ya hay posición abierta en Cartera A y Cartera B.; WDC — ya hay posición abierta en Cartera A y Cartera B.",
+      "run": "37452226002",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37452226002"
     },
     "postcierre": {
       "cuando": "2026-10-05T22:56:23.648246-04:00",
