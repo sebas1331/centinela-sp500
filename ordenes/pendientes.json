@@ -1,21 +1,6 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-05T18:01:20.279556-04:00",
-  "ordenes": [
-    {
-      "acciones": 4,
-      "cartera": "A",
-      "fecha_limite": "2026-10-16",
-      "id": "2026-10-05|A|WDC|compra",
-      "id_operacion": null,
-      "objetivo": 495.49,
-      "precio_simulador": null,
-      "referencia": 415.29,
-      "sesion": "2026-10-05",
-      "stop": 365.46,
-      "ticker": "WDC",
-      "tipo": "compra"
-    }
-  ],
-  "sesion": "2026-10-05"
+  "generado": "2026-10-06T08:46:26.780663-04:00",
+  "ordenes": [],
+  "sesion": "2026-10-06"
 }
