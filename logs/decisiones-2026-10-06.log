@@ -183,3 +183,9 @@ ZTS | dd=69.7% | prob=0.431 < umbral -> SIN SEÑAL
 FICO | dd=71.3% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 WDC | dd=44.8% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-10-06 18:00:47 ET =====
+POST-CIERRE 2026-10-06
+entradas ejecutadas: []
+cambios de objetivo: 2
+cierres: []
