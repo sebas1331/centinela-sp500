@@ -80,5 +80,6 @@ setTimeout(() => {
     filas: {ordenes: filas("cuerpo-ord"), posiciones: filas("cuerpo-pos"),
             componentes: filas("componentes"), cuenta: filas("broker")},
     cuenta: h3 ? h3.textContent : null,
+    posiciones: porId["cuerpo-pos"] ? porId["cuerpo-pos"].textContent : "",
   }));
 }, 50);

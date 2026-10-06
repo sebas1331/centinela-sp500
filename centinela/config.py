@@ -253,6 +253,12 @@ STOP_EN_XTB = True
 #: los dos a la vez no puede (la stop reserva las acciones), y la stop de XTB
 #: es la ejecución buena: no depende de que llegue un tick al runner.
 VIGILANTE_GRACIA_STOP_XTB_SEG = 90
+#: Un cambio de precio de la stop solo se manda a XTB CON EL MERCADO ABIERTO:
+#: fuera de sesión XTB contesta "aceptada" y deja el precio viejo (medido el
+#: 2026-10-05 a las 18:02 ET con WDC). Pendiente fuera de sesión = ámbar; con
+#: el mercado abierto, si en estos minutos desde la apertura no se ha
+#: conseguido aplicar, rojo.
+STOP_XTB_MINUTOS_PARA_APLICAR = 15
 
 #: NÚMERO DE LA CUENTA DEMO QUE SE OPERA. El candado exige que la sesión
 #: conectada sea EXACTAMENTE esta, y vive aquí —en el código versionado— y no

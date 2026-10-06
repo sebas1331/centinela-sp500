@@ -1040,3 +1040,72 @@ def test_el_publicador_genera_en_un_proceso_nuevo_tras_el_reset():
     fuente = (RAIZ / "scripts" / "publicar_operativa.py").read_text(encoding="utf-8")
     assert "import generar_operativa" not in fuente
     assert fuente.index('"reset"') < fuente.index("generar_operativa.py")
+
+
+# --------------------------------------------------------------------------- #
+# La stop en XTB: cambio pendiente y "Al stop" con signo (2026-10-06)
+# --------------------------------------------------------------------------- #
+from centinela import proteccion  # noqa: E402
+
+_TZ = config.TZ_ET
+
+
+def _broker_wdc(precio_xtb):
+    return {"posiciones": [{"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71,
+                            "precio_actual": 418.6}],
+            "stops": {"WDC.US": {"orden": 917531939, "precio": precio_xtb, "acciones": 4.0}}}
+
+
+_SIM_WDC = {"posiciones": {"A": [{"ticker": "WDC", "stop": 378.34, "objetivo": 495.49,
+                                  "fecha_entrada": "2026-10-05"}]}}
+
+
+def test_al_stop_es_la_caida_necesaria_con_signo_negativo():
+    f = go.bloque_posiciones(_broker_wdc(378.34), _SIM_WDC,
+                             datetime(2026, 10, 6, 11, 0, tzinfo=_TZ))[0]
+    assert f["dist_stop_pct"] == pytest.approx(100 * (378.34 / 418.6 - 1), abs=0.01)
+    assert f["dist_stop_pct"] < 0
+    assert f["stop_cambio"] is None
+
+
+def test_cambio_de_stop_pendiente_fuera_de_sesion_es_ambar():
+    ahora = datetime(2026, 10, 5, 18, 30, tzinfo=_TZ)
+    pos = go.bloque_posiciones(_broker_wdc(365.46), _SIM_WDC, ahora)
+    assert pos[0]["stop_cambio"]["color"] == "ambar"
+    s = go.semaforo({"runs": {}}, None, pos, [], ahora)
+    assert any("WDC" in m and "pendiente" in m for m in s["motivos"])
+    assert not any("WDC" in m for m in s["motivos"][:s["n_rojos"]]), "no es rojo"
+
+
+def test_cambio_de_stop_atascado_con_el_mercado_abierto_es_rojo():
+    ahora = datetime(2026, 10, 6, 9, 30, tzinfo=_TZ) + timedelta(
+        minutes=config.STOP_XTB_MINUTOS_PARA_APLICAR + 5)
+    pos = go.bloque_posiciones(_broker_wdc(365.46), _SIM_WDC, ahora)
+    s = go.semaforo({"runs": {}}, None, pos, [], ahora)
+    assert any("WDC" in m and "sin aplicarse" in m for m in s["motivos"][:s["n_rojos"]])
+
+
+def test_la_pagina_refleja_la_correccion_del_vigilante_sin_regenerarse(datos, tmp_path):
+    """El JSON dice 'pendiente' (XTB en 365,46); el latido trae la foto de XTB
+    ya corregida (378,34): la tabla tiene que dejar de decir pendiente."""
+    ahora = datetime(2026, 10, 5, 18, 30, tzinfo=_TZ)
+    d = json.loads(json.dumps(datos))
+    d["posiciones"] = go.bloque_posiciones(_broker_wdc(365.46), _SIM_WDC, ahora)
+    antes = _cargar(tmp_path, d)
+    assert "pendiente" in antes["posiciones"] and "en XTB nº 917531939" in antes["posiciones"]
+
+    latido = {"cuando": datetime.now(_TZ).isoformat(), "estado": "vivo",
+              "vigiladas": [{"ticker": "WDC", "bid": 418.6, "objetivo": 495.49,
+                             "stop": 378.34}],
+              "broker": dict(_broker_wdc(378.34), saldo=26000.0,
+                             leido=datetime.now(_TZ).isoformat(), candado_ok=True),
+              "historial": []}
+    fl = tmp_path / "latido.json"
+    fl.write_text(json.dumps(latido), encoding="utf-8")
+    r = subprocess.run([NODE, str(CARGADOR), str(PLANTILLA), str(tmp_path / "operativa.json"),
+                        str(fl)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    despues = json.loads(r.stdout)
+    assert "pendiente" not in despues["posiciones"], despues["posiciones"]
+    assert "en XTB nº 917531939" in despues["posiciones"]
+    assert "-9" in despues["posiciones"] or "−9" in despues["posiciones"]

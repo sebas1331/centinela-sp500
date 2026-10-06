@@ -873,7 +873,20 @@ function enVivo(L){
     var a = p.precio_actual, e = p.precio_entrada;
     if(a && e){ p.pnl = p.acciones * (a - e); p.pnl_pct = 100 * (a / e - 1); }
     p.dist_objetivo_pct = (p.objetivo && a) ? 100 * (p.objetivo / a - 1) : null;
-    p.dist_stop_pct = (p.stop && a) ? 100 * (a / p.stop - 1) : null;
+    p.dist_stop_pct = (p.stop && a) ? 100 * (p.stop / a - 1) : null;
+    /* La stop en XTB, de la foto que el vigilante manda en cada latido: si ya
+       corrigió el precio, se ve aquí sin esperar a regenerar la página. */
+    var st = (L.broker && L.broker.stops) ? L.broker.stops[p.ticker + ".US"] ||
+             L.broker.stops[p.ticker.replace(".","-") + ".US"] : undefined;
+    if(L.broker && L.broker.stops){
+      if(st && st.orden){
+        p.stop_en = "xtb"; p.stop_orden_xtb = st.orden; p.stop_precio_xtb = st.precio;
+        if(p.stop && Math.abs(st.precio - p.stop) <= 0.005) p.stop_cambio = null;
+      } else if(p.stop){
+        p.stop_en = "vigilante"; p.stop_orden_xtb = null; p.stop_precio_xtb = null;
+        p.stop_cambio = null;
+      }
+    }
     return p;
   });
   pintarPosiciones(pos);
@@ -1099,7 +1112,7 @@ var ETIQ_POS = {ticker:"Ticker", acc:"Acciones", entrada:"Entrada",
 
 /* Dónde vive cada nivel: "en XTB nº…" (orden pendiente confirmada en el
    servidor) o "solo vigilante" (lo ejecuta el vigilante de precios a mercado). */
-function nivelDonde(texto, donde, orden){
+function nivelDonde(texto, donde, orden, cambio, enXtb){
   var caja = el("span","");
   caja.appendChild(el("span","num", texto));
   if(!donde) return caja;
@@ -1108,6 +1121,16 @@ function nivelDonde(texto, donde, orden){
   var s = el("span","donde " + (donde === "xtb" ? "pos" : "neu"), etiqueta);
   s.style.display = "block"; s.style.fontSize = "0.75em";
   caja.appendChild(s);
+  /* Cambio de stop aún no aplicado en XTB: ámbar si está pendiente (mercado
+     cerrado o recién abierto), rojo si no entra o si el stop baja. */
+  if(cambio){
+    var c = el("span", cambio.color === "rojo" ? "neg" : "urge",
+               "XTB aún en " + precio(enXtb) +
+               (cambio.color === "rojo" ? " (no aplicado)" : " (pendiente)"));
+    c.style.display = "block"; c.style.fontSize = "0.75em";
+    c.title = cambio.motivo;
+    caja.appendChild(c);
+  }
   return caja;
 }
 
@@ -1131,7 +1154,8 @@ function pintarPosiciones(pos){
     c("actual", precio(p.precio_actual), "n");
     c("objetivo", nivelDonde(precio(p.objetivo), p.objetivo_en, null), "n");
     c("stop", p.stop === null ? "sin stop"
-      : nivelDonde(precio(p.stop), p.stop_en, p.stop_orden_xtb), "n");
+      : nivelDonde(precio(p.stop), p.stop_en, p.stop_orden_xtb, p.stop_cambio,
+                   p.stop_precio_xtb), "n");
     c("alstop", el("span","num" + (p.cerca_del_stop ? " neg" : ""),
                    pct(p.dist_stop_pct, 1)), "n");
     c("dias", p.dias_en_posicion === null ? "—" : String(p.dias_en_posicion), "n");

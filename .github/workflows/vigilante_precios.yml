@@ -211,10 +211,15 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # --causa-job: si GitHub apagó el runner (05/10, 15:57 ET, incidente de
+      # Actions) se anota como tal y no como un fallo genérico del vigilante.
       - name: Registrar el estado del vigilante
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/registrar_salud.py vigilante_precios \
-            --job "${{ needs.vigilar.result }}" --solo-si-falta
+            --job "${{ needs.vigilar.result }}" --solo-si-falta \
+            --causa-job vigilar "Vigilar precios"
 
       - name: Publicar la salud (diario, sin rebase)
         run: |

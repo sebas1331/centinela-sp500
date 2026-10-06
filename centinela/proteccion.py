@@ -30,6 +30,13 @@ EL DISEÑO QUE SALE DE ESO
   lista de XTB. Lo que no aparece, no está puesto.
 * Si el stop cambia, se MODIFICA la orden existente; nunca se pone otra (XTB
   descartaría la segunda y la primera seguiría con el precio viejo).
+* PERO SOLO CON EL MERCADO ABIERTO. Fuera de sesión XTB contesta "aceptada" y
+  deja el precio viejo (medido el 2026-10-05 a las 18:02 ET: WDC pedía 378,34 y
+  siguió en 365,46; a las 09:35 del día siguiente se aplicó a la primera). Fuera
+  de sesión el cambio queda pendiente (ámbar) y lo aplica el vigilante al abrir,
+  confirmándolo releyendo XTB; con el mercado abierto, si no entra en
+  STOP_XTB_MINUTOS_PARA_APLICAR, rojo. Un stop que BAJA no se aplica nunca:
+  no debería pasar, y se avisa en rojo (`estado_precio`).
 * Si falta, se repone. Si la cantidad no es la de la posición, se cancela y se
   pone de nuevo con la exacta. Si sobra (dos stops, o una stop sin posición), se
   cancela.
@@ -125,8 +132,51 @@ def _cancelar(broker, numeros: list[int]) -> list[str]:
     return [f"{n}: {err}" for n, (ok, err) in r.items() if not ok]
 
 
+def minutos_de_sesion(ahora: datetime | None = None) -> float | None:
+    """Minutos desde la apertura si el mercado está abierto AHORA; si no, None."""
+    from . import calendario
+    ahora = ahora or datetime.now(config.TZ_ET)
+    try:
+        ac = calendario.apertura_cierre_et(ahora.date().isoformat())
+    except Exception:  # noqa: BLE001 — sin calendario, se trata como cerrado
+        return None
+    if not ac or not (ac[0] <= ahora < ac[1]):
+        return None
+    return (ahora - ac[0]).total_seconds() / 60.0
+
+
+def estado_precio(deseado: float | None, en_xtb: float | None,
+                  minutos: float | None) -> tuple[str, str] | None:
+    """Cómo está el PRECIO de una stop que existe en XTB. None si cuadra.
+
+    Devuelve (color, motivo), color "ambar" | "rojo":
+      - bajada: el simulador pide un stop MÁS BAJO que el puesto. No debería
+        pasar nunca (el stop solo sube); no se aplica —el viejo protege más— y
+        se avisa en rojo para que lo mire una persona.
+      - pendiente con el mercado cerrado: ámbar. XTB no acepta el cambio fuera
+        de sesión; lo aplica el vigilante en cuanto abra.
+      - pendiente con el mercado abierto: ámbar los primeros
+        STOP_XTB_MINUTOS_PARA_APLICAR minutos; después, rojo.
+    Mientras tanto la stop vieja sigue puesta: una subida pendiente no deja la
+    posición sin protección, solo con menos.
+    """
+    if deseado is None or en_xtb is None or abs(float(en_xtb) - float(deseado)) <= TOLERANCIA:
+        return None
+    if float(deseado) < float(en_xtb) - TOLERANCIA:
+        return ("rojo", f"el simulador pide BAJAR el stop de {en_xtb} a {deseado}, "
+                        f"y eso no debería pasar; se mantiene {en_xtb} en XTB")
+    if minutos is None:
+        return ("ambar", f"stop en XTB {en_xtb}, nuevo {deseado}: cambio pendiente; "
+                         f"XTB no acepta cambios con el mercado cerrado, se aplica al abrir")
+    if minutos < config.STOP_XTB_MINUTOS_PARA_APLICAR:
+        return ("ambar", f"stop en XTB {en_xtb}, nuevo {deseado}: aplicándose "
+                         f"(mercado abierto hace {minutos:.0f} min)")
+    return ("rojo", f"stop en XTB {en_xtb}, nuevo {deseado}: con el mercado abierto "
+                    f"hace {minutos:.0f} min, el cambio sigue sin aplicarse")
+
+
 def sincronizar(broker, deseados: dict[str, dict], log=print,
-                dormir=time.sleep) -> list[dict]:
+                dormir=time.sleep, minutos: float | None | str = "reloj") -> list[dict]:
     """Deja en XTB exactamente una stop por posición, con su cantidad y precio.
 
     Devuelve un informe por símbolo: {"simbolo", "ticker", "stop", "acciones",
@@ -134,6 +184,9 @@ def sincronizar(broker, deseados: dict[str, dict], log=print,
     colocada | repuesta | fallo. No lanza por un símbolo: un fallo en uno no
     deja sin stop a los demás.
     """
+    if minutos == "reloj":
+        minutos = minutos_de_sesion()
+    abierto = minutos is not None
     vivas = _vivas_de_venta(broker)
     informe: list[dict] = []
 
@@ -171,6 +224,20 @@ def sincronizar(broker, deseados: dict[str, dict], log=print,
                 r["orden"] = buena["orden"]
                 if abs(float(buena["precio"]) - d["stop"]) <= TOLERANCIA:
                     r["accion"], r["ok"] = "ya_estaba", True
+                elif d["stop"] < float(buena["precio"]) - TOLERANCIA:
+                    # Un stop que BAJA no debería existir. No se aplica: el que
+                    # hay protege más. Lo denuncian verificar() y la página.
+                    r["accion"], r["ok"] = "bajada_no_aplicada", True
+                    print(f"::error::{simbolo}: el simulador pide bajar el stop de "
+                          f"{buena['precio']} a {d['stop']}; NO se aplica.", flush=True)
+                elif not abierto:
+                    # Fuera de sesión XTB dice "aceptada" y no cambia nada
+                    # (medido el 2026-10-05, 18:02 ET). No se intenta: queda
+                    # pendiente y lo aplica el vigilante al abrir.
+                    r["accion"], r["ok"] = "pendiente", True
+                    log(f"[proteccion] {simbolo}: stop {buena['orden']} "
+                        f"{buena['precio']} -> {d['stop']} PENDIENTE (mercado "
+                        f"cerrado; se aplica al abrir)")
                 else:
                     m = broker.modificar_orden(buena["orden"], "stop", d["stop"])
                     if not m.ok:
@@ -204,15 +271,26 @@ def sincronizar(broker, deseados: dict[str, dict], log=print,
     return informe
 
 
-def verificar(broker, deseados: dict[str, dict]) -> list[str]:
-    """Problemas (rojo): posición sin su stop en XTB con cantidad y precio exactos."""
+def verificar(broker, deseados: dict[str, dict],
+              minutos: float | None | str = "reloj") -> list[str]:
+    """Problemas (rojo): posición sin UNA stop en XTB con su cantidad exacta, o
+    con un precio que `estado_precio` califica de rojo. Lo ámbar (cambio
+    pendiente) no es problema aquí: lo enseña la página."""
+    if minutos == "reloj":
+        minutos = minutos_de_sesion()
     vivas = _vivas_de_venta(broker)
     problemas = []
     for simbolo, d in sorted(deseados.items()):
         stops = [o for o in vivas.get(simbolo, []) if o.get("tipo") == "stop"]
-        ok = [o for o in stops if int(o["acciones"] or 0) == d["acciones"]
-              and abs(float(o["precio"]) - d["stop"]) <= TOLERANCIA]
+        ok = [o for o in stops if int(o["acciones"] or 0) == d["acciones"]]
         if len(stops) == 1 and ok:
+            e = estado_precio(d["stop"], ok[0]["precio"], minutos)
+            if e is None:
+                continue
+            if e[0] == "rojo":
+                problemas.append(f"{simbolo}: {e[1]}.")
+            else:
+                print(f"::warning::{simbolo}: {e[1]}.", flush=True)
             continue
         visto = ", ".join(f"#{o['orden']} x{o['acciones']} @ {o['precio']}" for o in stops) or "ninguna"
         problemas.append(

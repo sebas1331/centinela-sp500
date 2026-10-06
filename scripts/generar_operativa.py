@@ -221,6 +221,12 @@ def _niveles_comprados_hoy(hoy: str) -> dict[str, dict]:
     return fuera
 
 
+def _cambio_de_stop(stop, en_xtb, ahora: datetime) -> dict | None:
+    from centinela import proteccion
+    e = proteccion.estado_precio(stop, en_xtb, proteccion.minutos_de_sesion(ahora))
+    return None if e is None else {"color": e[0], "motivo": e[1]}
+
+
 def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
                       ahora: datetime) -> list[dict]:
     """Las posiciones vivas en XTB, cruzadas con lo que el simulador sabe.
@@ -278,9 +284,16 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
                         else "vigilante"),
             "stop_orden_xtb": ((stops_xtb or {}).get(p.get("ticker")) or {}).get("orden"),
             "stop_precio_xtb": ((stops_xtb or {}).get(p.get("ticker")) or {}).get("precio"),
+            # Si la stop de XTB no tiene todavía el precio del simulador: un
+            # cambio pendiente (ámbar) o atascado/bajada (rojo). Ver
+            # proteccion.estado_precio.
+            "stop_cambio": _cambio_de_stop(
+                stop, ((stops_xtb or {}).get(p.get("ticker")) or {}).get("precio"), ahora),
             "dist_objetivo_pct": (_r(100.0 * (objetivo / actual - 1.0))
                                   if objetivo and actual else None),
-            "dist_stop_pct": (_r(100.0 * (actual / stop - 1.0))
+            # Lo que tendría que CAER el precio para tocar el stop: negativo
+            # (antes salía +10,6 % para una caída de 9,6 %).
+            "dist_stop_pct": (_r(100.0 * (stop / actual - 1.0))
                               if stop and actual else None),
             "dias_en_posicion": dias,
             "fecha_limite": limite,
@@ -860,6 +873,16 @@ def semaforo(datos_salud: dict, estado_broker: dict | None,
             rojos.append(
                 f"{p['ticker']} debía salir por tiempo el {p['fecha_limite']} "
                 f"y sigue abierta en XTB.")
+
+    # --- ÁMBAR / ROJO: la stop de XTB sin el precio del simulador ---------
+    # Fuera de sesión XTB no acepta cambios: pendiente = ámbar. Con el mercado
+    # abierto, el vigilante lo aplica; si no lo consigue en
+    # STOP_XTB_MINUTOS_PARA_APLICAR, rojo. Un stop que BAJA, rojo siempre.
+    for p in posiciones:
+        c = p.get("stop_cambio")
+        if c:
+            (rojos if c["color"] == "rojo" else ambares).append(
+                f"{p['ticker']}: {c['motivo']}.")
 
     # --- ÁMBAR: salidas por tiempo que hubo que diferir -------------------
     diferidas = [o for o in ordenes

@@ -106,7 +106,7 @@ def test_cambio_de_stop_modifica_sin_duplicar():
     numero = next(iter(x.ordenes))
     x.llamadas.clear()
     inf = prot.sincronizar(x, _deseados(**{"WDC.US": (4, 370.0)}), log=lambda *_: None,
-                           dormir=_sin_espera)
+                           dormir=_sin_espera, minutos=30)
     assert inf[0]["accion"] == "modificada" and inf[0]["orden"] == numero
     assert [c[0] for c in x.llamadas] == ["modificar"]
     assert len(x.ordenes) == 1 and x.ordenes[numero]["precio"] == 370.0
@@ -338,3 +338,141 @@ def test_vigilante_no_confunde_la_venta_de_otro_runner_con_la_stop(tmp_path, mon
     assert r["ejecutadas"] == []
     r = prot.revisar(x, antes, "2026-10-06", log=lambda *_: None, bids={"WDC.US": 364.0})
     assert [o.tipo for o in r["ejecutadas"]] == [ords.VENTA_STOP_XTB]
+
+
+
+# --------------------------------------------------------------------------- #
+# Cambios de stop con el mercado cerrado (2026-10-05, 18:02 ET: XTB dijo
+# "aceptada" y dejó 365,46)
+# --------------------------------------------------------------------------- #
+def _con_stop(precio=365.46):
+    x = XTBFalso({"WDC.US": 4})
+    prot.sincronizar(x, _deseados(**{"WDC.US": (4, precio)}), log=lambda *_: None,
+                     dormir=_sin_espera, minutos=30)
+    x.llamadas.clear()
+    return x
+
+
+def test_fuera_de_sesion_no_se_modifica_y_queda_pendiente():
+    x = _con_stop()
+    d = _deseados(**{"WDC.US": (4, 378.34)})
+    inf = prot.sincronizar(x, d, log=lambda *_: None, dormir=_sin_espera, minutos=None)
+    assert inf[0]["accion"] == "pendiente" and inf[0]["ok"]
+    assert x.llamadas == [], "con el mercado cerrado no se manda nada a XTB"
+    assert prot.verificar(x, d, minutos=None) == [], "pendiente fuera de sesión: ámbar, no rojo"
+
+
+def test_al_abrir_el_vigilante_lo_aplica_y_lo_confirma():
+    x = _con_stop()
+    d = _deseados(**{"WDC.US": (4, 378.34)})
+    inf = prot.sincronizar(x, d, log=lambda *_: None, dormir=_sin_espera, minutos=1)
+    assert inf[0]["accion"] == "modificada"
+    assert [o["precio"] for o in x.ordenes.values()] == [378.34]
+    assert prot.verificar(x, d, minutos=1) == []
+
+
+def test_modificacion_que_xtb_no_aplica_es_fallo():
+    """Lo de ayer: XTB contesta 'aceptada' y el precio no cambia."""
+    x = _con_stop()
+    x.modificar_orden = lambda orden, tipo, precio: bx.OrdenPendiente(
+        "", tipo, 0, precio, "aceptada", orden)
+    inf = prot.sincronizar(x, _deseados(**{"WDC.US": (4, 378.34)}), log=lambda *_: None,
+                           dormir=_sin_espera, minutos=1)
+    assert inf[0]["accion"] == "fallo" and "365.46" in inf[0]["error"]
+
+
+def test_pendiente_con_mercado_abierto_es_ambar_y_luego_rojo():
+    x = _con_stop()
+    d = _deseados(**{"WDC.US": (4, 378.34)})
+    minimo = config.STOP_XTB_MINUTOS_PARA_APLICAR
+    assert prot.verificar(x, d, minutos=minimo - 1) == []
+    rojo = prot.verificar(x, d, minutos=minimo + 1)
+    assert len(rojo) == 1 and "sigue sin aplicarse" in rojo[0]
+
+
+def test_estado_precio():
+    assert prot.estado_precio(378.34, 378.34, None) is None
+    assert prot.estado_precio(378.34, 365.46, None)[0] == "ambar"
+    assert prot.estado_precio(378.34, 365.46, 5)[0] == "ambar"
+    assert prot.estado_precio(378.34, 365.46, 60)[0] == "rojo"
+
+
+def test_un_stop_que_baja_no_se_aplica_y_se_avisa_en_rojo():
+    x = _con_stop(378.34)
+    d = _deseados(**{"WDC.US": (4, 365.46)})
+    inf = prot.sincronizar(x, d, log=lambda *_: None, dormir=_sin_espera, minutos=30)
+    assert inf[0]["accion"] == "bajada_no_aplicada"
+    assert x.llamadas == [] and [o["precio"] for o in x.ordenes.values()] == [378.34]
+    for minutos in (None, 30):
+        p = prot.verificar(x, d, minutos=minutos)
+        assert len(p) == 1 and "BAJAR" in p[0]
+
+
+def test_minutos_de_sesion():
+    tz = config.TZ_ET
+    assert prot.minutos_de_sesion(datetime(2026, 10, 5, 18, 2, tzinfo=tz)) is None
+    assert prot.minutos_de_sesion(datetime(2026, 10, 6, 9, 0, tzinfo=tz)) is None
+    assert round(prot.minutos_de_sesion(datetime(2026, 10, 6, 9, 45, tzinfo=tz))) == 15
+    assert prot.minutos_de_sesion(datetime(2026, 10, 10, 11, 0, tzinfo=tz)) is None  # sábado
+
+
+def test_el_vigilante_late_en_cuanto_aplica_un_cambio_de_stop(monkeypatch, tmp_path):
+    """Que la página lo vea sin esperar a la reconciliación de la noche."""
+    monkeypatch.setattr(prot, "stops_de_la_ultima_foto", lambda: {})
+    s = vp.Sesion.__new__(vp.Sesion)
+    s.prueba, s.stops_vistos, s.vigiladas = "", None, []
+    s.precios = vp.Precios()
+    s.reloj = lambda: datetime(2026, 10, 6, 9, 40, tzinfo=config.TZ_ET)
+    s.mono = lambda: 500.0
+    s.proximo_latido = 9999.0
+    s.broker = type("B", (), {"ordenes_contado": None})()
+    monkeypatch.setattr(prot, "revisar", lambda *a, **k: {
+        "ejecutadas": [], "stops": {"WDC.US": {"orden": 1, "precio": 378.34}},
+        "informe": [{"simbolo": "WDC.US", "accion": "modificada", "ok": True}]})
+    s.proteger()
+    assert s.proximo_latido == 500.0
+
+
+# --------------------------------------------------------------------------- #
+# El rojo del vigilante del 2026-10-05, 15:57 ET: GitHub apagó el runner
+# --------------------------------------------------------------------------- #
+import registrar_salud as rs  # noqa: E402
+
+
+def _api(paso="cancelled", notas=("The operation was canceled.",), job="failure"):
+    def api(ruta):
+        if ruta.endswith("/jobs"):
+            return {"jobs": [{"id": 7, "name": "vigilar", "conclusion": job, "steps": [
+                {"name": "Restaurar sesión de XTB", "conclusion": "success"},
+                {"name": "Vigilar precios y ejecutar niveles", "conclusion": paso}]}]}
+        return [{"message": m} for m in notas]
+    return api
+
+
+def test_runner_apagado_por_github_se_registra_como_tal(monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "37365551670")
+    assert rs.causa_en_github("failure", "vigilar", "Vigilar precios", _api()) == "runner-perdido"
+    assert rs.resolver("", "runner-perdido") == "fallo:runner-apagado-por-github"
+    assert rs.resolver("", "runner-perdido").startswith("fallo"), "sigue siendo rojo"
+
+
+def test_un_fallo_del_codigo_sigue_siendo_job_en_rojo(monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "1")
+    assert rs.causa_en_github("failure", "vigilar", "Vigilar precios",
+                              _api(paso="failure")) == "failure"
+
+
+def test_el_tiempo_agotado_no_se_confunde_con_el_runner_perdido(monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "1")
+    notas = ("The job running on runner X has exceeded the maximum execution time of 355 minutes.",)
+    assert rs.causa_en_github("failure", "vigilar", "Vigilar precios",
+                              _api(notas=notas)) == "failure"
+
+
+def test_sin_api_no_se_adivina(monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "1")
+
+    def rota(_ruta):
+        raise OSError("sin red")
+    assert rs.causa_en_github("failure", "vigilar", "Vigilar precios", rota) == "failure"
+    assert rs.causa_en_github("success", "vigilar", "Vigilar precios", rota) == "success"

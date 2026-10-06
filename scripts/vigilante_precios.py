@@ -662,6 +662,13 @@ class Sesion:
         self.stops_vistos = r["stops"]
         for v in self.vigiladas:
             v["stop_xtb"] = (self.stops_vistos.get(v["simbolo"]) or {}).get("orden")
+        # Un cambio aplicado (p. ej. el stop que la reconciliación de la noche
+        # dejó pendiente porque XTB no acepta cambios fuera de sesión) se
+        # publica YA: el próximo paso late (latir() fotografía la cuenta y la
+        # foto viaja en el latido), y la página lo enseña sin esperar a la
+        # reconciliación de la noche.
+        if any(i["accion"] in ("modificada", "colocada") for i in r["informe"]):
+            self.proximo_latido = self.mono()
         if r["ejecutadas"]:
             simbolos = {ords.simbolo_xtb(o.ticker) for o in r["ejecutadas"]}
             self.vigiladas = [v for v in self.vigiladas
