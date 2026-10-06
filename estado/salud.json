@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-06T16:03:01.827270-04:00",
+  "actualizado": "2026-10-06T18:02:27.435204-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-06T16:03:01.827270-04:00",
@@ -30,11 +30,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37514428108"
     },
     "reconcilia": {
-      "cuando": "2026-10-05T18:02:21.925420-04:00",
-      "detalle": "WDC.US: no se pudo dejar la stop en XTB — modificada 917531939 y XTB enseña 365.46",
-      "resultado": "diferencias",
-      "run": "37379245757",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37379245757"
+      "cuando": "2026-10-06T18:02:27.435204-04:00",
+      "detalle": "",
+      "resultado": "ok",
+      "run": "37524154053",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37524154053"
     },
     "reentrenamiento": {
       "cuando": "2026-10-01T09:05:25.207173-04:00",
