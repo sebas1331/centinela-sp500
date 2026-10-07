@@ -741,6 +741,101 @@ function pintarVigilante(D){
     .catch(function(){ mostrarLatido(caja, det, V, null); });
 }
 
+/* Los cortes del latido de hoy ya recuperados, cada uno con lo que hace falta
+   para juzgarlo: cuánto duró con el mercado abierto y si dejó alguna posición
+   sin su stop confirmado en XTB. */
+function minutosConMercadoAbierto(desde, hasta, V){
+  var a = new Date(desde).getTime(), b = new Date(hasta).getTime();
+  if(V.sesion_abre && V.sesion_cierra){
+    a = Math.max(a, new Date(V.sesion_abre).getTime());
+    b = Math.min(b, new Date(V.sesion_cierra).getTime());
+  }
+  return Math.max(0, (b - a) / 60000);
+}
+
+/* Qué posiciones con stop no lo tenían en XTB en un latido: una lista de
+   tickers (vacía = todas protegidas), null si el vigilante no pudo comprobarlo
+   (la foto de XTB falló) o undefined si el latido es de antes de que existiera
+   el campo. Sin posiciones vigiladas no había nada que proteger. */
+function sinStopDe(h){
+  if(Array.isArray(h.sin_stop)) return h.sin_stop;
+  if(h.sin_stop === null) return null;
+  return h.n === 0 ? [] : undefined;
+}
+
+/* Y con la foto del último latido, para los latidos que no traen `sin_stop`
+   (los de antes de este cambio): los stops de XTB que se ven ahora contra las
+   posiciones que se vigilan ahora. Es una aproximación y se dice. */
+function sinStopAhora(L){
+  if(!L.broker || !L.broker.stops) return null;
+  return (L.vigiladas || []).filter(function(v){
+    if(v.stop === null || v.stop === undefined) return false;
+    var st = L.broker.stops[v.ticker.replace(".","-") + ".US"];
+    return !(st && st.orden);
+  }).map(function(v){ return v.ticker; });
+}
+
+function cortesDelLatido(H, V, L){
+  var umbral = V.corte_minutos || 10, cortes = [];
+  for(var i = 1; i < H.length; i++){
+    var gap = (new Date(H[i].cuando) - new Date(H[i-1].cuando)) / 60000;
+    if(H[i-1].estado === "en-reposo" || gap <= umbral) continue;
+    /* Durante el hueco no hay datos: se mira cómo estaban los stops en el
+       latido de antes y en el de después. Un stop que falta en cualquiera de
+       los dos cuenta; si de uno no se sabe, vale el otro. Si de ninguno se
+       sabe, se usa la foto de ahora. */
+    var lados = [sinStopDe(H[i-1]), sinStopDe(H[i])], sin = [], aprox = false;
+    var conocidos = lados.filter(function(x){ return Array.isArray(x); });
+    if(conocidos.length){
+      conocidos.forEach(function(x){ sin = sin.concat(x); });
+    } else if(lados.indexOf(null) >= 0){
+      sin = null;                           // el vigilante no pudo comprobarlo
+    } else {
+      sin = sinStopAhora(L);                // latidos de antes del cambio
+      aprox = sin !== null;
+    }
+    if(sin !== null) sin = sin.filter(function(t, k){ return sin.indexOf(t) === k; });
+    cortes.push({
+      minutos: gap, hora: horaEc(H[i-1].cuando).split(", ").pop(),
+      abiertos: minutosConMercadoAbierto(H[i-1].cuando, H[i].cuando, V),
+      sin_stop: sin, aproximado: aprox
+    });
+  }
+  return cortes;
+}
+
+/* LA GRAVEDAD DE UN CORTE YA RECUPERADO. Rojo solo si durante el corte alguna
+   posición no tenía su stop confirmado en XTB (o no se puede comprobar), si
+   duró más de 30 min con el mercado abierto, o si hubo 3 o más en la sesión.
+   En los demás casos, ámbar con el detalle. Que el vigilante esté caído AHORA
+   sigue siendo rojo: lo decide mostrarLatido, más abajo. */
+var CORTE_ROJO_MIN = 30, CORTES_ROJO_N = 3;
+
+function gravedadDeLosCortes(cortes){
+  if(!cortes.length) return;
+  var rojos = [];
+  var detalle = cortes.map(function(c){
+    var stops = c.sin_stop === null ? "no se pudo comprobar si los stops estaban en XTB"
+              : c.sin_stop.length ? "sin stop confirmado en XTB: " + c.sin_stop.join(", ")
+              : "stops confirmados en XTB" + (c.aproximado ? " (según la foto actual)" : "");
+    if(c.sin_stop === null || c.sin_stop.length)
+      rojos.push("durante el corte de las " + c.hora + " " + (c.sin_stop === null
+        ? "no se pudo comprobar que los stops estuvieran en XTB"
+        : c.sin_stop.join(", ") + " no tenía(n) su stop confirmado en XTB"));
+    if(c.abiertos > CORTE_ROJO_MIN)
+      rojos.push("el corte de las " + c.hora + " duró " + Math.round(c.abiertos)
+        + " min con el mercado abierto (más de " + CORTE_ROJO_MIN + ")");
+    return Math.round(c.minutos) + " min a las " + c.hora + " (" + stops + ")";
+  });
+  if(cortes.length >= CORTES_ROJO_N)
+    rojos.push(cortes.length + " cortes en la misma sesión");
+  var msg = "El latido del vigilante de precios se cortó " + cortes.length
+    + (cortes.length === 1 ? " vez" : " veces") + " hoy, ya recuperado: "
+    + detalle.join("; ") + ".";
+  if(rojos.length) empeorarSemaforo(msg + " Rojo porque " + rojos.join("; ") + ".");
+  else ambarSemaforo(msg);
+}
+
 function mostrarLatido(caja, det, V, L){
   var ahora = Date.now();
   var dentro = V.es_sesion && V.sesion_abre && V.sesion_cierra &&
@@ -775,16 +870,8 @@ function mostrarLatido(caja, det, V, L){
   /* El historial: ¿estuvo cubierta la sesión entera, latido a latido? */
   var H = (L.historial || []).filter(function(h){
     return h.cuando && h.cuando.slice(0,10) === L.cuando.slice(0,10); });
-  var cortes = [];
-  for(var i = 1; i < H.length; i++){
-    var gap = (new Date(H[i].cuando) - new Date(H[i-1].cuando)) / 60000;
-    if(H[i-1].estado !== "en-reposo" && gap > (V.corte_minutos || 10))
-      cortes.push(Math.round(gap) + " min a las " + horaEc(H[i-1].cuando).split(", ").pop());
-  }
-  /* Un corte del latido es ROJO aunque ya se haya recuperado: durante ese rato
-     hubo posiciones sin nadie mirando sus niveles. */
-  if(cortes.length) empeorarSemaforo("El latido del vigilante de precios se "
-    + "cortó " + cortes.length + " vez/veces hoy: " + cortes.join("; ") + ".");
+  var cortes = cortesDelLatido(H, V, L);
+  gravedadDeLosCortes(cortes);
   /* Los reinicios del supervisor no dejan hueco (segundos), pero un vigilante
      que se cae es un fallo aunque se levante solo. */
   if(L.reinicios) ambarSemaforo("El supervisor tuvo que relanzar el vigilante "

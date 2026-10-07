@@ -48,6 +48,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import config
+from .ordenes import simbolo_xtb
 
 #: La rama del latido. CONSTANTE: nunca sale de aquí y nunca se parametriza,
 #: porque lo que se hace con ella es `push --force`.
@@ -76,6 +77,13 @@ CADA_SEGUNDOS = 120
 #: A partir de cuántos minutos sin latido se da por muerto. Tres latidos
 #: perdidos: uno puede ser un hipo de red, tres son otra cosa.
 MUERTO_MINUTOS = 10
+#: Segundos que se espera a una orden de git antes de darla por perdida. Un push
+#: normal tarda 1-3 s. Sin tope, un git que se queda esperando a GitHub bloquea
+#: el bucle de precios entero (07/10, 11:05 ET: el incidente de GitHub dejó el
+#: push colgado y el vigilante dejó de mirar precios hasta que el supervisor lo
+#: mató 6 min después). Con tope, es un RuntimeError como cualquier otro fallo de
+#: red y `publicar_tolerante` lo aguanta sin dejar de vigilar.
+GIT_TIMEOUT_SEG = 30
 
 #: Dónde lo lee la página. Pública, sin token, servida como fichero estático.
 URL = (f"https://raw.githubusercontent.com/{{repo}}/{RAMA}/{ARCHIVO}")
@@ -89,6 +97,23 @@ def url_publica() -> str:
 #: Cuántos latidos se guardan en el historial. Una sesión entera a uno cada
 #: dos minutos son ~195; con 240 cabe la sesión y el relevo.
 HISTORIAL_MAX = 240
+
+
+def sin_stop_en_xtb(vigiladas: list[dict], broker: dict | None,
+                    error_broker: str | None = None) -> list[str] | None:
+    """Tickers con stop vigilado cuya orden NO está confirmada en XTB ahora.
+
+    `None` es "no se sabe": la foto de la cuenta falló o no pudo leer las
+    órdenes de contado. No es lo mismo que `[]` ("todas tienen su stop"), y la
+    página los juzga distinto: un corte del latido con un stop sin confirmar es
+    rojo, pero uno con todos los stops confirmados es ámbar.
+    """
+    if error_broker or not broker or broker.get("stops") is None:
+        return None
+    stops = broker["stops"]
+    return sorted(v["ticker"] for v in vigiladas
+                  if v.get("stop") is not None
+                  and not (stops.get(simbolo_xtb(v["ticker"])) or {}).get("orden"))
 
 
 def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
@@ -116,8 +141,12 @@ def construir(arrancado: str, vigiladas: list[dict], estado: str = VIVO,
     # un corte a las 11:40 que se arregló solo. Con los últimos ~240 se puede
     # comprobar después que la sesión estuvo cubierta entera, latido a latido.
     hist = list(historial or [])
+    # `sin_stop`: qué posiciones no tenían su stop en XTB en este latido. Con
+    # el hueco entre dos latidos no hay otro dato: la página juzga si un corte
+    # dejó algo al aire mirando este campo en los dos latidos que lo rodean.
     hist.append({"cuando": cuando, "estado": estado, "run": run,
-                 "n": len(vigiladas)})
+                 "n": len(vigiladas),
+                 "sin_stop": sin_stop_en_xtb(vigiladas, broker, error_broker)})
     hist = hist[-HISTORIAL_MAX:]
     return {
         "cuando": cuando,
@@ -176,8 +205,13 @@ def remoto_autenticado() -> str:
 
 
 def _git(*args: str, cwd: Path | None = None) -> str:
-    r = subprocess.run(["git", *args], cwd=str(cwd or config.BASE_DIR),
-                       capture_output=True, text=True)
+    try:
+        r = subprocess.run(["git", *args], cwd=str(cwd or config.BASE_DIR),
+                           capture_output=True, text=True,
+                           timeout=GIT_TIMEOUT_SEG)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"git {' '.join(args)} no respondió en {GIT_TIMEOUT_SEG} s") from exc
     if r.returncode != 0:
         raise RuntimeError(
             f"git {' '.join(args)} falló ({r.returncode}): "

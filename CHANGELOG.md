@@ -5,6 +5,37 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-07 — Corte de 11 min del latido: git sin timeout; gravedad de los cortes
+
+**Síntoma**: el latido del vigilante de precios se cortó 11 min (11:05–11:16 ET,
+10:05 en Ecuador) y el supervisor lo relanzó 2 veces. WDC tuvo su stop en XTB
+(orden 917531939) todo el rato.
+
+**Causa**: GitHub declaró un incidente de Git Operations/Actions con «impacto
+generalizado entre 15:06 y 15:16 UTC», que es el hueco exacto del latido. No
+murió el runner (mismo job y mismo run, `reinicios: 2`). La parte NUESTRA es que
+`latido._git` no tenía timeout: el `git push` del latido va en línea dentro del
+bucle de precios, así que un push que no contesta paró también la vigilancia
+hasta que el supervisor mató el proceso por colgado (6 min), y el segundo
+proceso murió al no poder publicar su primer latido (que es mortal a propósito)
+mientras GitHub seguía caído. *Inferido del latido y del estado de GitHub: el
+log del run no se puede leer por la API hasta que el job termina.*
+
+**Arreglos**:
+- `latido._git`: timeout de 30 s (`GIT_TIMEOUT_SEG`); una orden que no contesta
+  es un `RuntimeError` más, que `publicar_tolerante` ya aguanta sin dejar de
+  mirar precios.
+- Cada latido del historial lleva `sin_stop`: las posiciones con stop vigilado
+  cuya orden no está confirmada en XTB (`null` si no se pudo comprobar).
+- Gravedad de un corte ya recuperado (plantilla de la página): **rojo** solo si
+  durante el corte había una posición sin su stop confirmado en XTB (o no se
+  pudo comprobar), si duró más de 30 min con el mercado abierto, o si hay 3 o
+  más cortes en la sesión; en los demás casos, **ámbar** con el detalle. Un
+  vigilante caído AHORA sigue en rojo. Los latidos anteriores a este cambio no
+  traen `sin_stop`: se juzgan con los stops de la foto actual y la página lo dice.
+
+---
+
 ## 2026-10-05 (5) — La página Operativa publicada se rompía: desfase de versiones
 
 **Síntoma**: «No se pudo cargar operativa.json — … `C.repuestas.ambar`», sin

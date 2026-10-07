@@ -1109,3 +1109,159 @@ def test_la_pagina_refleja_la_correccion_del_vigilante_sin_regenerarse(datos, tm
     assert "pendiente" not in despues["posiciones"], despues["posiciones"]
     assert "en XTB nº 917531939" in despues["posiciones"]
     assert "-9" in despues["posiciones"] or "−9" in despues["posiciones"]
+
+
+# --------------------------------------------------------------------------- #
+# Gravedad de los cortes del latido ya recuperados (2026-10-07)
+# --------------------------------------------------------------------------- #
+# Rojo solo si durante el corte alguna posición no tenía su stop confirmado en
+# XTB, si el corte pasa de 30 min con el mercado abierto o si hay 3 o más en la
+# sesión. Si no, ámbar con el detalle. Un vigilante caído AHORA sigue en rojo.
+from datetime import timezone  # noqa: E402
+
+_ET = config.TZ_ET
+_DIA = datetime(2026, 9, 15, tzinfo=_ET)
+
+
+def _hist(*minutos, sin_stop=(), n=1, **extra):
+    """Latidos de HOY en esos minutos desde las 09:35 ET, todos con `sin_stop`."""
+    out = []
+    for m in minutos:
+        t = _DIA.replace(hour=9, minute=35) + timedelta(minutes=m)
+        h = {"cuando": t.isoformat(), "estado": "vivo", "run": "1", "n": n,
+             "sin_stop": None if sin_stop is None else list(sin_stop)}
+        h.update(extra)
+        out.append(h)
+    return out
+
+
+def _pagina_con_latido(tmp_path, datos, historial, *, ahora=False, stops=True,
+                       vigiladas=True):
+    """Carga la página con un semáforo VERDE de partida y este latido.
+
+    `ahora=False`: el latido es de un día pasado y la sesión también, así que
+    el vigilante no cuenta como caído ni importa lo que tarde el test. Con
+    `ahora=True` la sesión está abierta y el último latido es viejo.
+    """
+    d = json.loads(json.dumps(datos))
+    d["generado"] = datetime.now(timezone.utc).isoformat()
+    d["semaforo"] = {"color": "verde", "titulo": "Todo en orden", "motivos": []}
+    v = d["vigilante_precios"]
+    v["posiciones_a_vigilar"] = 1
+    v["es_sesion"] = True
+    if ahora:
+        v["sesion_abre"] = (datetime.now(_ET) - timedelta(hours=2)).isoformat()
+        v["sesion_cierra"] = (datetime.now(_ET) + timedelta(hours=2)).isoformat()
+    else:
+        v["sesion_abre"] = _DIA.replace(hour=9, minute=30).isoformat()
+        v["sesion_cierra"] = _DIA.replace(hour=16).isoformat()
+    ultimo = historial[-1]["cuando"]
+    latido = {"cuando": ultimo, "estado": "vivo", "reinicios": 0, "historial": historial,
+              "vigiladas": ([{"ticker": "WDC", "bid": 405.0, "objetivo": 495.49,
+                              "stop": 378.34}] if vigiladas else []),
+              "broker": {"leido": ultimo, "candado_ok": True, "saldo": 28000.0,
+                         "posiciones": [], "stops": (
+                             {"WDC.US": {"orden": 917531939, "precio": 378.34}}
+                             if stops else {})}}
+    f = tmp_path / "latido.json"
+    f.write_text(json.dumps(latido), encoding="utf-8")
+    (tmp_path / "operativa.json").write_text(json.dumps(d), encoding="utf-8")
+    r = subprocess.run([NODE, str(CARGADOR), str(PLANTILLA),
+                        str(tmp_path / "operativa.json"), str(f)],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+def test_un_corte_recuperado_con_el_stop_en_xtb_es_ambar_con_detalle(datos, tmp_path):
+    """El caso real del 07/10: 11 min, WDC con su stop en XTB todo el rato."""
+    h = _hist(0, 2, 4) + _hist(15, 17)
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Atención" in sem and "Problema" not in sem, sem
+    assert "se cortó 1 vez" in sem and "11 min" in sem
+    assert "stops confirmados en XTB" in sem
+
+
+def test_un_corte_con_una_posicion_sin_stop_en_xtb_es_rojo(datos, tmp_path):
+    h = _hist(0, 2, 4, sin_stop=["WDC"]) + _hist(15, 17)
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Problema" in sem and "WDC" in sem and "sin stop confirmado" in sem, sem
+
+
+def test_sin_stop_solo_despues_del_corte_tambien_es_rojo(datos, tmp_path):
+    h = _hist(0, 2, 4) + _hist(15, 17, sin_stop=["WDC"])
+    assert "Problema" in _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+
+
+def test_un_corte_con_el_stop_sin_comprobar_es_rojo(datos, tmp_path):
+    """`sin_stop: null` = la foto de XTB falló: no se confirma, no se da por bueno."""
+    h = _hist(0, 2, 4, sin_stop=None) + _hist(15, 17, sin_stop=None)
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Problema" in sem and "no se pudo comprobar" in sem, sem
+
+
+def test_un_corte_de_mas_de_30_min_con_el_mercado_abierto_es_rojo(datos, tmp_path):
+    h = _hist(0, 2) + _hist(40, 42)           # 38 min
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Problema" in sem and "con el mercado abierto" in sem, sem
+
+
+def test_un_corte_de_exactamente_30_min_sigue_en_ambar(datos, tmp_path):
+    h = _hist(0, 2) + _hist(32, 34)           # 30 min justos
+    assert "Atención" in _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+
+
+def test_el_corte_solo_cuenta_lo_que_cae_con_el_mercado_abierto(datos, tmp_path):
+    """Un hueco que se alarga fuera del horario de sesión no pasa de 30 min
+    ABIERTO: aquí 40 min de hueco, de los que 20 caen antes de la apertura."""
+    d = json.loads(json.dumps(datos))
+    ini = _DIA.replace(hour=9, minute=10)
+    h = [{"cuando": t.isoformat(), "estado": "vivo", "run": "1", "n": 1, "sin_stop": []}
+         for t in (ini, ini + timedelta(minutes=2), ini + timedelta(minutes=42),
+                   ini + timedelta(minutes=44))]
+    sem = _pagina_con_latido(tmp_path, d, h)["semaforo"]
+    assert "Atención" in sem and "Problema" not in sem, sem
+
+
+def test_tres_cortes_en_la_misma_sesion_son_rojo(datos, tmp_path):
+    h = (_hist(0, 2) + _hist(14, 16) + _hist(28, 30) + _hist(42, 44))
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Problema" in sem and "3 cortes en la misma sesión" in sem, sem
+
+
+def test_dos_cortes_siguen_en_ambar(datos, tmp_path):
+    h = _hist(0, 2) + _hist(14, 16) + _hist(28, 30)
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Atención" in sem and "se cortó 2 veces" in sem, sem
+
+
+def test_latidos_de_antes_del_cambio_se_juzgan_con_la_foto_actual(datos, tmp_path):
+    """Sin `sin_stop` en el historial (el caso de hoy): WDC tiene su stop en
+    XTB en la foto del último latido → ámbar, y se dice que es aproximado."""
+    h = [{k: v for k, v in x.items() if k != "sin_stop"}
+         for x in _hist(0, 2, 4) + _hist(15, 17)]
+    sem = _pagina_con_latido(tmp_path, datos, h)["semaforo"]
+    assert "Atención" in sem and "según la foto actual" in sem, sem
+    # y si en la foto actual a WDC le falta el stop, rojo
+    sem = _pagina_con_latido(tmp_path, datos, h, stops=False)["semaforo"]
+    assert "Problema" in sem, sem
+
+
+def test_sin_cortes_el_semaforo_no_cambia(datos, tmp_path):
+    sem = _pagina_con_latido(tmp_path, datos, _hist(0, 2, 4, 6, 8))["semaforo"]
+    assert "Todo en orden" in sem, sem
+
+
+def test_un_vigilante_caido_ahora_sigue_en_rojo_aunque_el_corte_fuera_ambar(datos, tmp_path):
+    """Con la sesión abierta, posiciones que vigilar y el último latido de hace
+    20 min, es rojo por estar caído, con o sin cortes anteriores."""
+    t0 = datetime.now(_ET) - timedelta(minutes=60)
+    h = []
+    for m in (0, 2, 4, 16, 18, 20):           # un corte de 12 min, ya recuperado
+        h.append({"cuando": (t0 + timedelta(minutes=m)).isoformat(), "estado": "vivo",
+                  "run": "1", "n": 1, "sin_stop": []})
+    # el último latido, de hace ~22 min: el vigilante lleva mucho sin latir
+    if h[0]["cuando"][:10] != h[-1]["cuando"][:10]:
+        pytest.skip("la hora de ejecución cruza la medianoche ET")
+    sem = _pagina_con_latido(tmp_path, datos, h, ahora=True)["semaforo"]
+    assert "Problema" in sem and "sin latir" in sem, sem
