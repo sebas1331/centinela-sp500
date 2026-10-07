@@ -78,11 +78,12 @@ CADA_SEGUNDOS = 120
 #: perdidos: uno puede ser un hipo de red, tres son otra cosa.
 MUERTO_MINUTOS = 10
 #: Segundos que se espera a una orden de git antes de darla por perdida. Un push
-#: normal tarda 1-3 s. Sin tope, un git que se queda esperando a GitHub bloquea
-#: el bucle de precios entero (07/10, 11:05 ET: el incidente de GitHub dejó el
-#: push colgado y el vigilante dejó de mirar precios hasta que el supervisor lo
-#: mató 6 min después). Con tope, es un RuntimeError como cualquier otro fallo de
-#: red y `publicar_tolerante` lo aguanta sin dejar de vigilar.
+#: normal tarda 1-3 s. DEFENSA PREVENTIVA: el push del latido va en línea dentro
+#: del bucle de precios, así que un git que se quedara esperando a GitHub
+#: pararía también la vigilancia. No ha ocurrido nunca; el corte del 07/10 NO
+#: fue esto (GitHub contestó 500 enseguida, ver CHANGELOG). Con tope, una orden
+#: que no contesta es un RuntimeError como cualquier otro fallo de red y
+#: `publicar_tolerante` lo aguanta sin dejar de vigilar.
 GIT_TIMEOUT_SEG = 30
 
 #: Dónde lo lee la página. Pública, sin token, servida como fichero estático.

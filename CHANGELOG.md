@@ -5,26 +5,33 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
-## 2026-10-07 — Corte de 11 min del latido: git sin timeout; gravedad de los cortes
+## 2026-10-07 — Corte de 11 min del latido: era GitHub; gravedad de los cortes
 
 **Síntoma**: el latido del vigilante de precios se cortó 11 min (11:05–11:16 ET,
 10:05 en Ecuador) y el supervisor lo relanzó 2 veces. WDC tuvo su stop en XTB
 (orden 917531939) todo el rato.
 
-**Causa**: GitHub declaró un incidente de Git Operations/Actions con «impacto
-generalizado entre 15:06 y 15:16 UTC», que es el hueco exacto del latido. No
-murió el runner (mismo job y mismo run, `reinicios: 2`). La parte NUESTRA es que
-`latido._git` no tenía timeout: el `git push` del latido va en línea dentro del
-bucle de precios, así que un push que no contesta paró también la vigilancia
-hasta que el supervisor mató el proceso por colgado (6 min), y el segundo
-proceso murió al no poder publicar su primer latido (que es mortal a propósito)
-mientras GitHub seguía caído. *Inferido del latido y del estado de GitHub: el
-log del run no se puede leer por la API hasta que el job termina.*
+**Causa** (leída del log del run 37629747604, no inferida): GitHub declaró un
+incidente de Git Operations/Actions con «impacto generalizado entre 15:06 y
+15:16 UTC». Durante él, el `git push` del latido recibió `remote: Internal
+Server Error` (HTTP 500) al instante: 15:07:34, 15:09:40, 15:11:43, 15:13:47 y
+15:15:51. No se colgó nada, no murió el runner y **el vigilante siguió leyendo
+precios y la cuenta de XTB todo el rato**: lo que se cortó fue la publicación
+del latido. Los dos reinicios son comportamiento por diseño:
+1. 15:15:51: `publicar_tolerante` se retira tras 10 min sin poder publicar, para
+   que el guardián no levante un segundo vigilante mientras este sigue vivo.
+2. 15:16:13: el proceso nuevo muere en su primer latido (mortal a propósito,
+   decisión del usuario: mejor minutos sin vigilante que dos vendiendo a la
+   vez) con GitHub aún en 500. El tercero publicó a las 15:16:36.
 
-**Arreglos**:
-- `latido._git`: timeout de 30 s (`GIT_TIMEOUT_SEG`); una orden que no contesta
-  es un `RuntimeError` más, que `publicar_tolerante` ya aguanta sin dejar de
-  mirar precios.
+No hay fallo nuestro que corregir. Hubo otra racha de 500 de 16:53 a 16:59 UTC
+que se recuperó antes de los 10 min, sin reinicio.
+
+**Cambios**:
+- `latido._git`: timeout de 30 s (`GIT_TIMEOUT_SEG`). DEFENSA PREVENTIVA: no fue
+  la causa de este corte (la primera versión de esta entrada decía que sí, y era
+  una inferencia equivocada), pero un git que no contestara nunca pararía el
+  bucle de precios hasta que el supervisor lo matara a los 6 min.
 - Cada latido del historial lleva `sin_stop`: las posiciones con stop vigilado
   cuya orden no está confirmada en XTB (`null` si no se pudo comprobar).
 - Gravedad de un corte ya recuperado (plantilla de la página): **rojo** solo si

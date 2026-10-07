@@ -1,9 +1,11 @@
 """Un git colgado no puede dejar al vigilante sin mirar precios.
 
-07/10, 11:05 ET: GitHub tuvo un incidente de Git Operations/Actions de 10 minutos
-y el `git push` del latido se quedó esperando. `_git` no tenía timeout, así que
-el bucle de precios —que publica el latido en línea— se paró hasta que el
-supervisor lo mató a los 6 minutos y lo relanzó dos veces.
+DEFENSA PREVENTIVA, no el arreglo del corte del 07/10: ese día GitHub contestó
+`500 Internal Server Error` al push del latido al instante (no se colgó nada) y
+el proceso se retiró por diseño tras 10 min sin poder publicar. Pero el push va
+en línea dentro del bucle de precios y `_git` no tenía timeout: un git que no
+contestara nunca pararía la vigilancia hasta que el supervisor lo matara a los
+6 minutos. Estos tests fijan que ahora es un RuntimeError a los 30 s.
 """
 from __future__ import annotations
 
