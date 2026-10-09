@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-10-08T18:01:09.727870-04:00",
+  "actualizado": "2026-10-09T08:45:59.073904-04:00",
   "contador_grupo": 92,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 54.6456,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-09",
+      "notas": "prob=0.831 score_fund=80.0 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 946.36,
+      "score_fundamental": 80.0,
+      "sector": "Information Technology",
+      "target_analista": 1144.3478,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-10-09T08:45:05.001192-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -81,11 +98,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37840970355"
     },
     "preapertura": {
-      "cuando": "2026-10-08T08:45:48.509523-04:00",
-      "run": "37766861804",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37766861804"
+      "cuando": "2026-10-09T08:45:59.073883-04:00",
+      "run": "37920609803",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37920609803"
     }
   },
   "ultima_postcierre": "2026-10-08",
-  "ultima_preapertura": "2026-10-08"
+  "ultima_preapertura": "2026-10-09"
 }
