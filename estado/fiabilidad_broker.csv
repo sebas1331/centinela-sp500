@@ -9,3 +9,4 @@ cuando,sesion,id,simbolo,tipo,estado,detalle
 2026-10-05T09:56:26.433527-04:00,2026-10-05,2026-10-05|A|WDC|compra,WDC.US,compra,fallida,"XTB no tiene ni posición ni orden de WDC.US: la orden 917440474 no existe, se rechazó"
 2026-10-05T09:58:01.287145-04:00,2026-10-05,2026-10-05|A|WDC|compra,WDC.US,compra,fallida,"XTB no tiene ni posición ni orden de WDC.US: la orden 917440474 no existe, se rechazó"
 2026-10-05T09:58:09.940093-04:00,2026-10-05,2026-10-05|A|WDC|entrada_tardia,WDC.US,entrada_tardia,ejecutada,XTB lo refleja: WDC.US pasó de 0 a 4 acciones (intento 1)
+2026-10-09T09:35:55.827266-04:00,2026-10-09,2026-10-09|A|STX|compra,STX.US,compra,rechazada,XTB no tiene ni posición ni orden de STX.US tras 5 de 5 comprobaciones
