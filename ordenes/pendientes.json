@@ -1,6 +1,21 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-08T18:01:55.096615-04:00",
-  "ordenes": [],
-  "sesion": "2026-10-08"
+  "generado": "2026-10-09T08:46:34.953604-04:00",
+  "ordenes": [
+    {
+      "acciones": 2,
+      "cartera": "A",
+      "fecha_limite": "2026-10-22",
+      "id": "2026-10-09|A|STX|compra",
+      "id_operacion": null,
+      "objetivo": 946.36,
+      "precio_simulador": null,
+      "referencia": 774.83,
+      "sesion": "2026-10-09",
+      "stop": 681.85,
+      "ticker": "STX",
+      "tipo": "compra"
+    }
+  ],
+  "sesion": "2026-10-09"
 }
