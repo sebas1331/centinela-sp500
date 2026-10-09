@@ -186,3 +186,9 @@ ZBH | dd=46.9% | prob=0.403 < umbral -> SIN SEÑAL
 ZTS | dd=69.0% | prob=0.403 < umbral -> SIN SEÑAL
 WDC | dd=50.8% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['STX']
+
+===== escaneo postcierre 2026-10-09 18:00:53 ET =====
+POST-CIERRE 2026-10-09
+entradas ejecutadas: ['STX']
+cambios de objetivo: 2
+cierres: []
