@@ -7,3 +7,4 @@ id,sesion,cuando_et,cartera,ticker,simbolo_xtb,tipo,acciones,estado,precio,orden
 2026-10-05|A|WDC|compra,2026-10-05,2026-10-05T09:30:34.508214-04:00,A,WDC,WDC.US,compra,4,rechazada,,917440474,495.49,365.46,415.29,,,XTB no tiene ni posición ni orden de WDC.US tras 5 de 5 comprobaciones,
 2026-10-05|A|WDC|entrada_tardia,2026-10-05,2026-10-05T09:58:06.521841-04:00,A,WDC,WDC.US,entrada_tardia,4,ejecutada,439.71,917455892,495.49,365.46,,429.93499755859375,2.2736,,posicion
 2026-10-09|A|STX|compra,2026-10-09,2026-10-09T09:35:29.264824-04:00,A,STX,STX.US,compra,2,rechazada,,918541486,946.36,681.85,774.83,,,XTB no tiene ni posición ni orden de STX.US tras 5 de 5 comprobaciones,
+2026-10-12|A|FICO|compra,2026-10-12,2026-10-12T09:35:22.321596-04:00,A,FICO,FICO.US,compra,2,rechazada,,919025598,773.26,587.47,667.58,,,XTB no tiene ni posición ni orden de FICO.US tras 5 de 5 comprobaciones,
