@@ -1,20 +1,20 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 29789.33,
+  "equity": 29795.13,
   "equity_xtb": 28241.01,
-  "leido": "2026-10-12T15:21:26.738408-04:00",
+  "leido": "2026-10-12T16:00:03.343782-04:00",
   "posiciones": [
     {
       "acciones": 4.0,
       "coste": 1692.6561766462612,
       "invertido": 1758.84,
-      "pnl": -210.52,
-      "precio_actual": 387.08,
+      "pnl": -204.72,
+      "precio_actual": 388.53,
       "precio_entrada": 439.71,
       "precio_fuente": "bid",
       "ticker": "WDC.US",
-      "valor": 1548.32
+      "valor": 1554.12
     }
   ],
   "saldo": 28241.01,
@@ -25,5 +25,5 @@
       "precio": 378.34
     }
   },
-  "valor_posiciones": 1548.32
+  "valor_posiciones": 1554.12
 }
