@@ -117,7 +117,6 @@ def main() -> int:
         if args.espera_hasta:
             esperar_hasta(args.espera_hasta)
 
-        antes = len(_pos_de(b, simbolo))
         if not args.operar:
             log("(sin --operar: no se manda nada; solo se escucha 10 s el stream)")
             for ev in b.eventos_contado(10.0):
@@ -145,14 +144,19 @@ def main() -> int:
                 log(f"  stream cerrado: grpc-status={ev.get('grpc_status')} "
                     f"{ev.get('grpc_message')}")
                 continue
+            # Los eventos del stream traen las claves CRUDAS de parse_order_groups
+            # (symbol/order_id/type/side/status/volume), no las renombradas de
+            # ordenes_contado() (ticker/orden/tipo/lado/estado).
             mias = [o for o in ev["orders"]
-                    if o["ticker"].replace(".US", "") == simbolo.replace(".US", "")]
+                    if str(o.get("symbol", "")).replace(".US", "")
+                    == simbolo.replace(".US", "")]
             for o in mias:
                 dt = time.time() - t_envio
-                log(f"  +{dt:4.0f}s {ev['event']:8} orden {o['orden']} "
-                    f"{o['tipo']}/{o['lado']} x{o['acciones']} -> {o['estado']}")
-                if o["estado"] in ("REJECTED", "CANCELED", "EXPIRED"):
-                    rechazos_crudos.append((o["orden"], ev["raw_hex"]))
+                log(f"  +{dt:4.0f}s {ev['event']:8} orden {o.get('order_id')} "
+                    f"{o.get('type')}/{o.get('side')} x{o.get('volume')} "
+                    f"-> {o.get('status')}")
+                if o.get("status") in ("REJECTED", "CANCELED", "EXPIRED"):
+                    rechazos_crudos.append((o.get("order_id"), ev["raw_hex"]))
 
         # Estado final por el resumen (por si el stream no lo trajo).
         try:
@@ -177,12 +181,15 @@ def main() -> int:
                     + (f", {ll['cabeceras'].get('grpc-message')}"
                        if ll['cabeceras'].get('grpc-message') else ""))
 
-        # LIMPIEZA: la cuenta tiene que quedar como estaba.
+        # LIMPIEZA: la cuenta tiene que quedar como estaba. El ticker de prueba
+        # NUNCA es de la estrategia (F no está en la cartera), así que CUALQUIER
+        # posición suya es residuo de la prueba y se cierra entera —esto limpia
+        # también un residuo de un intento anterior que muriera antes de limpiar—.
         time.sleep(3)
         ahora = _pos_de(b, simbolo)
-        if len(ahora) > antes:
-            total = int(sum(p["acciones"] for p in ahora))
-            log(f"la compra entró ({total} acción/es): cerrando para dejar limpio...")
+        total = int(sum(p["acciones"] for p in ahora))
+        if total >= 1:
+            log(f"cerrando {total} acción/es de {simbolo} (residuo de la prueba)...")
             c = b.vender(simbolo, total)
             log(f"  venta de limpieza: {c.estado}" + (f" ERROR: {c.error}" if c.error else ""))
         try:
