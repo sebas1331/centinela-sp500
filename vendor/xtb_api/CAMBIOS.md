@@ -173,6 +173,48 @@ pendientes.
 
 ---
 
+## Parche 4 — Escuchar el stream de OrderService (cazar el motivo del rechazo)
+
+**Ficheros:** `grpc/client.py` (`cash_orders_stream`) y `client.py`
+(`get_cash_order_events`).
+
+**El problema.** `cash_orders_snapshot` (parche 3) abre el stream de
+`OrderService/SubscribeOrderGroups`, lee la PRIMERA foto (SNAPSHOT) y cierra.
+Sirve para "qué hay ahora", pero no para "por qué se rechazó aquella orden":
+cuando XTB rechaza una compra a mercado de los primeros minutos de sesión lo
+hace de forma ASÍNCRONA —acepta la orden, devuelve número, y a los segundos la
+marca REJECTED como un evento UPDATE— y además PURGA la orden muerta de la lista
+a los pocos minutos (una compra rechazada a las 09:35 ya no estaba a mediodía,
+medido el 2026-10-12). Con solo la foto, el motivo se pierde entre que llega y
+que se consulta.
+
+**Lo que hace.** `cash_orders_stream(duration)` NO corta en el primer SNAPSHOT:
+escucha el stream `duration` segundos y devuelve TODOS los eventos (SNAPSHOT +
+UPDATE), cada uno con los bytes crudos de su frame (`raw_hex`). Así el
+diagnóstico de la apertura (`scripts/diagnosticar_rechazo_apertura.py`) manda una
+acción, se queda escuchando, y captura el instante exacto en que la orden pasa a
+REJECTED —y el frame en crudo, por si el motivo viene en un campo del proto que
+`parse_order_groups` todavía no decodifica: se añade el parser DESPUÉS, con el
+campo delante, en vez de adivinar su número—.
+
+No cambia el camino normal: el ejecutor sigue usando `cash_orders_snapshot` /
+`resumen_contado`. Esto es solo para el diagnóstico, que no corre en producción.
+
+**Por qué OrderService y no las posiciones (2026-10-12).** Hasta este día la
+confirmación de compras y ventas (`centinela/ambiguas.confirmar`) deducía el
+estado de las posiciones y de `getAllOrders`, y `getAllOrders` NO ve las órdenes
+de contado (parche 3). Resultado: cuatro compras (CTVA 02/10, WDC 05/10, STX
+09/10, FICO 12/10) se marcaron "rechazada: XTB no tiene ni posición ni orden",
+sin el estado real, porque nadie preguntaba a la única lista que lo tiene. Ahora
+`confirmar` y la reposición automática usan `resumen_contado` (OrderService) como
+autoridad del estado.
+
+**Tests:** `tests/test_reposicion.py`. El motivo literal (el texto que XTB manda
+con el REJECTED) se captura en la apertura con el diagnóstico; el esquema del
+campo se añadirá aquí cuando se vea en crudo.
+
+---
+
 ## Lo que NO se tocó
 
 **El parche del selector del segundo factor** (`centinela/parche_otp.py`) sigue

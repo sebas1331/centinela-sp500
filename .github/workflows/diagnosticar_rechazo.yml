@@ -1,0 +1,76 @@
+name: Diagnosticar rechazo de la apertura
+
+# ---------------------------------------------------------------------------
+# Caza el motivo por el que XTB rechaza las compras a mercado en los primeros
+# minutos de sesión (ver scripts/diagnosticar_rechazo_apertura.py).
+#
+# Manda UNA acción del ticker y escucha el stream de OrderService —la única
+# lista con el estado real, y que XTB purga enseguida— para capturar el estado
+# de la orden a lo largo del tiempo y, si la rechaza, el frame crudo con el
+# motivo. Deja la cuenta como estaba.
+#
+# Con "espera_hasta" (HH:MM ET) duerme hasta esa hora antes de mandar, para
+# sondear a una hora concreta de la apertura (09:31, 09:35, 09:45, 10:00…).
+# Solo opera si se marca la casilla.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Ticker a sondear (barato, p. ej. F, NOK, SIRI)"
+        type: string
+        default: "F"
+      acciones:
+        description: "Cuántas acciones (1 basta)"
+        type: string
+        default: "1"
+      operar:
+        description: "Mandar la orden de verdad (si no, solo escucha)"
+        type: boolean
+        default: false
+      espera_hasta:
+        description: "Dormir hasta esta hora ET antes de mandar (HH:MM, vacío = ya)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  diagnosticar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        uses: ./.github/actions/chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Diagnosticar
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: |
+          ARGS="--ticker ${{ inputs.ticker }} --acciones ${{ inputs.acciones }}"
+          if [ "${{ inputs.operar }}" = "true" ]; then ARGS="$ARGS --operar"; fi
+          if [ -n "${{ inputs.espera_hasta }}" ]; then ARGS="$ARGS --espera-hasta ${{ inputs.espera_hasta }}"; fi
+          python scripts/diagnosticar_rechazo_apertura.py $ARGS

@@ -251,7 +251,8 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
                 return e
             real, porque, movidas = confirmar(
                 broker, simbolo, antes_acciones, dormir=dormir, lado=lado,
-                acciones=getattr(e, "acciones", None))
+                acciones=getattr(e, "acciones", None),
+                numero=getattr(e, "orden", None))
             print(f"[confirmación] {simbolo} {tipo}: {real} — {porque}",
                   flush=True)
             e.estado = real
@@ -335,10 +336,40 @@ ESPERA_CONFIRMACION = 3.0
 #: justo el que engañó el 2026-09-30.
 DEFINITIVOS = ("ejecutada", "rechazada")
 
+#: Estados de OrderService (la lista de contado) en los que una orden ya está
+#: MUERTA y no dejó posición. OrderService es la única lista con el estado real
+#: de una orden de contado (getAllOrders no las ve, 2026-10-05), así que es la
+#: autoridad para confirmar compras y ventas y para decidir si una compra
+#: rechazada se puede reponer. FILLED no está aquí porque deja posición y se
+#: detecta por ella; PARTIAL_FILLED tampoco: sigue viva.
+CONTADO_MUERTA = ("REJECTED", "CANCELED", "EXPIRED")
+
+
+def _mismo(a, b) -> bool:
+    """Si dos símbolos son el mismo, con o sin sufijo `.US` y guion/punto."""
+    norm = lambda t: str(t).upper().replace(".US", "").replace("-", ".")
+    return norm(a) == norm(b)
+
+
+def _estado_contado(broker, simbolo: str, numero):
+    """(resumen de OrderService, legible) o (None, motivo) si no se pudo leer.
+
+    OrderService purga las órdenes muertas a los pocos minutos, así que un
+    `estado` None significa "ya no está en la lista", no "viva": quien llama lo
+    interpreta junto con la posición. Un broker sin esta lista (los dobles
+    antiguos de los tests) devuelve (None, "sin OrderService")."""
+    if not hasattr(broker, "resumen_contado"):
+        return None, "este broker no expone OrderService"
+    try:
+        return broker.resumen_contado(simbolo, numero), ""
+    except Exception as exc:  # noqa: BLE001 — no poder leer NO es un "no"
+        return None, f"no se pudo leer OrderService ({exc!r})"
+
 
 def confirmar(broker, simbolo: str, acciones_antes: float,
               dormir=time.sleep, lado: str = "compra",
-              acciones: float | None = None) -> tuple[str, str, float]:
+              acciones: float | None = None,
+              numero: int | None = None) -> tuple[str, str, float]:
     """El estado DEFINITIVO de una orden recién mandada, según XTB.
 
     POR QUÉ ESTO EXISTE (fallo del 2026-09-30)
@@ -362,6 +393,17 @@ def confirmar(broker, simbolo: str, acciones_antes: float,
     miraba lo primero, y la venta de CTVA —ejecutada a 11,97— se anotó como
     rechazada. Una venta PARCIAL (la posición baja, pero menos de lo pedido)
     es ejecutada, con las acciones que de verdad se movieron.
+
+    ORDERSERVICE, LA AUTORIDAD (2026-10-12). Hasta hoy esto solo miraba las
+    posiciones y getAllOrders, y getAllOrders NO ve las órdenes de contado
+    (medido el 2026-10-05). Por eso una compra que XTB aceptaba y luego
+    descartaba en los primeros minutos de sesión acababa como "no tiene ni
+    posición ni orden", sin el motivo real. Ahora, cuando la posición no basta
+    para concluir, se pregunta a la lista de contado (`resumen_contado`), que es
+    la única con el ESTADO de la orden: FILLED es ejecutada, REJECTED/CANCELED/
+    EXPIRED es rechazada CON su estado, y una orden viva es en_cola. `numero` es
+    el número de la orden a seguir; sin él solo se puede mirar si el símbolo
+    tiene órdenes vivas.
 
     Devuelve ('ejecutada'|'rechazada'|'en_cola', explicación, acciones
     movidas). `en_cola` solo sale cuando XTB sigue diciendo que la orden existe
@@ -397,9 +439,42 @@ def confirmar(broker, simbolo: str, acciones_antes: float,
             ultima = parcial
             continue
 
+        # ORDERSERVICE, LA AUTORIDAD (2026-10-12). La posición de arriba es la
+        # prueba de que una orden ENTRÓ; para todo lo demás, el estado que vale
+        # es el que XTB marca en la lista de contado, no lo que se deduzca de
+        # getAllOrders —que ni siquiera ve estas órdenes—. Aquí es donde una
+        # compra rechazada en los primeros minutos de sesión deja de ser un
+        # "XTB no tiene ni posición ni orden" genérico y pasa a decir por qué:
+        # el 2026-10-12 cuatro compras (CTVA, WDC, STX, FICO) se marcaron
+        # rechazadas sin este estado, porque nadie preguntaba a la única lista
+        # que lo tiene.
+        resumen, _motivo_oc = _estado_contado(broker, simbolo, numero)
+        if resumen is not None:
+            st = resumen["estado"]
+            if st == "FILLED":
+                # XTB da la orden por ejecutada; la posición aparecerá enseguida.
+                # Si todavía no se ve, el precio lo rellena la verificación de la
+                # apertura. No es rechazada: eso es justo lo que se vino a cerrar.
+                return "ejecutada", (
+                    f"OrderService marca la orden {numero} de {simbolo} como "
+                    f"FILLED (intento {intento})"), float(acciones or 0) or movidas
+            if st in CONTADO_MUERTA:
+                return "rechazada", (
+                    f"OrderService marca la orden {numero} de {simbolo} como "
+                    f"{st} (intento {intento})"), 0.0
+            if resumen["vivas"]:
+                ultima = "en_cola", (
+                    f"OrderService: {simbolo} sigue con {len(resumen['vivas'])} "
+                    f"orden(es) viva(s) (estado {st or '?'}, intento {intento})"), 0.0
+                continue
+            # st None y sin vivas: la orden ya no está en OrderService (purgada)
+            # o nunca se listó. No concluye nada por sí solo; se deja a la
+            # posición y al recuento de intentos de abajo.
+
         if any(o.get("ticker") == simbolo for o in cola):
-            # Sigue viva y esperando. Puede acabar ejecutándose o no, pero
-            # ahora mismo existe: no se puede llamar rechazada.
+            # Sigue viva y esperando (getAllOrders, respaldo). Puede acabar
+            # ejecutándose o no, pero ahora mismo existe: no se puede llamar
+            # rechazada.
             ultima = "en_cola", (f"la orden sigue en cola en XTB "
                                  f"(intento {intento})"), 0.0
             continue
@@ -424,6 +499,65 @@ def confirmar(broker, simbolo: str, acciones_antes: float,
             continue
         return ultima
     return parcial or ultima
+
+
+#: Los tres veredictos de `listo_para_reponer`. Vocabulario cerrado.
+REPONER = "reponer"        #: seguro reenviar: ni posición ni orden viva del símbolo
+ESPERAR_REPOSICION = "esperar"  #: puede que la previa aún entre: NO se reenvía
+YA_ENTRO = "ya_entro"      #: el símbolo ya tiene posición: la previa entró tarde
+
+
+def listo_para_reponer(broker, simbolo: str, numero_previo) -> tuple[str, str]:
+    """¿Es seguro reenviar la compra rechazada de `simbolo`? (veredicto, motivo).
+
+    LA REGLA DE ORO: nunca reenviar si queda cualquier posibilidad de una compra
+    doble. Para decir REPONER hacen falta las DOS cosas, comprobadas ahora mismo
+    contra XTB:
+
+      1. que NO haya posición del símbolo —si la hay, la orden anterior entró
+         (quizá tarde) y reenviar compraría dos veces: se devuelve `ya_entro`—, y
+      2. que la orden anterior esté MUERTA en OrderService y no quede ninguna
+         orden viva del símbolo —si sigue viva, aún puede ejecutarse: `esperar`—.
+
+    Si OrderService no se puede leer, o la orden previa está en un estado que no
+    es definitivo, se devuelve `esperar`: preguntar y no obtener respuesta NO es
+    lo mismo que un no, y a ciegas no se reenvía. El bucle que llama vuelve a
+    comprobar en la siguiente vuelta.
+
+    Caso límite (documentado): OrderService PURGA las órdenes muertas a los
+    pocos minutos, así que una orden previa ausente (`estado` None) junto con
+    "sin posición y sin orden viva del símbolo" se trata como muerta —no queda
+    nada en el libro que doblar—, que es justo la condición segura. El estado
+    vivo explícito, en cambio, siempre manda esperar.
+    """
+    try:
+        posiciones = broker.posiciones()
+    except Exception as exc:  # noqa: BLE001 — sin poder mirar, no se reenvía
+        return ESPERAR_REPOSICION, f"no se pudo leer las posiciones ({exc!r})"
+    hay_posicion = sum(
+        float(p["acciones"]) for p in posiciones
+        if p.get("lado") == "buy" and _mismo(p.get("ticker"), simbolo)) >= 1
+    if hay_posicion:
+        return YA_ENTRO, (f"{simbolo} ya tiene posición en XTB: la orden anterior "
+                          f"entró. No se repone.")
+
+    resumen, motivo = _estado_contado(broker, simbolo, numero_previo)
+    if resumen is None:
+        return ESPERAR_REPOSICION, motivo
+    if resumen["vivas"]:
+        return ESPERAR_REPOSICION, (
+            f"{simbolo} tiene {len(resumen['vivas'])} orden(es) viva(s) en "
+            f"OrderService: la anterior aún puede ejecutarse.")
+    st = resumen["estado"]
+    if st in CONTADO_MUERTA:
+        return REPONER, (f"la orden {numero_previo} está {st} en OrderService y "
+                         f"no hay posición ni orden viva: muerta, seguro reponer.")
+    if st is None:
+        return REPONER, (f"la orden {numero_previo} ya no está en OrderService y "
+                         f"no hay posición ni orden viva de {simbolo}: muerta, "
+                         f"seguro reponer.")
+    return ESPERAR_REPOSICION, (f"la orden {numero_previo} está en estado {st}, "
+                                f"que no es definitivo: se espera.")
 
 
 def _precio_entrada(broker, simbolo: str) -> float | None:

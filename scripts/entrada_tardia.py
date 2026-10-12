@@ -41,13 +41,38 @@ def log(msg: str) -> None:
 
 
 def estado_real(broker, simbolo: str, numero_orden) -> tuple[str, str]:
-    """(estado, explicación) según XTB, no según lo que creímos enviar."""
+    """(estado, explicación) según XTB, no según lo que creímos enviar.
+
+    La posición es la prueba de que una compra ENTRÓ. Para el resto, la autoridad
+    es OrderService (`resumen_contado`): es la única lista con el estado real de
+    una orden de contado —getAllOrders no las ve—, así que un rechazo sale con su
+    estado (REJECTED/CANCELED/EXPIRED) y no como un 'no existe' genérico.
+    """
     posiciones = [p for p in broker.posiciones()
                   if p["lado"] == "buy" and p["ticker"] == simbolo]
     if posiciones:
         acciones = sum(p["acciones"] for p in posiciones)
         return "ejecutada", (f"hay posición de {simbolo}: {acciones:g} "
                              f"acción(es) a {posiciones[0]['precio_entrada']}")
+
+    if hasattr(broker, "resumen_contado"):
+        try:
+            res = broker.resumen_contado(simbolo, numero_orden)
+        except Exception as exc:  # noqa: BLE001 — no poder leer no es un "no"
+            return "en_cola", (f"no se pudo leer OrderService para {simbolo} "
+                               f"({exc!r}); no se concluye rechazo")
+        st = res["estado"]
+        if st == "FILLED":
+            return "ejecutada", f"OrderService marca la orden {numero_orden} FILLED"
+        if st in ("REJECTED", "CANCELED", "EXPIRED"):
+            return "rechazada", (f"OrderService marca la orden {numero_orden} de "
+                                 f"{simbolo} como {st}")
+        if res["vivas"]:
+            return "en_cola", (f"OrderService: {simbolo} tiene una orden viva "
+                               f"(estado {st or '?'}) esperando al mercado")
+        return "rechazada", (f"XTB no tiene ni posición ni orden viva de {simbolo} "
+                             f"(orden {numero_orden} purgada de OrderService): "
+                             f"se rechazó")
 
     cola = [o for o in broker.ordenes_pendientes()
             if str(o.get("orden")) == str(numero_orden)

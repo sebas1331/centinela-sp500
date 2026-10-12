@@ -518,6 +518,68 @@ class GrpcClient:
 
         return await asyncio.wait_for(leer(), timeout=timeout)
 
+    async def cash_orders_stream(self, duration: float = 30.0,
+                                 max_events: int = 60) -> list[dict]:
+        """CENTINELA (CAMBIOS.md, parche 4). Escucha el stream de OrderService
+        durante `duration` segundos y DEVUELVE TODOS los eventos, no solo la foto.
+
+        `cash_orders_snapshot` corta en el primer SNAPSHOT; esto NO, porque el
+        motivo de un rechazo llega DESPUÉS, como un UPDATE que marca la orden
+        REJECTED, y XTB purga esa orden de la lista a los pocos minutos. Para
+        cazar el porqué hay que estar escuchando cuando llega.
+
+        Cada evento trae los campos del proto YA parseados (`orders`, `rules`) y
+        TAMBIÉN los bytes crudos de su frame (`raw_hex`): si el motivo viene en
+        un campo que `parse_order_groups` todavía no decodifica, se ve en crudo y
+        se añade el parser después, con evidencia, en vez de a ciegas.
+        """
+        import asyncio
+        import re
+
+        jwt = await self._ensure_jwt()
+        headers = {
+            "Content-Type": GRPC_WEB_TEXT_CONTENT_TYPE,
+            "Accept": GRPC_WEB_TEXT_CONTENT_TYPE,
+            "X-Grpc-Web": "1",
+            "x-user-agent": "grpc-web-javascript/0.1",
+            "Authorization": f"Bearer {jwt}",
+        }
+        body = build_grpc_web_text_body(b"")
+        client = await self._ensure_http()
+        eventos: list[dict] = []
+        texto, binario, visto = "", b"", 0
+
+        async def leer() -> None:
+            nonlocal texto, binario, visto
+            async with client.stream("POST", GRPC_SUBSCRIBE_ORDER_GROUPS_ENDPOINT,
+                                     content=body, headers=headers) as resp:
+                resp.raise_for_status()
+                async for trozo in resp.aiter_text():
+                    texto += trozo
+                    partes = re.split(r"(?<==)(?=[^=])", texto)
+                    completos, texto = partes[:-1], partes[-1]
+                    if len(texto) % 4 == 0 and texto:
+                        completos.append(texto)
+                        texto = ""
+                    for c in completos:
+                        binario += base64.b64decode(c)
+                    datos, status, message = split_grpc_web(binario)
+                    for d in datos[visto:]:
+                        foto = parse_order_groups(d)
+                        eventos.append({"event": foto["event"], "orders": foto["orders"],
+                                        "rules": foto["rules"], "raw_hex": d.hex()})
+                    visto = len(datos)
+                    if status not in (None, 0):
+                        eventos.append({"event": "CIERRE", "orders": [], "rules": {},
+                                        "grpc_status": status, "grpc_message": message})
+                        return
+                    if len(eventos) >= max_events:
+                        return
+
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(leer(), timeout=duration)
+        return eventos
+
     def _parse_cancel_response(self, response_bytes: bytes, order_numbers: list[int]) -> list[GrpcCancelResult]:
         """Parse a DeleteOrders response into one result per requested order.
 

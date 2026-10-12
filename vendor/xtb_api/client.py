@@ -346,6 +346,13 @@ class XTBClient:
         """
         return await self._ensure_grpc().cash_orders_snapshot()
 
+    async def get_cash_order_events(self, duration: float = 30.0) -> list:
+        """CENTINELA (parche 4): todos los eventos de OrderService en `duration`
+        segundos, con los bytes crudos. Para cazar el motivo de un rechazo, que
+        llega como un UPDATE después de aceptar la orden. Ver cash_orders_stream.
+        """
+        return await self._ensure_grpc().cash_orders_stream(duration=duration)
+
     async def cancel_pending_orders(self, order_numbers: list[int]):
         """Cancela y dice, orden a orden, si XTB la canceló DE VERDAD."""
         return await self._ensure_grpc().delete_orders_checked(order_numbers)

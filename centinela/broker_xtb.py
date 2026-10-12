@@ -262,6 +262,15 @@ _TIPO_CLIENTE = {"limitada": "limit", "stop": "stop"}
 _TIPO_REPO = {"limit": "limitada", "stop": "stop", "market": "mercado"}
 
 
+def _simbolo_simple(ticker: str) -> str:
+    """Un símbolo comparable: 'WDC.US', 'WDC-B.US' y 'WDC' caen en el mismo.
+
+    OrderService devuelve el símbolo con sufijo `.US`; el resto del sistema a
+    veces lo lleva sin él. Comparar en crudo dejaba fuera coincidencias reales.
+    """
+    return str(ticker).upper().replace(".US", "").replace("-", ".")
+
+
 @dataclass
 class OrdenPendiente:
     """Resultado de poner o modificar una orden pendiente de venta."""
@@ -639,6 +648,40 @@ class BrokerXTB:
                       for k, v in r.items()} for s, r in foto["rules"].items()}
         return {"ordenes": [o for o in todas if o["viva"]], "todas": todas,
                 "reglas": reglas}
+
+    def eventos_contado(self, segundos: float = 30.0) -> list[dict]:
+        """Escucha OrderService `segundos` y devuelve TODOS los eventos, crudos
+        incluidos. Es la herramienta para CAZAR el motivo de un rechazo: XTB lo
+        manda como un UPDATE después de aceptar la orden, y lo purga enseguida.
+        Solo lo usa el diagnóstico de la apertura, no el camino normal."""
+        return self._ejecutar(self._cliente.get_cash_order_events(duration=segundos))
+
+    def resumen_contado(self, simbolo: str, numero=None) -> dict:
+        """Lo que OrderService sabe de UN símbolo: el estado de la orden `numero`
+        (si se da) y si quedan órdenes vivas suyas.
+
+        OrderService es la ÚNICA lista que trae el ESTADO real de una orden de
+        contado —`ordenes_pendientes()` (getAllOrders) no las ve, medido el
+        2026-10-05—, así que es la autoridad para confirmar compras y ventas por
+        lo que XTB dice de verdad, y no por deducirlo de las posiciones. También
+        es lo que decide si una compra rechazada se puede reponer sin arriesgar
+        una compra doble: sin orden viva y sin posición, no hay nada que doblar.
+
+        OJO: XTB PURGA las órdenes muertas de esta lista a los pocos minutos (una
+        compra rechazada a las 09:35 ya no estaba a mediodía, medido el
+        2026-10-12). Un `estado` None, por tanto, NO quiere decir "viva": quiere
+        decir "ya no la lista". Quien decide lo interpreta junto con la posición.
+
+        Devuelve {"estado": <estado de `numero` o None>, "vivas": [órdenes vivas
+        del símbolo], "todas": [todas las del símbolo]}.
+        """
+        oc = self.ordenes_contado()
+        objetivo = _simbolo_simple(simbolo)
+        mias = [o for o in oc["todas"] if _simbolo_simple(o["ticker"]) == objetivo]
+        estado = next((o["estado"] for o in mias
+                       if numero is not None and str(o["orden"]) == str(numero)), None)
+        return {"estado": estado, "vivas": [o for o in mias if o["viva"]],
+                "todas": mias, "numero": None if numero is None else str(numero)}
 
     def poner_orden_venta(self, ticker: str, acciones: int, tipo: str,
                           precio: float) -> "OrdenPendiente":

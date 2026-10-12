@@ -338,8 +338,15 @@ def esperar_a_la_ventana(momento: str, dormir=time.sleep,
 # Envío
 # --------------------------------------------------------------------------- #
 def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
-           registro: dict) -> list:
-    """Manda las órdenes del momento que toca. Devuelve las ejecuciones."""
+           registro: dict, al_fallar: str = "raise") -> list:
+    """Manda las órdenes del momento que toca. Devuelve las ejecuciones.
+
+    `al_fallar`: qué hacer si alguna orden NO llegó al broker.
+      "raise"    rompe en el acto (ventas, y el contrato que esperan los tests).
+      "devolver" no rompe: deja las fallidas en la lista que devuelve y sigue.
+                 Lo usan las compras, que antes de rendirse intentan reponer la
+                 orden rechazada dentro de la primera hora de sesión.
+    """
     tipo = ords.COMPRA if momento == "compras" else ords.VENTA_TIEMPO
     hoy = datetime.now(config.TZ_ET).date().isoformat()
     cola = [o for o in pendientes["ordenes"]
@@ -414,7 +421,7 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         hechas.append((o, e))
 
     fallidas = [(o, e) for o, e in hechas if not e.ok]
-    if fallidas:
+    if fallidas and al_fallar == "raise":
         raise RuntimeError(
             "Órdenes que NO llegaron al broker:\n" + "\n".join(
                 f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
@@ -425,6 +432,157 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
                       "enviadas": sum(1 for _, e in hechas if e.ok),
                       "ya_estaban": ya_estaban}
     return hechas
+
+
+#: Reposición automática de compras rechazadas. XTB acepta la compra a mercado
+#: en los primeros minutos de sesión (devuelve número de orden) y la descarta
+#: sin dejar posición; las mismas órdenes 20-30 min después entran. En vez de
+#: perder la señal en silencio —como pasó con STX el 09/10 y FICO el 12/10, que
+#: nadie repuso a mano— el ejecutor reintenta SOLO.
+REPOSICION_CADA_MIN = 5
+#: Hasta cuándo tiene sentido: después, comprar "al open" ya no es al open y el
+#: simulador mediría otra cosa. Es el mismo techo que la entrada tardía manual.
+REPOSICION_HASTA_MIN = 60
+
+
+def _entradas_de(ticker: str, hoy: str) -> list[dict]:
+    """Las filas de compra (COMPRA o entrada tardía) de un ticker hoy."""
+    return [f for f in ords.filas_de_sesion(hoy)
+            if f.get("ticker") == ticker
+            and f.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)]
+
+
+def _ya_entro(broker: bx.BrokerXTB, ticker: str, hoy: str) -> bool:
+    """¿Esa compra ya está? Posición en XTB, o una fila ejecutada en la bitácora.
+
+    La posición es la prueba de que XTB tiene las acciones; la fila ejecutada,
+    de que el propio sistema registró la entrada (por si la posición tarda un
+    instante en reflejarse). Con cualquiera de las dos, no hay nada que reponer.
+    """
+    simple = ticker.replace(".US", "").replace("-", ".")
+    tiene = any(p["lado"] == "buy"
+                and p["ticker"].replace(".US", "").replace("-", ".") == simple
+                for p in broker.posiciones())
+    if tiene:
+        return True
+    return any(f.get("estado") == "ejecutada" for f in _entradas_de(ticker, hoy))
+
+
+def _numero_previo(ticker: str, hoy: str):
+    """El número de la última orden intentada de ese ticker hoy (para el gate)."""
+    filas = _entradas_de(ticker, hoy)
+    return filas[-1].get("orden_xtb") if filas else None
+
+
+def reponer_automatico(broker: bx.BrokerXTB, pendientes: dict, registro: dict,
+                       dormir=time.sleep, ahora_fn=None) -> list[str]:
+    """Reintenta SOLO las compras de hoy que XTB rechazó, hasta la primera hora.
+
+    EL CASO. XTB rechaza las compras a mercado en los primeros minutos de
+    sesión; a los 20-30 minutos las mismas entran. Hasta hoy, reponerlas era una
+    casilla que alguien tenía que marcar a mano (workflow "Entrada tardía"), y
+    cuando nadie la marcaba la señal se perdía en silencio: STX el 09/10 y FICO
+    el 12/10 nunca se repusieron. Esto lo hace el sistema, cada
+    REPOSICION_CADA_MIN minutos, hasta REPOSICION_HASTA_MIN tras la apertura.
+
+    NUNCA REENVÍA A CIEGAS (condición obligatoria). Antes de cada reintento
+    `ambiguas.listo_para_reponer` confirma CONTRA XTB, por OrderService, que la
+    orden anterior está muerta (rechazada/cancelada/purgada) y que no hay ni
+    posición ni orden viva del símbolo. Si el estado no es definitivo o no se
+    puede leer, no reenvía: espera a la vuelta siguiente. Así una compra que XTB
+    aceptó y ejecuta TARDE no provoca una segunda compra: en cuanto aparece la
+    posición (o sigue viva la orden), el gate lo ve y no repone.
+
+    Cada reintento lleva su PROPIO identificador (`...|entrada_tardia|rN`), así
+    que cada intento deja su fila medible en la bitácora, con el precio de
+    apertura como referencia para el coste del retraso.
+
+    Devuelve los problemas: los tickers que a los REPOSICION_HASTA_MIN seguían
+    sin entrar. Esos son rojo y sesión perdida DOCUMENTADA, nunca en silencio.
+    """
+    from centinela import ambiguas as amb, fiabilidad
+
+    ahora_fn = ahora_fn or (lambda: datetime.now(config.TZ_ET))
+    hoy = ahora_fn().date().isoformat()
+    ac = calendario.apertura_cierre_et(hoy)
+    if ac is None:
+        return []
+    apertura, _ = ac
+
+    decididas = {o.ticker: o for o in pendientes["ordenes"]
+                 if o.tipo == ords.COMPRA and o.sesion == hoy}
+    if not decididas:
+        return []
+
+    aperturas = _apertura_del_dia(list(decididas))
+    intentos: dict[str, int] = {}
+
+    while True:
+        faltan = [o for t, o in decididas.items() if not _ya_entro(broker, t, hoy)]
+        if not faltan:
+            log("reposición: todas las compras de hoy han entrado.")
+            break
+
+        min_tras = (ahora_fn() - apertura).total_seconds() / 60
+        if min_tras >= REPOSICION_HASTA_MIN:
+            problemas = []
+            for o in faltan:
+                msg = (f"{o.ticker}: reposición agotada. XTB siguió rechazando la "
+                       f"compra {REPOSICION_HASTA_MIN} min tras la apertura; la "
+                       f"sesión se pierde. Última orden: {_numero_previo(o.ticker, hoy)}.")
+                fiabilidad.anotar(fiabilidad.RECHAZADA, o.simbolo, ords.ENTRADA_TARDIA,
+                                  msg, id_orden=o.id)
+                problemas.append(msg)
+            log(f"❌ reposición agotada para {[o.ticker for o in faltan]}")
+            _recontar_compras(broker, decididas, hoy)
+            return problemas
+
+        for o in faltan:
+            verdicto, motivo = amb.listo_para_reponer(
+                broker, o.simbolo, _numero_previo(o.ticker, hoy))
+            log(f"  reposición {o.ticker}: {verdicto} — {motivo}")
+            if verdicto != amb.REPONER:
+                continue                      # ya_entro o esperar: no se reenvía
+
+            intentos[o.ticker] = intentos.get(o.ticker, 0) + 1
+            abre = aperturas.get(o.ticker)
+            orden = ords.Orden(
+                id=ords.identificador(hoy, o.cartera, o.ticker, ords.ENTRADA_TARDIA)
+                   + f"|r{intentos[o.ticker]}",
+                tipo=ords.ENTRADA_TARDIA, cartera=o.cartera, ticker=o.ticker,
+                acciones=o.acciones, sesion=hoy, objetivo=o.objetivo, stop=o.stop,
+                precio_simulador=abre)
+            log(f"  reenviando {o.ticker} x{o.acciones} como entrada tardía "
+                f"(intento {intentos[o.ticker]}, apertura {abre})...")
+            e = amb.enviar_resolviendo(
+                broker, orden.simbolo, orden.tipo,
+                lambda oo=orden: broker.comprar(oo.simbolo, oo.acciones,
+                                                objetivo=oo.objetivo, stop=oo.stop),
+                id_orden=orden.id)
+            log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
+                + (f" (orden {e.orden})" if e.orden else "")
+                + (f" ERROR: {e.error}" if e.error else ""))
+            ords.registrar_ejecucion(orden, e)
+            if e.ok and e.estado == "ejecutada":
+                ords.marcar_enviada(registro, orden.id,
+                                    {"estado": e.estado, "orden": e.orden})
+
+        if all(_ya_entro(broker, t, hoy) for t in decididas):
+            continue                          # la próxima vuelta cierra el bucle
+        dormir(REPOSICION_CADA_MIN * 60)
+
+    _recontar_compras(broker, decididas, hoy)
+    return []
+
+
+def _recontar_compras(broker: bx.BrokerXTB, decididas: dict, hoy: str) -> None:
+    """Deja ENVIADAS[COMPRA] contando las que entraron DE VERDAD tras reponer.
+
+    El veredicto final del ejecutor y la línea de la página salen de aquí: se
+    decidieron N y entraron M; si M < N, el main lo pinta en rojo."""
+    entraron = sum(1 for t in decididas if _ya_entro(broker, t, hoy))
+    ENVIADAS[ords.COMPRA] = {"decididas": len(decididas),
+                             "enviadas": entraron, "ya_estaban": 0}
 
 
 def volcar_estado_broker(broker: bx.BrokerXTB, candado_ok: bool = True) -> dict:
@@ -1096,7 +1254,18 @@ def main() -> int:
                 cerrar_tiempos_atrasados(broker, registro)
 
             if args.momento in ("compras", "ventas"):
-                enviar(broker, pendientes, args.momento, registro)
+                # Las compras no se rinden a la primera: una orden rechazada en
+                # los primeros minutos de sesión se repone sola (ver
+                # reponer_automatico), así que aquí se recogen las fallidas en
+                # vez de romper. Las ventas sí rompen: no hay reposición que
+                # valga para una venta que no entró a tiempo.
+                hechas = enviar(broker, pendientes, args.momento, registro,
+                                al_fallar=("devolver" if args.momento == "compras"
+                                           else "raise"))
+                if args.momento == "compras" and any(not e.ok for _, e in hechas):
+                    log("alguna compra no entró a la primera; reponiendo sola "
+                        "hasta la primera hora de sesión...")
+                    problemas.extend(reponer_automatico(broker, pendientes, registro))
             # El stop y el objetivo los lleva el ejecutor porque XTB no los
             # acepta en acciones al contado. Se miran en las dos ventanas con
             # mercado abierto; la de después del cierre no sirve para vender.
