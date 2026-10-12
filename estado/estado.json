@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-10-09T18:00:53.263877-04:00",
+  "actualizado": "2026-10-12T08:45:45.780120-04:00",
   "contador_grupo": 93,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 52.8408,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-12",
+      "notas": "prob=0.831 score_fund=78.2 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 1014.0,
+      "score_fundamental": 78.2,
+      "sector": "Information Technology",
+      "target_analista": 1113.4722,
+      "ticker": "FICO",
+      "timestamp_escaneo": "2026-10-12T08:45:05.001281-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -137,11 +154,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37984426688"
     },
     "preapertura": {
-      "cuando": "2026-10-09T08:45:59.073883-04:00",
-      "run": "37920609803",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37920609803"
+      "cuando": "2026-10-12T08:45:45.780098-04:00",
+      "run": "38242088634",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38242088634"
     }
   },
   "ultima_postcierre": "2026-10-09",
-  "ultima_preapertura": "2026-10-09"
+  "ultima_preapertura": "2026-10-12"
 }
