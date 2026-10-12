@@ -1,24 +1,7 @@
 {
-  "actualizado": "2026-10-12T08:45:45.780120-04:00",
-  "contador_grupo": 93,
-  "entradas_pendientes": [
-    {
-      "atr": 52.8408,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-10-12",
-      "notas": "prob=0.831 score_fund=78.2 sent=0.0 (n=0)",
-      "proba": 0.8308,
-      "resistencia": 1014.0,
-      "score_fundamental": 78.2,
-      "sector": "Information Technology",
-      "target_analista": 1113.4722,
-      "ticker": "FICO",
-      "timestamp_escaneo": "2026-10-12T08:45:05.001281-04:00"
-    }
-  ],
+  "actualizado": "2026-10-12T18:28:46.345420-04:00",
+  "contador_grupo": 94,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -47,10 +30,15 @@
             "fecha": "2026-10-09",
             "motivo": "recálculo: ATR=26.58, resistencia=475.66",
             "objetivo": 483.0887
+          },
+          {
+            "fecha": "2026-10-12",
+            "motivo": "recálculo: ATR=25.49, resistencia=475.66",
+            "objetivo": 480.9191
           }
         ],
         "id": 162,
-        "objetivo": 483.0887,
+        "objetivo": 480.9191,
         "objetivo_inicial": 495.49,
         "portafolio": "A",
         "proba": 0.8125,
@@ -81,6 +69,34 @@
         "sector": "Information Technology",
         "stop": 689.744,
         "ticker": "STX"
+      },
+      {
+        "atr_entrada": 52.8408,
+        "dia_limite": "2026-10-23",
+        "entrada": 674.0,
+        "fecha_entrada": "2026-10-12",
+        "grupo": 94,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-10-12",
+            "motivo": "objetivo inicial",
+            "objetivo": 779.6816
+          },
+          {
+            "fecha": "2026-10-12",
+            "motivo": "recálculo: ATR=54.45, resistencia=1009.00",
+            "objetivo": 782.8971
+          }
+        ],
+        "id": 166,
+        "objetivo": 782.8971,
+        "objetivo_inicial": 779.6816,
+        "portafolio": "A",
+        "proba": 0.8308,
+        "score_fundamental": 78.2,
+        "sector": "Information Technology",
+        "stop": 593.12,
+        "ticker": "FICO"
       }
     ],
     "B": [
@@ -110,10 +126,15 @@
             "fecha": "2026-10-09",
             "motivo": "recálculo: ATR=26.58, resistencia=475.66",
             "objetivo": 483.0887
+          },
+          {
+            "fecha": "2026-10-12",
+            "motivo": "recálculo: ATR=25.49, resistencia=475.66",
+            "objetivo": 480.9191
           }
         ],
         "id": 163,
-        "objetivo": 483.0887,
+        "objetivo": 480.9191,
         "objetivo_inicial": 495.49,
         "portafolio": "B",
         "proba": 0.8125,
@@ -144,14 +165,42 @@
         "sector": "Information Technology",
         "stop": null,
         "ticker": "STX"
+      },
+      {
+        "atr_entrada": 52.8408,
+        "dia_limite": "2026-10-23",
+        "entrada": 674.0,
+        "fecha_entrada": "2026-10-12",
+        "grupo": 94,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-10-12",
+            "motivo": "objetivo inicial",
+            "objetivo": 779.6816
+          },
+          {
+            "fecha": "2026-10-12",
+            "motivo": "recálculo: ATR=54.45, resistencia=1009.00",
+            "objetivo": 782.8971
+          }
+        ],
+        "id": 167,
+        "objetivo": 782.8971,
+        "objetivo_inicial": 779.6816,
+        "portafolio": "B",
+        "proba": 0.8308,
+        "score_fundamental": 78.2,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "FICO"
       }
     ]
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-10-09T18:00:53.263842-04:00",
-      "run": "37984426688",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/37984426688"
+      "cuando": "2026-10-12T18:28:46.345405-04:00",
+      "run": "38316782178",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38316782178"
     },
     "preapertura": {
       "cuando": "2026-10-12T08:45:45.780098-04:00",
@@ -159,6 +208,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38242088634"
     }
   },
-  "ultima_postcierre": "2026-10-09",
+  "ultima_postcierre": "2026-10-12",
   "ultima_preapertura": "2026-10-12"
 }
