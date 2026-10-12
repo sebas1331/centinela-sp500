@@ -458,11 +458,21 @@ def _ya_entro(broker: bx.BrokerXTB, ticker: str, hoy: str) -> bool:
     La posición es la prueba de que XTB tiene las acciones; la fila ejecutada,
     de que el propio sistema registró la entrada (por si la posición tarda un
     instante en reflejarse). Con cualquiera de las dos, no hay nada que reponer.
-    """
+
+    Si no se puede leer la posición (la sesión del broker puede caerse en los
+    hasta 55 min que el bucle sigue vivo), devuelve False: "no me consta que
+    entró". El ticker sigue en la lista de pendientes y el gate —que atrapa sus
+    propios fallos y ante la duda dice 'esperar'— decide; nunca se reenvía a
+    ciegas por no haber podido mirar."""
     simple = ticker.replace(".US", "").replace("-", ".")
-    tiene = any(p["lado"] == "buy"
-                and p["ticker"].replace(".US", "").replace("-", ".") == simple
-                for p in broker.posiciones())
+    try:
+        tiene = any(p["lado"] == "buy"
+                    and p["ticker"].replace(".US", "").replace("-", ".") == simple
+                    for p in broker.posiciones())
+    except Exception as exc:  # noqa: BLE001 — no poder mirar no es "entró"
+        log(f"  reposición: no se pudo leer la posición de {ticker} ({exc!r}); "
+            f"se trata como no confirmada.")
+        return False
     if tiene:
         return True
     return any(f.get("estado") == "ejecutada" for f in _entradas_de(ticker, hoy))
