@@ -178,3 +178,9 @@ ZBRA | dd=36.9% | prob=0.311 < umbral -> SIN SEÑAL
 ZBH | dd=45.0% | prob=0.423 < umbral -> SIN SEÑAL
 ZTS | dd=67.9% | prob=0.423 < umbral -> SIN SEÑAL
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-10-13 18:01:15 ET =====
+POST-CIERRE 2026-10-13
+entradas ejecutadas: ['COHR']
+cambios de objetivo: 4
+cierres: [('WDC', 'A', 'stop', -0.165)]
