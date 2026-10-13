@@ -694,6 +694,15 @@ def bloque_alertas() -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
+def _sesion_hoy_iso(ahora: datetime) -> dict | None:
+    """Apertura y cierre de la sesión de hoy como ISO, para el navegador."""
+    ac = calendario.apertura_cierre_et(ahora.date().isoformat())
+    if ac is None:
+        return None
+    apertura, cierre = ac
+    return {"apertura": apertura.isoformat(), "cierre": cierre.isoformat()}
+
+
 def construir(ahora: datetime | None = None) -> dict:
     ahora = ahora or datetime.now(config.TZ_ET)
     datos_salud = salud.cargar()
@@ -720,6 +729,9 @@ def construir(ahora: datetime | None = None) -> dict:
         "incidentes": incidentes.cargar(),
         # Para que el navegador sepa si los datos deberían haberse refrescado.
         "hoy_es_sesion": bool(calendario.es_dia_de_mercado(ahora.date())),
+        # Ventana de sesión de hoy en ISO: el navegador detecta si los datos son
+        # viejos con el mercado abierto sin tener que recalcular la zona horaria.
+        "sesion_hoy": _sesion_hoy_iso(ahora),
         "componentes": bloque_componentes(datos_salud, ahora),
         # Informativo y sin color: cuánto le queda a la sesión de XTB. No es un
         # aviso, es un dato — se renueva sola.

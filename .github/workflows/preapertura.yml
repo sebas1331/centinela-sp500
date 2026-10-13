@@ -353,6 +353,65 @@ jobs:
       mensaje: "operativa: republicada tras la pre-apertura [skip ci]"
 
 
+  # ARRANCA EL VIGILANTE ANTES DEL EJECUTOR si ya hay posiciones abiertas de
+  # días anteriores que necesitan vigilancia. El vigilante normal (arrancar_vigilante,
+  # más abajo) espera a que el ejecutor de compras termine, lo que puede tardar
+  # hasta 90 min si hay reintentos. Pero WDC, por ejemplo, lleva abierta desde
+  # el 05/10 y su stop tiene que estar vigilado desde el primer minuto de la
+  # sesión, sin esperar a que hoy se compre algo.
+  #
+  # Condición de disparo: broker.json tiene posiciones BUY y estamos a <=3 h de
+  # la apertura (o dentro de sesión). Si ya hay un vigilante vivo, el gate
+  # `hace_falta` lo descarta sin coste. Si es demasiado pronto, ese mismo gate
+  # frena el arranque (VIGILANTE_ESPERA_APERTURA_MAX_MIN=45 min).
+  arrancar_vigilante_posiciones:
+    needs: [preapertura]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: ¿Hay posiciones abiertas y el mercado se acerca?
+        id: check
+        run: |
+          python3 << 'EOF'
+          import json, os, pathlib, sys
+          from datetime import datetime, timezone
+          ruta = pathlib.Path('estado/broker.json')
+          if not ruta.exists():
+              print('sin broker.json; sin posiciones conocidas')
+              sys.exit(0)
+          data = json.loads(ruta.read_text())
+          n = sum(1 for p in data.get('posiciones', []) if p.get('lado') == 'buy')
+          print(f'{n} posición(es) abiertas en broker.json')
+          if n == 0:
+              sys.exit(0)
+          h = datetime.now(timezone.utc).hour
+          # EDT: apertura 13:30 UTC; EST: 14:30 UTC. Con 3 h de margen: desde 10 UTC.
+          # Cierre máximo: 21:00 UTC. Fuera de esa ventana es de madrugada: esperar.
+          if not (10 <= h < 21):
+              print(f'Son las {h:02d}h UTC; todavía de madrugada, esperamos al cron.')
+              sys.exit(0)
+          print('Posiciones + hora compatible: llamar al vigilante.')
+          with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
+              f.write('arrancar=si\n')
+          EOF
+
+      - name: Llamar al vigilante de precios (posiciones previas)
+        if: steps.check.outputs.arrancar == 'si'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run vigilante_precios.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}"
+          echo "vigilante de precios llamado (posiciones previas al ejecutor)."
+
   # ARRANCA EL VIGILANTE DE PRECIOS, que mira los niveles tick a tick durante
   # toda la sesión. Se lanza desde aquí y no desde un cron a propósito: el
   # scheduler de Actions se ha retrasado horas en este repositorio y un

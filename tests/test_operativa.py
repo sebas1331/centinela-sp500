@@ -130,8 +130,8 @@ def datos(tmp_path, monkeypatch):
 
 
 def test_schema_de_operativa_json(datos):
-    assert set(datos) == {"esquema", "generado", "hoy", "hoy_es_sesion", "componentes",
-                          "broker", "posiciones", "ordenes", "niveles",
+    assert set(datos) == {"esquema", "generado", "hoy", "hoy_es_sesion", "sesion_hoy",
+                          "componentes", "broker", "posiciones", "ordenes", "niveles",
                           "reconciliacion", "alertas", "semaforo", "meta",
                           "vigilante_precios", "fiabilidad", "sesion_xtb",
                           "incidentes", "coste_ejecucion"}
@@ -323,6 +323,36 @@ def test_el_html_detecta_datos_viejos_y_solo_puede_EMPEORAR_el_color():
 def test_el_json_dice_si_hoy_habia_mercado(datos):
     """El navegador lo necesita para saber si la página DEBÍA refrescarse."""
     assert isinstance(datos["hoy_es_sesion"], bool)
+
+
+def test_el_json_incluye_ventana_de_sesion_de_hoy(monkeypatch):
+    """El navegador necesita apertura+cierre para detectar datos viejos en sesión."""
+    from centinela import calendario
+    apertura = datetime(2026, 10, 14, 9, 30, tzinfo=config.TZ_ET)
+    cierre = datetime(2026, 10, 14, 16, 0, tzinfo=config.TZ_ET)
+    monkeypatch.setattr(calendario, "apertura_cierre_et", lambda _d: (apertura, cierre))
+    ahora = datetime(2026, 10, 14, 10, 0, tzinfo=config.TZ_ET)
+    sesion = go._sesion_hoy_iso(ahora)
+    assert sesion is not None
+    assert "apertura" in sesion and "cierre" in sesion
+    assert apertura.isoformat() == sesion["apertura"]
+    assert cierre.isoformat() == sesion["cierre"]
+
+
+def test_el_json_sesion_hoy_es_none_fuera_de_sesion(monkeypatch):
+    from centinela import calendario
+    monkeypatch.setattr(calendario, "apertura_cierre_et", lambda _d: None)
+    assert go._sesion_hoy_iso(AHORA) is None
+
+
+def test_el_html_detecta_datos_viejos_con_mercado_abierto():
+    """Con mercado abierto y datos anteriores a la apertura → el browser detecta
+    el rojo ANTES de llegar al umbral de 30 h."""
+    html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")
+    assert "enSesion" in html, "JS necesita la variable enSesion para el check"
+    assert "sesionHoy.apertura" in html, "JS debe comparar generado contra la apertura"
+    assert "El mercado lleva" in html, "mensaje específico cuando el mercado está abierto"
+    assert "HORAS_AMBAR_SESION" in html and "HORAS_ROJO_SESION" in html
 
 
 # --------------------------------------------------------------------------- #

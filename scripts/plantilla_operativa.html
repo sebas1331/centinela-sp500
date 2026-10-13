@@ -673,22 +673,50 @@ function pintarHoy(H){
 /* Los datos viejos son el peligro que un semáforo no puede tener: un verde
    pintado con información de hace tres días es peor que no tener página,
    porque da tranquilidad sin haberla comprobado. Aquí se compara la hora de
-   generación con lo que DEBERÍA haber pasado ya. */
+   generación con lo que DEBERÍA haber pasado ya.
+   Durante sesión activa el umbral es mucho más corto: 1 h es ámbar, 2 h es
+   rojo. Fuera de sesión se usa el umbral largo (30 h / 72 h). */
 var HORAS_AMBAR = 30, HORAS_ROJO = 72;
+var HORAS_AMBAR_SESION = 1, HORAS_ROJO_SESION = 2;
 
-function frescura(generado, hoyEsSesion){
+function frescura(generado, sesionHoy){
   if(!generado) return {nivel:"rojo", motivo:"El fichero de datos no dice cuándo se generó."};
   var d = new Date(generado);
   if(isNaN(d)) return {nivel:"rojo", motivo:"La fecha de generación no se entiende."};
-  var horas = (Date.now() - d.getTime()) / 36e5;
-  if(horas >= HORAS_ROJO)
+  var ahora = Date.now();
+  var horas = (ahora - d.getTime()) / 36e5;
+
+  /* Si tenemos los timestamps de la sesión de hoy, detectamos si el mercado
+     está ahora mismo abierto Y los datos son previos a la apertura. */
+  var enSesion = false;
+  if(sesionHoy && sesionHoy.apertura && sesionHoy.cierre){
+    var ap = new Date(sesionHoy.apertura).getTime();
+    var ci = new Date(sesionHoy.cierre).getTime();
+    enSesion = (ahora >= ap && ahora < ci);
+    if(enSesion && d.getTime() < ap){
+      /* Los datos son de antes de que abriera el mercado. */
+      var minViejos = Math.round((ahora - ap) / 6e4);
+      return {nivel:"rojo", horas:horas,
+              motivo:"El mercado lleva " + minViejos + " min abierto y los datos " +
+                     "siguen siendo de antes de la apertura. El sistema no está " +
+                     "actualizando la página."};
+    }
+  }
+
+  var ambar = enSesion ? HORAS_AMBAR_SESION : HORAS_AMBAR;
+  var rojo  = enSesion ? HORAS_ROJO_SESION  : HORAS_ROJO;
+  var min = Math.round(horas * 60);
+  var desc = horas < 1 ? (min + " min") : (Math.round(horas) + " h");
+  if(horas >= rojo)
     return {nivel:"rojo", horas:horas,
-            motivo:"Los datos no se actualizan desde hace " + Math.round(horas) +
-                   " h. El sistema puede llevar días sin correr."};
-  if(horas >= HORAS_AMBAR)
+            motivo:"Los datos no se actualizan desde hace " + desc +
+                   (enSesion ? ". El mercado está abierto." :
+                               ". El sistema puede llevar días sin correr.")};
+  if(horas >= ambar)
     return {nivel:"ambar", horas:horas,
-            motivo:"Los datos no se actualizan desde hace " + Math.round(horas) +
-                   " h. Debería haberse refrescado en la última sesión."};
+            motivo:"Los datos no se actualizan desde hace " + desc +
+                   (enSesion ? ". Debería haberse refrescado." :
+                               ". Debería haberse refrescado en la última sesión.")};
   return {nivel:"verde", horas:horas};
 }
 
@@ -698,7 +726,7 @@ function pintarSemaforo(D){
   var color = sem.color;
 
   /* La comprobación del navegador puede EMPEORAR el color, nunca mejorarlo. */
-  var f = frescura(D.generado, D.hoy_es_sesion);
+  var f = frescura(D.generado, D.sesion_hoy);
   if(f.nivel !== "verde"){
     motivos.unshift(f.motivo);
     if(f.nivel === "rojo" || color === "verde") color = f.nivel;
