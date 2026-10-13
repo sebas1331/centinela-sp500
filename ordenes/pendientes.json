@@ -1,21 +1,21 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-12T18:29:19.384922-04:00",
+  "generado": "2026-10-13T08:46:32.634431-04:00",
   "ordenes": [
     {
-      "acciones": 2,
+      "acciones": 5,
       "cartera": "A",
-      "fecha_limite": "2026-10-23",
-      "id": "2026-10-12|A|FICO|compra",
+      "fecha_limite": "2026-10-26",
+      "id": "2026-10-13|A|COHR|compra",
       "id_operacion": null,
-      "objetivo": 773.26,
+      "objetivo": 412.52,
       "precio_simulador": null,
-      "referencia": 667.58,
-      "sesion": "2026-10-12",
-      "stop": 587.47,
-      "ticker": "FICO",
+      "referencia": 288.02,
+      "sesion": "2026-10-13",
+      "stop": 253.46,
+      "ticker": "COHR",
       "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-12"
+  "sesion": "2026-10-13"
 }
