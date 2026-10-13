@@ -11,3 +11,8 @@ cuando,sesion,id,simbolo,tipo,estado,detalle
 2026-10-05T09:58:09.940093-04:00,2026-10-05,2026-10-05|A|WDC|entrada_tardia,WDC.US,entrada_tardia,ejecutada,XTB lo refleja: WDC.US pasó de 0 a 4 acciones (intento 1)
 2026-10-09T09:35:55.827266-04:00,2026-10-09,2026-10-09|A|STX|compra,STX.US,compra,rechazada,XTB no tiene ni posición ni orden de STX.US tras 5 de 5 comprobaciones
 2026-10-12T09:35:38.276750-04:00,2026-10-12,2026-10-12|A|FICO|compra,FICO.US,compra,rechazada,XTB no tiene ni posición ni orden de FICO.US tras 5 de 5 comprobaciones
+2026-10-13T09:35:27.032880-04:00,2026-10-13,2026-10-13|A|COHR|compra,COHR.US,compra,fallida,Symbol not found: COHR.US (la búsqueda devolvió 0 parecidos; operar 'el más parecido' es operar otra cosa)
+2026-10-13T09:35:29.539575-04:00,2026-10-13,2026-10-13|A|COHR|entrada_tardia|r1,COHR.US,entrada_tardia,fallida,Symbol not found: COHR.US (la búsqueda devolvió 0 parecidos; operar 'el más parecido' es operar otra cosa)
+2026-10-13T09:40:31.567016-04:00,2026-10-13,2026-10-13|A|COHR|entrada_tardia|r2,COHR.US,entrada_tardia,fallida,Symbol not found: COHR.US (la búsqueda devolvió 0 parecidos; operar 'el más parecido' es operar otra cosa)
+2026-10-13T09:45:33.037940-04:00,2026-10-13,2026-10-13|A|COHR|entrada_tardia|r3,COHR.US,entrada_tardia,fallida,Symbol not found: COHR.US (la búsqueda devolvió 0 parecidos; operar 'el más parecido' es operar otra cosa)
+2026-10-13T10:30:33.381229-04:00,2026-10-13,2026-10-13|A|COHR|compra,COHR.US,entrada_tardia,rechazada,COHR: reposición agotada. XTB siguió rechazando la compra 60 min tras la apertura; la sesión se pierde. Última orden: .
