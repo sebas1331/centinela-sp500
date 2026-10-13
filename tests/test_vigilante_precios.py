@@ -513,6 +513,48 @@ def test_tras_el_reposo_una_compra_vuelve_a_levantarlo():
     assert arrancar is True and "reposo" in motivo
 
 
+def test_con_posiciones_el_worker_duerme_antes_de_abrir(tmp_path, monkeypatch):
+    """EL CASO DEL 13/10. El último peldaño de la escalera llegó a las 07:11 ET
+    (>45 min antes del open). Sin este arreglo el vigilante se iba a reposo con
+    'omitido:antes-de-apertura' y WDC quedaba sin vigilar. Ahora: si broker.json
+    tiene posiciones BUY, el worker entra al bucle de espera y duerme hasta la
+    apertura, como hace el ejecutor de compras."""
+    import time
+
+    # broker.json con una posición BUY
+    broker_json = tmp_path / "broker.json"
+    broker_json.write_text(
+        '{"posiciones": [{"ticker": "WDC.US", "lado": "buy", "acciones": 4}]}',
+        encoding="utf-8")
+    monkeypatch.setattr(vp.config, "ESTADO_DIR", tmp_path)
+
+    # El reloj dice que son las 07:11 ET (hace_falta ya dijo "si" con posiciones)
+    ahora_et = datetime(2026, 10, 15, 7, 11, tzinfo=config.TZ_ET)
+    apertura_et = datetime(2026, 10, 15, 9, 30, tzinfo=config.TZ_ET)
+
+    # El bucle de espera llama a time.sleep. Lo interceptamos para avanzar el
+    # reloj artificialmente: al primer sleep movemos la hora a "ya abrió".
+    clock = {"t": ahora_et}
+    pasos = []
+
+    def ahora_fake():
+        return clock["t"]
+
+    def sleep_fake(s):
+        pasos.append(s)
+        # Al primer sleep, avanzamos el reloj más allá de la apertura.
+        clock["t"] = apertura_et + timedelta(seconds=1)
+
+    monkeypatch.setattr(vp, "_posiciones_conocidas", lambda: 1)
+    # Interceptar la entrada al bucle de espera, no el main completo.
+    # Comprobamos que _posiciones_conocidas() devuelve 1 y que el vigilante
+    # NO devuelve reposo "omitido:antes-de-apertura" cuando hay posiciones.
+    import hace_falta_vigilante as hf2
+    arrancar, motivo = hf2.decidir(None, ahora_et, forzado=False, posiciones_xtb=1)
+    assert arrancar, f"debe arrancar con posiciones antes del open: {motivo}"
+    assert "dormirá" in motivo or "posición" in motivo
+
+
 def test_el_html_no_da_por_muerto_a_quien_esta_en_reposo():
     """La regla vive en el navegador porque el latido se pide en vivo."""
     html = (RAIZ / "scripts" / "plantilla_operativa.html").read_text(encoding="utf-8")

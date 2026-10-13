@@ -164,8 +164,28 @@ def test_en_reposo_pero_con_posiciones_SI_se_arranca():
     assert hf.decidir(l, _et(10, 0), forzado=False, posiciones_xtb=1)[0]
 
 
-def test_mucho_antes_de_abrir_no_se_arranca():
+def test_mucho_antes_de_abrir_SIN_posiciones_no_se_arranca():
+    """Sin posiciones conocidas el vigilante no se arranca antes de tiempo:
+    no tiene nada que vigilar y desperdiciaría un runner."""
+    arrancar, motivo = hf.decidir(None, _et(6, 0), forzado=False, posiciones_xtb=0)
+    assert not arrancar and "apertura" in motivo
+
+
+def test_mucho_antes_de_abrir_CON_posiciones_SI_se_arranca():
+    """EL CASO DE HOY (13/10). Hoy a las 07:11 ET todos los peldaños llegaron
+    antes de que el mercado abriera y el ejecutor dormía hasta las 09:30, así
+    que arrancar_vigilante nunca se disparó. WDC quedó sin vigilante toda la
+    mañana. Con posiciones conocidas el gate debe decir 'si', y el worker
+    duerme hasta la apertura en lugar de irse a reposo."""
     arrancar, motivo = hf.decidir(None, _et(6, 0), forzado=False, posiciones_xtb=1)
+    assert arrancar, f"debería arrancar con posiciones: {motivo}"
+    assert "posición" in motivo or "dormirá" in motivo
+
+
+def test_mucho_antes_de_abrir_posiciones_desconocidas_no_arranca():
+    """Si no se sabe cuántas posiciones hay (posiciones_xtb=None) no se arrancan
+    vigilantes extra por precaución: puede no haber nada que vigilar."""
+    arrancar, motivo = hf.decidir(None, _et(6, 0), forzado=False, posiciones_xtb=None)
     assert not arrancar and "apertura" in motivo
 
 

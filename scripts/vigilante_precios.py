@@ -84,6 +84,18 @@ RELEVO_TRAS_HORAS = 5.75
 ESPERA_SUCESOR_SEG = 600
 
 
+def _posiciones_conocidas() -> int:
+    """Posiciones BUY abiertas según la última foto publicada de broker.json."""
+    ruta = config.ESTADO_DIR / "broker.json"
+    if not ruta.exists():
+        return 0
+    try:
+        data = json.loads(ruta.read_text(encoding="utf-8"))
+        return sum(1 for p in data.get("posiciones", []) if p.get("lado") == "buy")
+    except Exception:
+        return 0
+
+
 def en_prueba() -> bool:
     """¿Es una prueba? Entonces ni se publica el latido ni se toca el repo.
 
@@ -887,15 +899,23 @@ def main() -> int:
 
     # ANTES DE ABRIR NO SE VIGILA. XTB encola las órdenes de mercado con la
     # sesión cerrada y luego las descarta, así que un disparo en el pre-mercado
-    # sería una venta que no ocurre. Si falta poco, se espera; si falta mucho,
-    # se va en reposo y lo arranca el job de compras, que corre tras abrir.
+    # sería una venta que no ocurre. Si falta poco se espera; si falta mucho y
+    # no hay posiciones conocidas, se va en reposo y lo arranca el job de
+    # compras. Con posiciones conocidas se duerme aunque falte mucho: hay algo
+    # que vigilar desde el primer minuto y no podemos depender de que el
+    # ejecutor de compras termine antes de que la apertura lo pille.
     if not args.forzar and ahora < apertura:
         faltan = (apertura - ahora).total_seconds() / 60.0
         if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
-            return reposo(f"faltan {faltan:.0f} min para la apertura; lo "
-                          f"arrancará el job de compras tras abrir",
-                          "omitido:antes-de-apertura")
-        log(f"faltan {faltan:.0f} min para la apertura: se espera.")
+            n = _posiciones_conocidas()
+            if n == 0:
+                return reposo(f"faltan {faltan:.0f} min para la apertura; lo "
+                              f"arrancará el job de compras tras abrir",
+                              "omitido:antes-de-apertura")
+            log(f"faltan {faltan:.0f} min para la apertura; "
+                f"{n} posición(es) conocida(s): se espera hasta la apertura.")
+        else:
+            log(f"faltan {faltan:.0f} min para la apertura: se espera.")
         while datetime.now(config.TZ_ET) < apertura:
             lat.tocar(trabajo)              # vivo, para el supervisor
             time.sleep(min(60.0, max(1.0, (apertura - datetime.now(

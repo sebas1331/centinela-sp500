@@ -49,11 +49,18 @@ def decidir(latido: dict | None, ahora: datetime, forzado: bool,
     apertura, cierre = ac
     if ahora >= cierre:
         return False, "la sesión ya cerró"
-    # Muy antes de abrir no se arranca: el vigilante se iría en reposo igual
-    # (no vigila el pre-mercado) y cada peldaño de la escalera dejaría un run
-    # inútil. Ya lo arrancará el job de compras o un peldaño posterior.
+    # Muy antes de abrir no se arranca SI NO HAY POSICIONES ABIERTAS: el
+    # vigilante se iría en reposo y cada peldaño de la escalera dejaría un run
+    # inútil. Si hay posiciones conocidas se arranca igual y el worker duerme
+    # hasta la apertura (como hace el ejecutor de compras), para que WDC, por
+    # ejemplo, esté vigilada desde el primer minuto sin depender de que el
+    # ejecutor termine.
     faltan = (apertura - ahora).total_seconds() / 60.0
     if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
+        if posiciones_xtb:
+            return True, (f"faltan {faltan:.0f} min para la apertura pero hay "
+                          f"{posiciones_xtb} posición(es) conocida(s); el vigilante "
+                          f"arrancará y dormirá hasta la apertura")
         return False, f"faltan {faltan:.0f} min para la apertura"
 
     minutos = lat.minutos_desde(latido, ahora)
