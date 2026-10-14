@@ -458,9 +458,15 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
             if m:
                 decididas = int(m.group(1))
 
-    del_dia = [o for o in ordenes
-               if o.get("sesion") == hoy
-               and o.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)]
+    todas_dia = [o for o in ordenes
+                 if o.get("sesion") == hoy
+                 and o.get("tipo") in (ords.COMPRA, ords.ENTRADA_TARDIA)]
+    # Las descartadas por no existir en XTB no son órdenes enviadas: no hubo
+    # orden. Se sacan del recuento y se explican como descarte (ámbar), no como
+    # rechazo del broker ni como pendiente de ejecutar.
+    no_disponibles = [o for o in todas_dia
+                      if o.get("estado") == ords.NO_DISPONIBLE]
+    del_dia = [o for o in todas_dia if o.get("estado") != ords.NO_DISPONIBLE]
     enviadas = [o for o in del_dia if o.get("estado") != "rechazada"]
     ejecutadas = [o for o in del_dia if o.get("estado") == "ejecutada"]
     rechazadas = [o for o in del_dia if o.get("estado") == "rechazada"]
@@ -474,9 +480,15 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
         if not descartes:
             huecos.append(f"{senales - decididas} señal(es) no llegaron a "
                           f"decisión y el log no dice por qué.")
-    if decididas > len(del_dia):
-        huecos.append(f"{decididas - len(del_dia)} decisión(es) sin orden en la "
-                      f"bitácora: el ejecutor no llegó a enviarlas.")
+    # Un candidato que XTB no ofrece: informativo, no es un fallo. El ticker se
+    # queda sin operar y se dice por qué, una vez por símbolo.
+    for t in sorted({o.get("ticker") for o in no_disponibles}):
+        huecos.append(f"{t}: no disponible en XTB como acción al contado; "
+                      f"la entrada se descarta (no es un rechazo del broker).")
+    decididas_operables = decididas - len({o.get("ticker") for o in no_disponibles})
+    if decididas_operables > len(del_dia):
+        huecos.append(f"{decididas_operables - len(del_dia)} decisión(es) sin "
+                      f"orden en la bitácora: el ejecutor no llegó a enviarlas.")
     for o in rechazadas:
         huecos.append(f"{o.get('ticker')}: XTB RECHAZÓ la orden — "
                       f"{o.get('error') or 'sin motivo'}.")
@@ -493,6 +505,7 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
         "decididas": decididas,
         "enviadas": len(enviadas),
         "ejecutadas": len(ejecutadas),
+        "no_disponibles": len(no_disponibles),
         "huecos": huecos,
     }
 

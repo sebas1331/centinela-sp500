@@ -533,6 +533,29 @@ class BrokerXTB:
                 "spread": float(getattr(q, "spread", 0.0) or 0.0),
                 "cuando": getattr(q, "time", None)}
 
+    def existe_contado(self, simbolo: str) -> bool:
+        """¿XTB ofrece ESTE símbolo como acción al contado (no solo su CFD)?
+
+        COHR.US el 2026-10-13: la búsqueda devolvió 0 resultados y el ejecutor
+        mandó la orden igual, que XTB rechazó cuatro veces ('Symbol not found').
+        Un símbolo inexistente es un error permanente: comprobarlo antes de
+        decidir la entrada evita mandar —y reintentar— una orden imposible.
+
+        Mismo criterio que `_resolve_instrument_id` (parche 1): tiene que haber
+        un resultado cuyo nombre coincide EXACTAMENTE y que sea la acción al
+        contado; que exista el CFD con ese nombre no cuenta, porque este sistema
+        no opera CFDs.
+        """
+        from xtb_api.client import _is_cash_instrument
+        try:
+            resultados = self._ejecutar(self._cliente.search_instrument(simbolo))
+        except Exception as exc:  # noqa: BLE001 — no poder mirar no es "no existe"
+            raise ErrorBroker(
+                f"no se pudo comprobar si {simbolo} existe en XTB: {exc!r}") from exc
+        objetivo = simbolo.upper()
+        exactos = [r for r in resultados if str(r.symbol).upper() == objetivo]
+        return any(_is_cash_instrument(r) for r in exactos)
+
     # ------------------------------------------------------------ streaming --
     def al_recibir_tick(self, callback) -> None:
         """Registra quién atiende cada tick. El callback recibe un dict crudo

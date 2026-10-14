@@ -74,6 +74,9 @@ def _libro_aparte(monkeypatch):
     de este fichero enseñan posiciones sin haber escrito sus compras."""
     import ejecutor_xtb as _ej
     monkeypatch.setattr(_ej, "cuadrar_libro", lambda _b: [])
+    # La comprobación de disponibilidad en XTB tiene su propio test; aquí se
+    # asume que todo símbolo existe, para no depender de un broker con búsqueda.
+    monkeypatch.setattr(_ej.disp, "disponible", lambda *a, **k: True)
 
 @pytest.fixture
 def aislado(tmp_path, monkeypatch):
@@ -116,6 +119,29 @@ def test_una_orden_ya_enviada_no_se_repite(aislado, monkeypatch):
     # segundo disparo, mismo día, mismo registro
     ej.enviar(broker, p, "compras", registro)
     assert broker.enviadas == [("compra", "MRNA.US", 3)], "se envió dos veces"
+
+
+def test_un_simbolo_que_XTB_no_ofrece_no_se_envia_ni_cuenta(aislado, monkeypatch):
+    """COHR el 13/10: XTB no lo ofrece como acción al contado. No se manda la
+    orden (ni cuenta en la fiabilidad); queda una fila 'no_disponible' en la
+    bitácora, informativa, no un rechazo del broker."""
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-09-25"))
+    monkeypatch.setattr(ej.disp, "disponible",
+                        lambda broker, simbolo, *a, **k: simbolo != "COHR.US")
+    anotadas = []
+    from centinela import fiabilidad
+    monkeypatch.setattr(fiabilidad, "anotar",
+                        lambda *a, **k: anotadas.append((a, k)))
+    broker = BrokerFalso()
+    registro = {"enviadas": {}}
+    ej.enviar(broker, _pendientes(_orden(ticker="COHR")), "compras", registro)
+
+    assert broker.enviadas == [], "no debió mandarse ninguna orden a XTB"
+    assert anotadas == [], "no debió tocar la fiabilidad (no es un fallo del broker)"
+    filas = list(ords.filas_de_sesion("2026-09-25"))
+    assert len(filas) == 1 and filas[0]["estado"] == ords.NO_DISPONIBLE
+    # Marcada como enviada para que el mismo día no se vuelva a intentar.
+    assert registro["enviadas"], "debió quedar registrada para no reintentar hoy"
 
 
 def test_el_registro_sobrevive_al_disco(aislado, monkeypatch):

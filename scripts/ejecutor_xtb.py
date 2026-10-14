@@ -48,7 +48,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from centinela import (ambiguas as amb, config, calendario, broker_xtb as bx,
                        cuenta, niveles as niv,  # noqa: E402
-                       ordenes as ords, estado as est_mod, salud)
+                       ordenes as ords, estado as est_mod, salud,
+                       disponibilidad as disp)
 
 MOMENTOS = ("compras", "ventas", "apertura", "reconcilia")
 
@@ -357,11 +358,26 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         return []
     log(f"{len(cola)} orden(es) de tipo {tipo} para {hoy}.")
 
-    hechas, ya_estaban = [], 0
+    hechas, ya_estaban, no_disponibles = [], 0, 0
     for o in cola:
         if ords.ya_enviada(registro, o.id):
             log(f"  {o.id}: ya enviada, se omite.")
             ya_estaban += 1
+            continue
+        # ¿XTB ofrece este símbolo como acción al contado? COHR el 13/10 no
+        # existía y el sistema lo mandó —y reintentó— cuatro veces. Un símbolo
+        # inexistente es un error PERMANENTE: se descarta la entrada, NO se
+        # envía la orden y NO cuenta en la fiabilidad (no es un fallo del
+        # broker, es un candidato que XTB no lista). Queda en ámbar informativo.
+        if o.tipo == ords.COMPRA and not disp.disponible(broker, o.simbolo):
+            log(f"  {o.ticker}: NO disponible en XTB como acción al contado; "
+                f"se descarta la entrada (no se envía, no cuenta en fiabilidad).")
+            e = bx.Ejecucion(ticker=o.simbolo, lado="compra", acciones=o.acciones,
+                             estado=ords.NO_DISPONIBLE,
+                             error="no disponible en XTB como acción al contado")
+            ords.registrar_ejecucion(o, e)
+            ords.marcar_enviada(registro, o.id, {"estado": ords.NO_DISPONIBLE})
+            no_disponibles += 1
             continue
         # Antes de vender, preguntarle a XTB si la posición sigue ahí. Desde
         # que existe el vigilante de precios hay dos procesos que pueden cerrar
@@ -427,10 +443,13 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
                 f"  {o.id}: {e.estado} — {e.error}" for o, e in fallidas))
 
     # El recuento es lo que después permite decir "ok: 3 órdenes enviadas" en
-    # vez de un "ok" a secas, y detectar que se decidieron 3 y salieron 2.
+    # vez de un "ok" a secas, y detectar que se decidieron 3 y salieron 2. Las
+    # descartadas por no existir en XTB no son ni decididas fallidas ni
+    # enviadas: se cuentan aparte para que la línea no las confunda con un fallo.
     ENVIADAS[tipo] = {"decididas": len(cola),
                       "enviadas": sum(1 for _, e in hechas if e.ok),
-                      "ya_estaban": ya_estaban}
+                      "ya_estaban": ya_estaban,
+                      "no_disponibles": no_disponibles}
     return hechas
 
 
@@ -521,6 +540,13 @@ def reponer_automatico(broker: bx.BrokerXTB, pendientes: dict, registro: dict,
 
     decididas = {o.ticker: o for o in pendientes["ordenes"]
                  if o.tipo == ords.COMPRA and o.sesion == hoy}
+    # Un símbolo que XTB no ofrece es un error PERMANENTE: no se reintenta (COHR
+    # el 13/10 se reintentó tres veces en vano antes de rendirse en rojo). La
+    # caché ya tiene la respuesta del envío, así que esto no vuelve a preguntar.
+    for t, o in list(decididas.items()):
+        if not disp.disponible(broker, o.simbolo, hoy):
+            log(f"  reposición: {t} no existe en XTB; no se reintenta (permanente).")
+            del decididas[t]
     if not decididas:
         return []
 
@@ -1003,6 +1029,16 @@ def _compras_rechazadas_sin_reponer(posiciones: list[dict]) -> dict:
             continue
         if any(f.get("estado") == "ejecutada" for f in filas):
             continue                      # alguna entró: no hay nada que excusar
+        # Un candidato que XTB no ofrece (COHR) tampoco va a existir en XTB
+        # nunca: existe solo en el simulador, por una causa distinta de un
+        # rechazo —no hubo orden— pero con la misma consecuencia, así que se
+        # explica y se aparta igual en vez de salir en rojo cada run.
+        no_disp = [f for f in filas if f.get("estado") == ords.NO_DISPONIBLE]
+        if no_disp:
+            por_ticker[pos["ticker"]] = (
+                f"{entrada}: no disponible en XTB como acción al contado "
+                f"(candidato descartado, no se envió orden)")
+            continue
         rechazos = [f for f in filas if f.get("estado") == "rechazada"]
         if rechazos:
             por_ticker[pos["ticker"]] = (
@@ -1056,6 +1092,18 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     estado = est_mod.cargar()
     cartera = config.CARTERA_BROKER
     posiciones = estado.get("posiciones", {}).get(cartera, [])
+
+    # ANTES de comparar nada: registrar las stops que saltaron en XTB sin que el
+    # vigilante las viera (p. ej. porque no arrancó a la apertura, como el 13/10
+    # con WDC). Si no, el libro quedaría descuadrado y daría rojo indefinido. Al
+    # registrar la venta aquí, cuadrar_libro ya la encuentra. Ver
+    # proteccion.registrar_stops_saltadas_sin_foto.
+    if config.STOP_EN_XTB and hasattr(broker, "ordenes_contado"):
+        from centinela import proteccion
+        try:
+            proteccion.registrar_stops_saltadas_sin_foto(broker, log=log)
+        except Exception as exc:  # noqa: BLE001 — no poder registrar no es rojo aquí
+            log(f"no se pudo revisar las stops saltadas sin foto: {exc!r}")
 
     # Las posiciones anteriores a que existiera el ejecutor nunca se compraron
     # en XTB. Denunciarlas sería un rojo diario por algo que no es un fallo, y

@@ -138,7 +138,8 @@ def test_schema_de_operativa_json(datos):
     assert set(datos["coste_ejecucion"]) == {"umbral_pct", "ultimas_n", "compras",
                                              "entradas_tardias", "repuestas"}
     assert set(datos["hoy"]) == {"fecha", "es_sesion", "hubo_escaneo", "senales",
-                                 "decididas", "enviadas", "ejecutadas", "huecos"}
+                                 "decididas", "enviadas", "ejecutadas",
+                                 "no_disponibles", "huecos"}
     assert set(datos["semaforo"]) == {"color", "titulo", "motivos", "n_rojos",
                                       "n_ambares"}
     assert datos["semaforo"]["color"] in ("verde", "ambar", "rojo")
@@ -343,6 +344,25 @@ def test_el_json_sesion_hoy_es_none_fuera_de_sesion(monkeypatch):
     from centinela import calendario
     monkeypatch.setattr(calendario, "apertura_cierre_et", lambda _d: None)
     assert go._sesion_hoy_iso(AHORA) is None
+
+
+def test_un_candidato_no_disponible_en_XTB_es_ambar_informativo_no_un_fallo():
+    """COHR el 13/10: una entrada descartada por no existir en XTB NO es una
+    orden enviada ni un rechazo del broker. Se explica como descarte (ámbar) y
+    no cuenta como enviada/rechazada/pendiente."""
+    from centinela import ordenes as ords
+    hoy = AHORA.date().isoformat()
+    ordenes = [{"sesion": hoy, "tipo": ords.COMPRA, "ticker": "COHR",
+                "estado": ords.NO_DISPONIBLE,
+                "error": "no disponible en XTB como acción al contado"}]
+    hoy_bloque = go.bloque_hoy(ordenes, AHORA)
+    assert hoy_bloque["enviadas"] == 0
+    assert hoy_bloque["no_disponibles"] == 1
+    assert any("COHR" in h and "no disponible en XTB" in h
+               for h in hoy_bloque["huecos"])
+    # No debe aparecer como "XTB RECHAZÓ" ni como pendiente de ejecutar.
+    assert not any("RECHAZÓ" in h for h in hoy_bloque["huecos"])
+    assert not any("NO ha ejecutado" in h for h in hoy_bloque["huecos"])
 
 
 def test_el_html_detecta_datos_viejos_con_mercado_abierto():

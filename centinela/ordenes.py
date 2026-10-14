@@ -82,6 +82,12 @@ TIPOS = (COMPRA, VENTA_TIEMPO, VENTA_STOP, VENTA_OBJETIVO,
          VENTA_TIEMPO_DIFERIDO, VENTA_OBJETIVO_INTRADIA, VENTA_STOP_INTRADIA,
          ENTRADA_TARDIA, VENTA_DATO_ERRONEO, VENTA_STOP_XTB)
 
+#: Estado de una entrada que NO se llegó a enviar porque XTB no ofrece el
+#: símbolo como acción al contado (COHR el 2026-10-13). No es un rechazo del
+#: broker —no hubo orden— sino un candidato descartado: ámbar informativo, no
+#: cuenta en la fiabilidad y nunca se reintenta (el símbolo no va a aparecer).
+NO_DISPONIBLE = "no_disponible"
+
 #: Las que COMPRAN. Todo lo demás vende. Hace falta saberlo para confirmar una
 #: orden contra XTB: una compra se confirma porque la posición CRECE y una venta
 #: porque BAJA o desaparece. Confundirlas anotó como "rechazada" la venta de

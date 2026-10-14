@@ -1,0 +1,51 @@
+name: Revisar disponibles en XTB
+
+# ---------------------------------------------------------------------------
+# Cuántos tickers del S&P 500 NO existen en XTB como acción al contado (COHR el
+# 13/10 era uno). READ-ONLY: solo busca instrumentos, no manda ninguna orden.
+# Manual: se lanza a mano para medir el tamaño del problema.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        uses: ./.github/actions/chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Contar los tickers del S&P 500 que XTB no ofrece
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: python scripts/revisar_disponibles_xtb.py

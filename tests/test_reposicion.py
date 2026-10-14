@@ -227,6 +227,8 @@ def entorno_reposicion(tmp_path, monkeypatch):
     # confirmar no debe dormir de verdad cuando una reposición sí envía.
     monkeypatch.setattr(amb, "ESPERA_CONFIRMACION", 0)
     monkeypatch.setattr(amb, "ESPERA_ENTRE_COMPROBACIONES", 0)
+    # Por defecto, todo símbolo existe en XTB; un test lo cambia para FICO.
+    monkeypatch.setattr(ej.disp, "disponible", lambda *a, **k: True)
     return tmp_path
 
 
@@ -313,3 +315,22 @@ def test_la_reposicion_se_agota_a_los_60_min_y_es_rojo_documentado(entorno_repos
         ahora_fn=reloj.ahora)
     assert problemas                        # hay rojo
     assert any("FICO" in p and "reposición agotada" in p for p in problemas)
+
+
+def test_un_simbolo_que_no_existe_en_XTB_no_se_reintenta(entorno_reposicion, monkeypatch):
+    """COHR el 13/10: un error PERMANENTE (símbolo inexistente) no se reintenta.
+    La reposición lo saca de las decididas y no manda ni una orden, ni lo deja
+    como 'reposición agotada' (rojo): es un descarte, no un fallo del broker."""
+    _fila_rechazada(entorno_reposicion, orden_xtb=919)
+    monkeypatch.setattr(ej.disp, "disponible",
+                        lambda broker, simbolo, *a, **k: simbolo != "FICO.US")
+    reloj = Reloj(inicio_min_tras_apertura=5, paso_min=20)
+    broker = BrokerTimeline(
+        plan=[({}, [{"orden": 919, "ticker": "FICO.US",
+                     "estado": "REJECTED", "viva": False}])])
+    problemas = ej.reponer_automatico(
+        broker, _pendientes_fico(), {"enviadas": {}},
+        dormir=lambda s: (reloj.dormir(), broker.avanzar()),
+        ahora_fn=reloj.ahora)
+    assert broker.compras == [], "no debió reintentar un símbolo inexistente"
+    assert problemas == [], "un descarte no es un rojo de reposición agotada"

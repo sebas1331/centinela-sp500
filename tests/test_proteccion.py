@@ -303,6 +303,64 @@ def test_reconciliacion_repone_y_queda_en_verde(monkeypatch):
     assert [o["precio"] for o in x.ordenes.values()] == [365.46]
 
 
+def test_backstop_registra_una_stop_que_salto_sin_foto(tmp_path, monkeypatch):
+    """EL CASO DE WDC (13/10). El vigilante no arrancó a la apertura, la stop
+    saltó y la foto ya no la recuerda. El libro tiene 4 acciones que a XTB le
+    faltan, y el simulador cerró WDC por stop: el backstop registra la venta al
+    precio del simulador (deducido) y el libro cuadra, sin rojo."""
+    import pandas as pd
+    monkeypatch.setattr(ords, "ARCHIVO_BITACORA_BROKER", tmp_path / "b.csv")
+    # El libro: una compra de WDC ejecutada (4 acciones), sin venta -> debe 4.
+    compra = ords.Orden(id=ords.identificador("2026-10-05", "A", "WDC", ords.COMPRA),
+                        tipo=ords.COMPRA, cartera="A", ticker="WDC", acciones=4,
+                        sesion="2026-10-05", precio_simulador=439.71)
+    ords.registrar_ejecucion(compra, bx.Ejecucion(
+        ticker="WDC.US", lado="compra", acciones=4, estado="ejecutada",
+        precio=439.71, orden=1, acciones_hechas=4))
+    assert ords.libro_de_acciones(desde="2026-10-01").get("WDC.US") == 4
+
+    # El simulador cerró WDC (cartera A) por stop a 359.005 (nivel 378.34).
+    df = pd.DataFrame([{"ticker": "WDC", "portafolio": "A", "motivo_salida": "stop",
+                        "fecha_salida": "2026-10-13", "precio_salida": 359.005,
+                        "stop": 378.34, "estado": "cerrada"}])
+    from centinela import bitacora
+    monkeypatch.setattr(bitacora, "operaciones_cerradas", lambda: df)
+
+    # XTB: ya no tiene WDC ni su stop (la posición y la orden desaparecieron).
+    x = XTBFalso({})
+    registradas = prot.registrar_stops_saltadas_sin_foto(x, hoy="2026-10-14",
+                                                         log=lambda *_: None)
+    assert len(registradas) == 1
+    fila = ords.filas_de_sesion("2026-10-14", ruta=tmp_path / "b.csv")[-1]
+    assert fila["tipo"] == ords.VENTA_STOP_XTB and fila["estado"] == "ejecutada"
+    assert float(fila["precio"]) == 359.005 and fila["precio_fuente"] == "simulador"
+    assert float(fila["stop"]) == 378.34         # el nivel, para el slippage
+    # Y el libro cuadra: 4 compradas - 4 vendidas = 0.
+    assert ords.libro_de_acciones(desde="2026-10-01").get("WDC.US") == 0
+
+
+def test_backstop_no_inventa_sin_evidencia_del_simulador(tmp_path, monkeypatch):
+    """Si el simulador NO cerró la posición por stop, no se registra nada: lo
+    denuncia cuadrar_libro. El backstop no inventa ventas."""
+    import pandas as pd
+    monkeypatch.setattr(ords, "ARCHIVO_BITACORA_BROKER", tmp_path / "b.csv")
+    compra = ords.Orden(id=ords.identificador("2026-10-05", "A", "WDC", ords.COMPRA),
+                        tipo=ords.COMPRA, cartera="A", ticker="WDC", acciones=4,
+                        sesion="2026-10-05", precio_simulador=439.71)
+    ords.registrar_ejecucion(compra, bx.Ejecucion(
+        ticker="WDC.US", lado="compra", acciones=4, estado="ejecutada",
+        precio=439.71, orden=1, acciones_hechas=4))
+    from centinela import bitacora
+    monkeypatch.setattr(bitacora, "operaciones_cerradas",
+                        lambda: pd.DataFrame(columns=["ticker", "portafolio",
+                                                      "motivo_salida", "fecha_salida",
+                                                      "precio_salida", "stop"]))
+    x = XTBFalso({})
+    assert prot.registrar_stops_saltadas_sin_foto(x, hoy="2026-10-14",
+                                                  log=lambda *_: None) == []
+    assert ords.libro_de_acciones(desde="2026-10-01").get("WDC.US") == 4  # intacto
+
+
 def test_pagina_dice_donde_vive_cada_nivel():
     broker = {"posiciones": [
         {"ticker": "WDC.US", "acciones": 4, "precio_entrada": 439.71, "precio_actual": 450.0},

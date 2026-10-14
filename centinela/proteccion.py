@@ -338,22 +338,31 @@ def stops_ejecutadas(broker_posiciones: list[dict], antes: dict[str, dict],
 def registrar_stop_ejecutada(e: dict, hoy: str | None = None) -> ords.Orden:
     """Anota en bitacora_broker.csv la venta que hizo XTB al saltar la stop.
 
-    El precio es el NIVEL de la stop (`precio_fuente = nivel`): la orden sale a
-    mercado al tocarlo y el precio exacto de ejecución no llega por esta vía.
-    Queda marcado para que nadie lo confunda con un precio de XTB.
+    Por defecto el precio es el NIVEL de la stop (`precio_fuente = nivel`): la
+    orden sale a mercado al tocarlo y el precio exacto no llega por esta vía
+    (XTB no expone el historial de ejecuciones). Queda marcado para que nadie lo
+    confunda con un precio de XTB.
+
+    `e` puede traer un precio deducido distinto del nivel —p. ej. el precio de
+    salida con el que el simulador cerró la misma posición, que modela el hueco
+    de apertura— en `e["nivel"]` (el nivel de la stop) + `e["precio"]` (el precio
+    deducido) + `e["fuente"]`. Así el slippage de la columna mide la diferencia
+    entre lo que se cobró y el nivel del stop.
     """
     from .broker_xtb import Ejecucion
     hoy = hoy or datetime.now(config.TZ_ET).date().isoformat()
     ticker = e["simbolo"].replace(".US", "").replace("-", ".")
+    nivel = e.get("nivel", e["precio"])
     orden = ords.Orden(
         id=ords.identificador(hoy, config.CARTERA_BROKER, ticker, ords.VENTA_STOP_XTB),
         tipo=ords.VENTA_STOP_XTB, cartera=config.CARTERA_BROKER, ticker=ticker,
-        acciones=int(e["acciones"]), sesion=hoy, stop=e["precio"],
-        precio_simulador=e["precio"])
+        acciones=int(e["acciones"]), sesion=hoy, stop=nivel,
+        precio_simulador=nivel)
     ej = Ejecucion(ticker=e["simbolo"], lado="venta", acciones=int(e["acciones"]),
                    estado="ejecutada", precio=e["precio"], orden=e["orden"],
-                   cuando=datetime.now(config.TZ_ET).isoformat(),
-                   acciones_hechas=int(e["acciones"]), precio_fuente="nivel")
+                   cuando=e.get("cuando") or datetime.now(config.TZ_ET).isoformat(),
+                   acciones_hechas=int(e["acciones"]),
+                   precio_fuente=e.get("fuente", "nivel"))
     ords.registrar_ejecucion(orden, ej)
     return orden
 
@@ -408,3 +417,78 @@ def revisar(broker, antes: dict[str, dict] | None = None, hoy: str | None = None
     informe = sincronizar(broker, stops_deseados(posiciones, hoy), log=log)
     return {"ejecutadas": ejecutadas, "informe": informe,
             "stops": stops_por_simbolo(broker)}
+
+
+def _cierre_por_stop_del_simulador(ticker: str) -> dict | None:
+    """El cierre por stop MÁS RECIENTE del simulador para ese ticker en la
+    cartera del broker: su precio de salida (que modela el hueco) y su nivel.
+
+    Es la evidencia DURABLE de que un stop saltó, cuando la foto volátil ya no
+    lo recuerda. Devuelve {"precio", "nivel", "fecha"} o None.
+    """
+    from . import bitacora
+    try:
+        df = bitacora.operaciones_cerradas()
+    except Exception:  # noqa: BLE001 — sin bitácora legible, no hay evidencia
+        return None
+    if df.empty:
+        return None
+    base = ticker.replace(".US", "").replace("-", ".")
+    m = df[(df["ticker"] == base)
+           & (df["portafolio"] == config.CARTERA_BROKER)
+           & (df["motivo_salida"] == "stop")]
+    if m.empty:
+        return None
+    fila = m.sort_values("fecha_salida").iloc[-1]
+    try:
+        precio = float(fila["precio_salida"])
+        nivel = float(fila["stop"])
+    except (TypeError, ValueError):
+        return None
+    return {"precio": precio, "nivel": nivel, "fecha": str(fila["fecha_salida"])}
+
+
+def registrar_stops_saltadas_sin_foto(broker, hoy: str | None = None,
+                                       log=print) -> list[ords.Orden]:
+    """Backstop de la reconciliación: stops que saltaron sin que el vigilante
+    las viera (p. ej. porque no arrancó a la apertura, como el 13/10 con WDC).
+
+    El vigilante detecta un stop que salta comparando la foto de antes con la de
+    ahora; si no estaba vivo cuando saltó, la foto ya no recuerda que el stop
+    existía y la venta se queda SIN REGISTRAR, dando rojo indefinido. Aquí la
+    evidencia es durable y no depende de ninguna foto:
+
+      1. El LIBRO (bitacora_broker.csv) dice que el sistema tiene N acciones de
+         T que a XTB le faltan.
+      2. XTB no tiene una stop viva de T.
+      3. El SIMULADOR cerró esa posición por stop (bitacora.csv), con su precio
+         de salida.
+
+    Con las tres, el stop saltó: se registra la venta como stop_xtb al precio de
+    salida del simulador (deducido; XTB no expone el historial de ejecuciones) y
+    el libro cuadra, en vez de quedarse en rojo. Si falta la evidencia 3 (el
+    simulador NO lo cerró por stop) no se inventa nada: lo denuncia cuadrar_libro.
+    """
+    libro = ords.libro_de_acciones()
+    reales: dict[str, int] = {}
+    for p in broker.posiciones():
+        if p.get("lado") == "buy":
+            reales[p["ticker"]] = reales.get(p["ticker"], 0) + int(float(p["acciones"]))
+    vivas = stops_por_simbolo(broker)
+    registradas = []
+    for simbolo, debe in sorted(libro.items()):
+        falta = debe - reales.get(simbolo, 0)
+        if falta < 1 or simbolo in vivas:
+            continue                     # no falta nada, o la stop sigue viva
+        cierre = _cierre_por_stop_del_simulador(simbolo)
+        if cierre is None:
+            continue                     # sin evidencia: lo decide cuadrar_libro
+        o = registrar_stop_ejecutada(
+            {"simbolo": simbolo, "acciones": falta, "precio": cierre["precio"],
+             "nivel": cierre["nivel"], "orden": None, "fuente": "simulador"}, hoy)
+        log(f"[proteccion] {simbolo}: el stop saltó sin que el vigilante lo "
+            f"viera; el simulador lo cerró por stop el {cierre['fecha']} a "
+            f"{cierre['precio']} (nivel {cierre['nivel']}). Registrada la venta "
+            f"de {falta} como stop_xtb (precio deducido del simulador).")
+        registradas.append(o)
+    return registradas
