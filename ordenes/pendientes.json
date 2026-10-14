@@ -1,21 +1,6 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-13T18:01:55.181709-04:00",
-  "ordenes": [
-    {
-      "acciones": 5,
-      "cartera": "A",
-      "fecha_limite": "2026-10-26",
-      "id": "2026-10-13|A|COHR|compra",
-      "id_operacion": null,
-      "objetivo": 412.52,
-      "precio_simulador": null,
-      "referencia": 288.02,
-      "sesion": "2026-10-13",
-      "stop": 253.46,
-      "ticker": "COHR",
-      "tipo": "compra"
-    }
-  ],
-  "sesion": "2026-10-13"
+  "generado": "2026-10-14T08:46:31.924152-04:00",
+  "ordenes": [],
+  "sesion": "2026-10-14"
 }
