@@ -387,6 +387,7 @@ def _posiciones_con_nivel() -> int:
     except (json.JSONDecodeError, OSError):
         return 0
 
+    from centinela import ordenes as ords
     estado = est_mod.cargar()
     niveles = {
         p["ticker"]: p
@@ -395,7 +396,7 @@ def _posiciones_con_nivel() -> int:
     }
     n = 0
     for p in broker.get("posiciones", []):
-        sim = niveles.get(str(p.get("ticker", "")).replace(".US", "").replace("-", "."))
+        sim = niveles.get(ords.ticker_canonico(p.get("ticker", "")))
         if sim and (sim.get("stop") is not None or sim.get("objetivo") is not None):
             n += 1
     return n

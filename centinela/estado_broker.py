@@ -18,7 +18,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from . import config, cuenta
+from . import config, cuenta, ordenes
 
 ARCHIVO = config.ESTADO_DIR / "broker.json"
 
@@ -121,7 +121,7 @@ def volcar(broker, candado_ok: bool = True, precios: dict | None = None,
             # El P&L de XTB también viene a 0: se calcula con el precio real.
             "pnl": (None if actual is None
                     else round(acciones * (actual - entrada), 2)),
-            "coste": coste.get(p["ticker"].replace(".US", "").replace("-", ".")),
+            "coste": coste.get(ordenes.ticker_canonico(p["ticker"])),
         })
 
     datos = {

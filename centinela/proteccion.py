@@ -98,7 +98,7 @@ def stops_deseados(broker_posiciones: list[dict], hoy: str | None = None,
             acciones[p["ticker"]] = acciones.get(p["ticker"], 0.0) + float(p["acciones"])
     fuera = {}
     for simbolo, n in acciones.items():
-        ticker = simbolo.replace(".US", "").replace("-", ".")
+        ticker = ords.ticker_canonico(simbolo)
         if ticker in stops and int(n) >= 1:
             fuera[simbolo] = {"ticker": ticker, "acciones": int(n),
                               "stop": round(stops[ticker], 2)}
@@ -351,7 +351,7 @@ def registrar_stop_ejecutada(e: dict, hoy: str | None = None) -> ords.Orden:
     """
     from .broker_xtb import Ejecucion
     hoy = hoy or datetime.now(config.TZ_ET).date().isoformat()
-    ticker = e["simbolo"].replace(".US", "").replace("-", ".")
+    ticker = ords.ticker_canonico(e["simbolo"])
     nivel = e.get("nivel", e["precio"])
     orden = ords.Orden(
         id=ords.identificador(hoy, config.CARTERA_BROKER, ticker, ords.VENTA_STOP_XTB),
@@ -433,7 +433,7 @@ def _cierre_por_stop_del_simulador(ticker: str) -> dict | None:
         return None
     if df.empty:
         return None
-    base = ticker.replace(".US", "").replace("-", ".")
+    base = ords.ticker_canonico(ticker)
     m = df[(df["ticker"] == base)
            & (df["portafolio"] == config.CARTERA_BROKER)
            & (df["motivo_salida"] == "stop")]

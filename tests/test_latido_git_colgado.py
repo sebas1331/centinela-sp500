@@ -80,8 +80,8 @@ def test_sin_stop_distingue_confirmado_ausente_y_desconocido():
     assert lat.sin_stop_en_xtb([_v("WDC"), _v("FICO")], broker) == ["FICO"]
     # sin nivel de stop no se exige stop en XTB (cartera B)
     assert lat.sin_stop_en_xtb([_v("FICO", stop=None)], broker) == []
-    # clases de acciones: BRK.B -> BRK-B.US
-    assert lat.sin_stop_en_xtb([_v("BRK.B")], {"stops": {"BRK-B.US": {"orden": 1}}}) == []
+    # clases de acciones: BRK.B -> BRKB.US (XTB sin separador)
+    assert lat.sin_stop_en_xtb([_v("BRK.B")], {"stops": {"BRKB.US": {"orden": 1}}}) == []
     # orden sin número = no confirmada
     assert lat.sin_stop_en_xtb([_v("WDC")], {"stops": {"WDC.US": {}}}) == ["WDC"]
     # no se sabe: sin foto, sin lista de stops, o con la foto fallida

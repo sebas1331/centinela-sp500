@@ -483,10 +483,10 @@ def _ya_entro(broker: bx.BrokerXTB, ticker: str, hoy: str) -> bool:
     entró". El ticker sigue en la lista de pendientes y el gate —que atrapa sus
     propios fallos y ante la duda dice 'esperar'— decide; nunca se reenvía a
     ciegas por no haber podido mirar."""
-    simple = ticker.replace(".US", "").replace("-", ".")
+    simple = ords.ticker_canonico(ticker)
     try:
         tiene = any(p["lado"] == "buy"
-                    and p["ticker"].replace(".US", "").replace("-", ".") == simple
+                    and ords.ticker_canonico(p["ticker"]) == simple
                     for p in broker.posiciones())
     except Exception as exc:  # noqa: BLE001 — no poder mirar no es "entró"
         log(f"  reposición: no se pudo leer la posición de {ticker} ({exc!r}); "
@@ -826,7 +826,7 @@ def cerrar_tiempos_atrasados(broker: bx.BrokerXTB, registro: dict) -> list:
     cartera = config.CARTERA_BROKER
     hoy = datetime.now(config.TZ_ET).date().isoformat()
 
-    reales = {p["ticker"].replace(".US", "").replace("-", "."): p
+    reales = {ords.ticker_canonico(p["ticker"]): p
               for p in broker.posiciones() if p["lado"] == "buy"}
     hechas = []
 
@@ -935,7 +935,7 @@ def vigilar_niveles(broker: bx.BrokerXTB, registro: dict) -> list:
     if not posiciones:
         return []
 
-    reales = {p["ticker"].replace(".US", "").replace("-", "."): p
+    reales = {ords.ticker_canonico(p["ticker"]): p
               for p in broker.posiciones() if p["lado"] == "buy"}
     hoy = datetime.now(config.TZ_ET).date().isoformat()
     hechas = []
@@ -1122,7 +1122,7 @@ def reconciliar(broker: bx.BrokerXTB) -> list[str]:
     # aplicar.
     rechazadas = _compras_rechazadas_sin_reponer(posiciones)
     simuladas = {p["ticker"] for p in posiciones} - heredadas - set(rechazadas)
-    reales = {p["ticker"].replace(".US", "").replace("-", ".")
+    reales = {ords.ticker_canonico(p["ticker"])
               for p in broker.posiciones() if p["lado"] == "buy"}
 
     if heredadas:

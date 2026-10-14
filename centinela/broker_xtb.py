@@ -263,12 +263,13 @@ _TIPO_REPO = {"limit": "limitada", "stop": "stop", "market": "mercado"}
 
 
 def _simbolo_simple(ticker: str) -> str:
-    """Un símbolo comparable: 'WDC.US', 'WDC-B.US' y 'WDC' caen en el mismo.
+    """Un símbolo comparable: 'BRKB.US' y 'BRK.B' caen en el mismo ticker.
 
     OrderService devuelve el símbolo con sufijo `.US`; el resto del sistema a
-    veces lo lleva sin él. Comparar en crudo dejaba fuera coincidencias reales.
-    """
-    return str(ticker).upper().replace(".US", "").replace("-", ".")
+    veces lo lleva sin él. Deshace además los alias y las clases de acción
+    (ordenes.ticker_canonico), para no dejar fuera coincidencias reales."""
+    from . import ordenes
+    return ordenes.ticker_canonico(ticker)
 
 
 @dataclass

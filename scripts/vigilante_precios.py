@@ -209,7 +209,7 @@ def cargar_vigiladas(broker, hoy: str | None = None) -> list[dict]:
 
     vigiladas = []
     for simbolo, acciones in reales.items():
-        ticker = simbolo.replace(".US", "").replace("-", ".")
+        ticker = ords.ticker_canonico(simbolo)
         sim = simuladas.get(ticker)
         sale_hoy = ticker in tiempo
         if sim is None and not sale_hoy:
@@ -245,7 +245,7 @@ def vigiladas_de_prueba(broker, spec: str) -> list[dict]:
     for p in broker.posiciones():
         if p["lado"] != "buy":
             continue
-        if p["ticker"].replace(".US", "").replace("-", ".") != ticker:
+        if ords.ticker_canonico(p["ticker"]) != ticker:
             continue
         return [{
             "ticker": ticker, "simbolo": p["ticker"],

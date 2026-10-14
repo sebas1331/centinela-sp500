@@ -139,14 +139,48 @@ COLUMNAS_BROKER = [
 ]
 
 
+#: Símbolos que XTB nombra DISTINTO del ticker canónico del S&P 500. Verificado
+#: en vivo con scripts/parecidos_xtb.py (2026-10-14):
+#:   - Clases de acción: XTB las escribe SIN separador ('BRK.B' -> 'BRKB.US',
+#:     'BF.B' -> 'BFB.US'), no con guion como yfinance.
+#:   - Renombrados: XTB sigue con el símbolo viejo ('EG' era 'RE', 'BNY' era
+#:     'BK') o le añade un sufijo ('COR' Cencora es 'COR1', 'P' Everpure es 'P1').
+#:     El valor es la MISMA empresa, así que la cotización del simulador y la
+#:     orden de XTB son el mismo activo.
+ALIAS_XTB = {
+    "BRK.B": "BRKB", "BF.B": "BFB",          # clases de acción
+    "BNY": "BK", "COR": "COR1", "ECHO": "SATS",
+    "EG": "RE", "P": "P1", "SKYD": "PSKY",   # renombrados
+}
+_ALIAS_INVERSO = {v: k for k, v in ALIAS_XTB.items()}
+
+
 def simbolo_xtb(ticker: str) -> str:
     """Ticker canónico -> símbolo de XTB para acciones de EE.UU.
 
-    XTB nombra las acciones estadounidenses con sufijo `.US` y guion en las
-    clases de acciones, igual que yfinance: 'BRK.B' -> 'BRK-B.US'.
+    XTB nombra las acciones estadounidenses con sufijo `.US`. Las clases de
+    acción y los renombrados van en ALIAS_XTB; el resto, sin separadores.
     """
-    base = ticker.strip().upper().replace(".", "-")
+    base = ticker.strip().upper()
+    if base in ALIAS_XTB:
+        base = ALIAS_XTB[base]
+    else:
+        base = base.replace(".", "").replace("-", "")
     return f"{base}.US"
+
+
+def ticker_canonico(simbolo: str) -> str:
+    """Inverso de `simbolo_xtb`: símbolo de XTB -> ticker canónico del S&P 500.
+
+    Deshace el alias si lo hay; si no, quita el `.US` y convierte un posible
+    guion en punto (compatibilidad con el viejo convenio 'BRK-B.US' que todavía
+    pueda quedar en datos históricos)."""
+    base = str(simbolo).upper().strip()
+    if base.endswith(".US"):
+        base = base[:-3]
+    if base in _ALIAS_INVERSO:
+        return _ALIAS_INVERSO[base]
+    return base.replace("-", ".")
 
 
 @dataclass

@@ -239,10 +239,18 @@ def test_reconciliar_detecta_dinero_expuesto_que_nadie_sigue(tmp_path, monkeypat
 
 
 def test_reconciliar_traduce_los_simbolos_de_XTB(tmp_path, monkeypatch):
-    """'BRK.B' en la bitácora es 'BRK-B.US' en XTB: no puede dar diferencia."""
+    """'BRK.B' en el simulador es 'BRKB.US' en XTB: no puede dar diferencia.
+    (Y 'BRK-B.US', el viejo convenio, sigue cuadrando por compatibilidad.)"""
     _estado(["BRK.B"], tmp_path, monkeypatch)
-    broker = BrokerFalso(posiciones=[_pos("BRK-B.US")])
-    assert ej.reconciliar(broker) == []
+    assert ej.reconciliar(BrokerFalso(posiciones=[_pos("BRKB.US")])) == []
+    assert ej.reconciliar(BrokerFalso(posiciones=[_pos("BRK-B.US")])) == []
+
+
+def test_reconciliar_traduce_un_ticker_renombrado(tmp_path, monkeypatch):
+    """'EG' (Everest) en el simulador es 'RE.US' en XTB (símbolo viejo): el alias
+    lo deshace y no da diferencia."""
+    _estado(["EG"], tmp_path, monkeypatch)
+    assert ej.reconciliar(BrokerFalso(posiciones=[_pos("RE.US")])) == []
 
 
 # --------------------------------------------------------------------------- #
@@ -372,9 +380,21 @@ def test_el_vocabulario_de_tipos_es_cerrado():
 
 
 @pytest.mark.parametrize("ticker,esperado", [
-    ("MRNA", "MRNA.US"), ("BRK.B", "BRK-B.US"), ("aapl", "AAPL.US")])
+    ("MRNA", "MRNA.US"), ("aapl", "AAPL.US"),
+    # Clases de acción: XTB sin separador (verificado en vivo 2026-10-14).
+    ("BRK.B", "BRKB.US"), ("BF.B", "BFB.US"),
+    # Renombrados: XTB usa otro símbolo para la misma empresa.
+    ("BNY", "BK.US"), ("EG", "RE.US"), ("COR", "COR1.US"),
+    ("ECHO", "SATS.US"), ("P", "P1.US"), ("SKYD", "PSKY.US")])
 def test_traduccion_de_simbolos_a_XTB(ticker, esperado):
     assert ords.simbolo_xtb(ticker) == esperado
+
+
+@pytest.mark.parametrize("simbolo,esperado", [
+    ("MRNA.US", "MRNA"), ("BRKB.US", "BRK.B"), ("BRK-B.US", "BRK.B"),
+    ("BK.US", "BNY"), ("RE.US", "EG"), ("PSKY.US", "SKYD")])
+def test_ticker_canonico_es_el_inverso(simbolo, esperado):
+    assert ords.ticker_canonico(simbolo) == esperado
 
 
 def test_los_identificadores_son_deterministas():

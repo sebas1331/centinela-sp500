@@ -346,9 +346,9 @@ CONTADO_MUERTA = ("REJECTED", "CANCELED", "EXPIRED")
 
 
 def _mismo(a, b) -> bool:
-    """Si dos símbolos son el mismo, con o sin sufijo `.US` y guion/punto."""
-    norm = lambda t: str(t).upper().replace(".US", "").replace("-", ".")
-    return norm(a) == norm(b)
+    """Si dos símbolos son el mismo ticker (deshaciendo `.US`, alias y clases)."""
+    from . import ordenes
+    return ordenes.ticker_canonico(a) == ordenes.ticker_canonico(b)
 
 
 def _estado_contado(broker, simbolo: str, numero):

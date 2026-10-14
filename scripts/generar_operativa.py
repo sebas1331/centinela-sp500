@@ -248,7 +248,7 @@ def bloque_posiciones(estado_broker: dict | None, estado_sim: dict,
     stops_xtb = estado_broker.get("stops")
     filas = []
     for p in estado_broker.get("posiciones", []):
-        tk = str(p.get("ticker", "")).replace(".US", "").replace("-", ".")
+        tk = ords.ticker_canonico(p.get("ticker", ""))
         # Los niveles del simulador; y si aún no la tiene (comprada hoy), los
         # de la orden, que son los que usa el vigilante.
         sim = por_ticker.get(tk) or hoy_niveles.get(tk, {})
