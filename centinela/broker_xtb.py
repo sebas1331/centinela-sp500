@@ -550,6 +550,18 @@ class BrokerXTB:
                 str(r.symbol).upper() for r in todos if _is_cash_instrument(r)}
         return self._cache_contado
 
+    def catalogo_contado(self) -> list[dict]:
+        """La lista de acciones al contado con su nombre, para diagnósticos.
+
+        Separar ausencias reales de desajustes de nombre (una clase de acción con
+        otro separador, un ticker renombrado donde XTB aún usa el símbolo viejo)
+        necesita ver el nombre de la empresa, no solo el símbolo."""
+        from xtb_api.client import _is_cash_instrument
+        return [{"symbol": str(r.symbol), "name": str(getattr(r, "name", "") or ""),
+                 "description": str(getattr(r, "description", "") or "")}
+                for r in self._ejecutar(self._cliente.all_instruments())
+                if _is_cash_instrument(r)]
+
     def existe_contado(self, simbolo: str) -> bool:
         """¿XTB ofrece ESTE símbolo como acción al contado (no solo su CFD)?
 

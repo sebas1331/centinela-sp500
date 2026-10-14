@@ -7,6 +7,11 @@ name: Revisar disponibles en XTB
 # ---------------------------------------------------------------------------
 on:
   workflow_dispatch:
+    inputs:
+      parecidos:
+        description: "Además del conteo, enseñar los símbolos parecidos de cada no disponible"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -49,3 +54,11 @@ jobs:
           XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
           XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
         run: python scripts/revisar_disponibles_xtb.py
+
+      - name: Enseñar los parecidos de cada no disponible
+        if: inputs.parecidos
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: python scripts/parecidos_xtb.py
