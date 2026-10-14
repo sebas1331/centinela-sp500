@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-14T08:45:48.011997-04:00",
+  "actualizado": "2026-10-14T18:00:56.007175-04:00",
   "contador_grupo": 95,
   "entradas_pendientes": [],
   "posiciones": {
@@ -48,10 +48,15 @@
             "fecha": "2026-10-13",
             "motivo": "recálculo: ATR=53.77, resistencia=1003.17",
             "objetivo": 781.5405
+          },
+          {
+            "fecha": "2026-10-14",
+            "motivo": "recálculo: ATR=51.56, resistencia=990.84",
+            "objetivo": 777.1149
           }
         ],
         "id": 166,
-        "objetivo": 781.5405,
+        "objetivo": 777.1149,
         "objetivo_inicial": 779.6816,
         "portafolio": "A",
         "proba": 0.8308,
@@ -177,10 +182,15 @@
             "fecha": "2026-10-13",
             "motivo": "recálculo: ATR=53.77, resistencia=1003.17",
             "objetivo": 781.5405
+          },
+          {
+            "fecha": "2026-10-14",
+            "motivo": "recálculo: ATR=51.56, resistencia=990.84",
+            "objetivo": 777.1149
           }
         ],
         "id": 167,
-        "objetivo": 781.5405,
+        "objetivo": 777.1149,
         "objetivo_inicial": 779.6816,
         "portafolio": "B",
         "proba": 0.8308,
@@ -221,9 +231,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-10-13T18:01:15.176791-04:00",
-      "run": "38464022741",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38464022741"
+      "cuando": "2026-10-14T18:00:56.007159-04:00",
+      "run": "38629698755",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38629698755"
     },
     "preapertura": {
       "cuando": "2026-10-14T08:45:48.011977-04:00",
@@ -231,6 +241,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38561716896"
     }
   },
-  "ultima_postcierre": "2026-10-13",
+  "ultima_postcierre": "2026-10-14",
   "ultima_preapertura": "2026-10-14"
 }

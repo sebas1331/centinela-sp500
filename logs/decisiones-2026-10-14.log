@@ -186,3 +186,9 @@ ZTS | dd=68.5% | prob=0.423 < umbral -> SIN SEÑAL
 COHR | dd=34.1% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 FICO | dd=69.9% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-10-14 18:00:56 ET =====
+POST-CIERRE 2026-10-14
+entradas ejecutadas: []
+cambios de objetivo: 2
+cierres: []
