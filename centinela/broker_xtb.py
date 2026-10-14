@@ -329,6 +329,8 @@ class BrokerXTB:
         self._conectado = False
         # UN SOLO event loop para toda la sesión. Ver `_ejecutar`.
         self._loop = None
+        # El conjunto de símbolos al contado, armado una vez (existe_contado).
+        self._cache_contado = None
 
     # ---------------------------------------------------------------- ciclo --
     def __enter__(self) -> "BrokerXTB":
@@ -533,6 +535,21 @@ class BrokerXTB:
                 "spread": float(getattr(q, "spread", 0.0) or 0.0),
                 "cuando": getattr(q, "time", None)}
 
+    def _simbolos_contado(self) -> set[str]:
+        """El conjunto de símbolos que XTB ofrece como acción al contado.
+
+        Se arma UNA vez por sesión del broker desde la lista COMPLETA de
+        instrumentos: `search_instrument` filtra por subcadena y corta a 100, lo
+        que daba falsos negativos para tickers cortos (C.US, T.US, O.US…), que
+        en producción habrían descartado compras válidas.
+        """
+        if self._cache_contado is None:
+            from xtb_api.client import _is_cash_instrument
+            todos = self._ejecutar(self._cliente.all_instruments())
+            self._cache_contado = {
+                str(r.symbol).upper() for r in todos if _is_cash_instrument(r)}
+        return self._cache_contado
+
     def existe_contado(self, simbolo: str) -> bool:
         """¿XTB ofrece ESTE símbolo como acción al contado (no solo su CFD)?
 
@@ -541,20 +558,15 @@ class BrokerXTB:
         Un símbolo inexistente es un error permanente: comprobarlo antes de
         decidir la entrada evita mandar —y reintentar— una orden imposible.
 
-        Mismo criterio que `_resolve_instrument_id` (parche 1): tiene que haber
-        un resultado cuyo nombre coincide EXACTAMENTE y que sea la acción al
-        contado; que exista el CFD con ese nombre no cuenta, porque este sistema
-        no opera CFDs.
+        Match EXACTO contra la lista completa de acciones al contado (no el CFD
+        del mismo nombre, que este sistema no opera).
         """
-        from xtb_api.client import _is_cash_instrument
         try:
-            resultados = self._ejecutar(self._cliente.search_instrument(simbolo))
+            contado = self._simbolos_contado()
         except Exception as exc:  # noqa: BLE001 — no poder mirar no es "no existe"
             raise ErrorBroker(
                 f"no se pudo comprobar si {simbolo} existe en XTB: {exc!r}") from exc
-        objetivo = simbolo.upper()
-        exactos = [r for r in resultados if str(r.symbol).upper() == objetivo]
-        return any(_is_cash_instrument(r) for r in exactos)
+        return simbolo.upper() in contado
 
     # ------------------------------------------------------------ streaming --
     def al_recibir_tick(self, callback) -> None:

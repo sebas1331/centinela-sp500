@@ -215,6 +215,25 @@ campo se añadirá aquí cuando se vea en crudo.
 
 ---
 
+## Parche 5 — La lista completa de instrumentos (`all_instruments`)
+
+**Fichero:** `client.py` (método `all_instruments`).
+
+`search_instrument(q)` filtra la caché por subcadena y **corta a 100 resultados**
+(`ws_client._filter_cached_symbols`). Para comprobar si un símbolo existe con una
+consulta corta —'C.US' es subcadena de cientos de símbolos que acaban en C— el
+match exacto se cae del corte y parece que el símbolo no existe. Con eso, el
+pre-chequeo de disponibilidad (`broker_xtb.existe_contado`) daba falsos negativos
+para tickers cortos (C, T, O, D, L…) y habría descartado compras válidas.
+
+`all_instruments` dispara una búsqueda para poblar la caché completa (efecto
+colateral de `search_instrument`) y devuelve `_symbols_cache` entero, para
+comprobar la existencia con match exacto contra toda la lista, no contra 100.
+
+**Tests:** `tests/test_disponibilidad.py` y el pre-chequeo en `tests/test_ejecutor_xtb.py`.
+
+---
+
 ## Lo que NO se tocó
 
 **El parche del selector del segundo factor** (`centinela/parche_otp.py`) sigue
@@ -230,7 +249,8 @@ Si algún día reaparece el proyecto o sale una versión nueva:
 
 1. Copiar el árbol nuevo sobre `vendor/xtb_api/`, conservando `LICENSE` y este
    fichero.
-2. Volver a aplicar los tres parches de arriba (`_resolve_instrument_id`,
-   `_grpc_call` y el bloque de órdenes pendientes) y anotar aquí qué cambió.
-3. `pytest` entero en verde, y una compra real de una acción en la demo: los dos
+2. Volver a aplicar los parches de arriba (`_resolve_instrument_id`, las
+   cabeceras gRPC, el bloque de órdenes pendientes, el stream de OrderService y
+   `all_instruments`) y anotar aquí qué cambió.
+3. `pytest` entero en verde, y una compra real de una acción en la demo: los
    parches existen porque los tests no bastaban para verlos.

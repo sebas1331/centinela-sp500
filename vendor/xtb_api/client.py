@@ -209,6 +209,18 @@ class XTBClient:
         """
         return await self._ws.search_instrument(query)
 
+    async def all_instruments(self) -> list[InstrumentSearchResult]:
+        """La lista COMPLETA de instrumentos (CENTINELA, ver CAMBIOS.md parche 5).
+
+        `search_instrument(q)` filtra por subcadena y CORTA a 100 resultados, así
+        que para una consulta corta como 'C.US' —subcadena de cientos de símbolos
+        que acaban en C— el match exacto se cae del corte y parece que no existe.
+        Esto devuelve la caché entera (que `search_instrument` descarga como
+        efecto colateral), para poder comprobar la existencia con match exacto.
+        """
+        await self._ws.search_instrument("")        # puebla la caché completa
+        return list(getattr(self._ws, "_symbols_cache", None) or [])
+
     # ── Trading (gRPC, lazy-initialized) ─────────────────────────
 
     async def buy(
