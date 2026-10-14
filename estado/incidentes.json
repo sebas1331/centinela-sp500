@@ -1,6 +1,37 @@
 {
- "actualizado": "2026-10-05T10:06:06.659623-04:00",
+ "actualizado": "2026-10-14T10:00:00.000000-04:00",
  "incidentes": [
+  {
+   "arreglado": "2026-10-14",
+   "arreglo": "Antes de decidir la entrada, el ejecutor comprueba que XTB ofrece el símbolo como acción al contado (broker_xtb.existe_contado + caché diaria en centinela/disponibilidad.py). Si no, la entrada se descarta SIN enviar orden, SIN reintentar y SIN contar en la fiabilidad; queda como 'no_disponible' (ámbar informativo). Las 4 órdenes de COHR del 13/10 quedan explicadas aquí.",
+   "causa": "COHR es un candidato del modelo que XTB no ofrece como acción al contado: la búsqueda de instrumento devolvía 0 resultados ('Symbol not found: COHR.US') y el ejecutor mandaba la orden igual. La reposición, al no ver ni posición ni orden viva, la reintentó (r1, r2, r3) y a los 60 min se rindió en rojo. Un símbolo inexistente es un error permanente: reintentarlo no cambia nada.",
+   "commit": "c40ffd9",
+   "componentes": [
+    "compras"
+   ],
+   "fecha": "2026-10-13",
+   "ordenes": [
+    "2026-10-13|A|COHR|compra",
+    "2026-10-13|A|COHR|entrada_tardia|r1",
+    "2026-10-13|A|COHR|entrada_tardia|r2",
+    "2026-10-13|A|COHR|entrada_tardia|r3"
+   ],
+   "titulo": "COHR: símbolo que XTB no ofrece, enviado y reintentado 4 veces"
+  },
+  {
+   "arreglado": "2026-10-14",
+   "arreglo": "La reconciliación registra las stops que saltaron sin que el vigilante las viera (proteccion.registrar_stops_saltadas_sin_foto): si el libro tiene acciones que a XTB le faltan, XTB no tiene stop viva del símbolo y el simulador cerró esa posición por stop, se registra la venta como stop_xtb al precio de salida del simulador. WDC se registró a mano con el precio real deducido del saldo (360.44).",
+   "causa": "La stop 917531939 de WDC (nivel 378.34) saltó al abrir el 13-oct con hueco bajista, pero el vigilante no estaba vivo a la apertura (no arrancaba hasta que terminaba el ejecutor). La foto de la cuenta se refrescó ya sin la stop, así que la reconciliación perdió la memoria de que existía y dejó el libro descuadrado (XTB 0, libro 4) en rojo indefinido en vez de registrar la venta.",
+   "commit": "c40ffd9",
+   "componentes": [
+    "reconcilia"
+   ],
+   "fecha": "2026-10-13",
+   "ordenes": [
+    "2026-10-13|A|WDC|stop_xtb"
+   ],
+   "titulo": "Stop de WDC que saltó en XTB sin quedar registrada"
+  },
   {
    "arreglado": "2026-10-02",
    "arreglo": "Las compras se mandan DESPUÉS de la apertura; el job duerme si llega antes. Y tras cada orden se pregunta a XTB hasta obtener un estado definitivo: 'aceptada' ya no se anota como 'ejecutada'.",
