@@ -1,7 +1,56 @@
 {
-  "actualizado": "2026-10-14T18:00:56.007175-04:00",
+  "actualizado": "2026-10-15T08:46:04.978297-04:00",
   "contador_grupo": 95,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 19.6707,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-15",
+      "notas": "prob=0.873 score_fund=47.9 sent=0.0 (n=0)",
+      "proba": 0.8726,
+      "resistencia": 302.354,
+      "score_fundamental": 47.9,
+      "sector": "Industrials",
+      "target_analista": 283.0077,
+      "ticker": "BE",
+      "timestamp_escaneo": "2026-10-15T08:45:05.001228-04:00"
+    },
+    {
+      "atr": 27.4928,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-15",
+      "notas": "prob=0.873 score_fund=63.6 sent=0.0 (n=0)",
+      "proba": 0.8726,
+      "resistencia": 454.73,
+      "score_fundamental": 63.6,
+      "sector": "Information Technology",
+      "target_analista": 512.9907,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-10-15T08:45:05.001228-04:00"
+    },
+    {
+      "atr": 0.7227,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-15",
+      "notas": "prob=0.873 score_fund=27.8 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8726,
+      "resistencia": 11.49,
+      "score_fundamental": 27.8,
+      "sector": "Communication Services",
+      "target_analista": 9.42188,
+      "ticker": "SKYD",
+      "timestamp_escaneo": "2026-10-15T08:45:05.001228-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -236,11 +285,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38629698755"
     },
     "preapertura": {
-      "cuando": "2026-10-14T08:45:48.011977-04:00",
-      "run": "38561716896",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38561716896"
+      "cuando": "2026-10-15T08:46:04.978274-04:00",
+      "run": "38729622029",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38729622029"
     }
   },
   "ultima_postcierre": "2026-10-14",
-  "ultima_preapertura": "2026-10-14"
+  "ultima_preapertura": "2026-10-15"
 }
