@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-15T08:38:05.662336-04:00",
+  "actualizado": "2026-10-15T10:33:05.077660-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-14T15:14:17.767726-04:00",
@@ -9,11 +9,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38621791902"
     },
     "compras": {
-      "cuando": "2026-10-14T09:35:28.410851-04:00",
-      "detalle": "WDC.US: XTB tiene 0 acciones y bitacora_broker.csv dice 4. Hay una VENTA (o un cierre) en XTB que el sistema no tiene registrada: mira el historial en xStation 5.",
-      "resultado": "diferencias",
-      "run": "38561716896",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38561716896"
+      "cuando": "2026-10-15T10:33:05.077660-04:00",
+      "detalle": "",
+      "resultado": "fallo:job-en-rojo",
+      "run": "38729622029",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38729622029"
     },
     "postcierre": {
       "cuando": "2026-10-14T21:26:18.965860-04:00",
@@ -23,11 +23,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38665552148"
     },
     "preapertura": {
-      "cuando": "2026-10-15T06:16:01.202841-04:00",
+      "cuando": "2026-10-15T10:33:05.032793-04:00",
       "detalle": "",
-      "resultado": "omitido:antes-de-ventana",
-      "run": "38718892690",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38718892690"
+      "resultado": "procesado",
+      "run": "38729622029",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38729622029"
     },
     "reconcilia": {
       "cuando": "2026-10-14T18:02:38.395008-04:00",
