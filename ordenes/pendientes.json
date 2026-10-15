@@ -1,6 +1,49 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-14T18:01:33.933617-04:00",
-  "ordenes": [],
-  "sesion": "2026-10-14"
+  "generado": "2026-10-15T08:46:45.610044-04:00",
+  "ordenes": [
+    {
+      "acciones": 7,
+      "cartera": "A",
+      "fecha_limite": "2026-10-28",
+      "id": "2026-10-15|A|BE|compra",
+      "id_operacion": null,
+      "objetivo": 302.35,
+      "precio_simulador": null,
+      "referencia": 239.34,
+      "sesion": "2026-10-15",
+      "stop": 210.62,
+      "ticker": "BE",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 4,
+      "cartera": "A",
+      "fecha_limite": "2026-10-28",
+      "id": "2026-10-15|A|CIEN|compra",
+      "id_operacion": null,
+      "objetivo": 512.99,
+      "precio_simulador": null,
+      "referencia": 359.6,
+      "sesion": "2026-10-15",
+      "stop": 316.45,
+      "ticker": "CIEN",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 239,
+      "cartera": "A",
+      "fecha_limite": "2026-10-28",
+      "id": "2026-10-15|A|SKYD|compra",
+      "id_operacion": null,
+      "objetivo": 9.42,
+      "precio_simulador": null,
+      "referencia": 7.06,
+      "sesion": "2026-10-15",
+      "stop": 6.21,
+      "ticker": "SKYD",
+      "tipo": "compra"
+    }
+  ],
+  "sesion": "2026-10-15"
 }
