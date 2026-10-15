@@ -1,11 +1,11 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 29682.77,
-  "equity_xtb": 29682.77,
-  "leido": "2026-10-14T18:02:37.563599-04:00",
+  "equity": 29682.74,
+  "equity_xtb": 29682.74,
+  "leido": "2026-10-15T18:02:42.620411-04:00",
   "posiciones": [],
-  "saldo": 29682.77,
+  "saldo": 29682.74,
   "stops": {},
   "valor_posiciones": 0.0
 }
