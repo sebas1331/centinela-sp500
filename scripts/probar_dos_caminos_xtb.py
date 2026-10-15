@@ -68,6 +68,13 @@ def main() -> int:
         q = b.cotizacion(SIMBOLO)
         log(f"{SIMBOLO}: bid {q['bid']} / ask {q['ask']}")
 
+        # El criterio de ÉXITO es el mismo para los dos: ¿acabó XTB con la
+        # posición? (no la cadena de estado, que A promueve a 'ejecutada' con su
+        # confirmación y B deja en 'en_cola' por usar una más simple).
+        def _tiene_F() -> int:
+            return int(sum(p["acciones"] for p in b.posiciones()
+                           if p["lado"] == "buy" and p["ticker"].replace(".US", "") == "F"))
+
         # --- Camino A: el del ejecutor automático --------------------------
         log("\n=== A) EJECUTOR AUTOMÁTICO (enviar_resolviendo + comprar) ===")
         ea = amb.enviar_resolviendo(
@@ -76,6 +83,9 @@ def main() -> int:
         log(f"A resultado: estado={ea.estado} orden={ea.orden} precio={ea.precio}"
             + (f" ERROR: {ea.error}" if ea.error else ""))
         log(f"A stream OrderService: {_motivo_stream(b, ea.orden)}")
+        time.sleep(2)
+        a_entro = ea.estado == "ejecutada" or _tiene_F() >= 1
+        log(f"A entró en XTB: {'sí' if a_entro else 'no'}")
         _cerrar_todo(b)
         time.sleep(3)
 
@@ -85,17 +95,15 @@ def main() -> int:
         log(f"B respuesta inmediata: estado={eb.estado} orden={eb.orden} "
             f"precio={eb.precio}" + (f" ERROR: {eb.error}" if eb.error else ""))
         log(f"B stream OrderService: {_motivo_stream(b, eb.orden)}")
-        # Confirmación por posición, como hace el diagnóstico.
         time.sleep(2)
-        tiene = [p for p in b.posiciones()
-                 if p["lado"] == "buy" and p["ticker"].replace(".US", "") == "F"]
-        log(f"B confirmación por posición: XTB tiene {int(sum(p['acciones'] for p in tiene))} F")
+        b_entro = _tiene_F() >= 1
+        log(f"B entró en XTB: {'sí' if b_entro else 'no'}")
         _cerrar_todo(b)
 
         log("\n=== VEREDICTO ===")
-        log(f"A (ejecutor) -> {ea.estado}")
-        log(f"B (script)   -> {eb.estado}")
-        if ea.estado == eb.estado:
+        log(f"A (ejecutor) -> entró: {'sí' if a_entro else 'no'}")
+        log(f"B (script)   -> entró: {'sí' if b_entro else 'no'}")
+        if a_entro == b_entro:
             log("Mismo resultado por los dos caminos: la diferencia NO está en el "
                 "código del envío.")
         else:
