@@ -373,6 +373,39 @@ class BrokerXTB:
                 self._loop.close()
             self._loop = None
 
+    def asegurar_conexion(self) -> bool:
+        """Reconecta si la sesión se cayó. Devuelve True si quedó conectada.
+
+        POR QUÉ (fallo del 2026-10-15). La reposición de compras duerme 5 min
+        entre intentos; XTB cierra el WebSocket ocioso en ese rato y el ejecutor
+        no reconectaba, así que a partir del primer sueño TODA lectura fallaba
+        con `XTBConnectionError('Not connected')` y el gate decía 'esperar' hasta
+        agotar la hora. Resultado: 0 de 9 compras, no por el rechazo de la
+        apertura sino porque la reposición no llegaba viva a la ventana (09:58+)
+        en la que XTB sí ejecuta. El vigilante no lo sufre porque transmite ticks
+        (keepalive) y reconecta; el ejecutor, que solo sondea, necesita esto.
+
+        Reconectar reusa la caché de sesión (login en ~2 s, sin 2FA). El candado
+        de demo se VUELVE a verificar: una reconexión no puede saltárselo.
+        """
+        try:
+            self._ejecutar(self._cliente.get_balance())      # sonda barata
+            return True
+        except Exception:  # noqa: BLE001 — la sonda falla => hay que reconectar
+            pass
+        try:
+            self._cliente = self._crear_cliente()            # WebSocket nuevo
+            self._ejecutar(self._cliente.connect())
+            self._conectado = True
+            self._verificar_demo()
+            self._ejecutar(self._cliente.get_balance())      # confirma que va
+            print("[broker] sesión caída; reconectada reusando la caché.",
+                  flush=True)
+            return True
+        except Exception as exc:  # noqa: BLE001 — no poder reconectar no es rojo aquí
+            print(f"[broker] no se pudo reconectar: {exc!r}", flush=True)
+            return False
+
     def _crear_cliente(self):
         try:
             from xtb_api import XTBClient

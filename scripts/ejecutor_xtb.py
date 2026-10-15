@@ -411,7 +411,7 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
                 broker, o.simbolo, o.tipo,
                 lambda: broker.comprar(o.simbolo, o.acciones,
                                        objetivo=o.objetivo, stop=o.stop),
-                id_orden=o.id)
+                id_orden=o.id, escuchar_contado=_motivo_contado)
         else:
             # El bid de justo antes, como referencia para deducir el precio si
             # XTB no lo devuelve (ver ambiguas.deducir_precio_venta). Aquí no hay
@@ -451,6 +451,49 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
                       "ya_estaban": ya_estaban,
                       "no_disponibles": no_disponibles}
     return hechas
+
+
+#: Cuánto se escucha el stream de OrderService tras enviar cada orden para
+#: capturar el estado y el motivo literal con que XTB la resuelve. El rechazo
+#: asíncrono de la apertura llega en segundos; 20 s lo cubre.
+ESCUCHA_CONTADO_SEG = 20.0
+
+
+def _motivo_contado(broker, simbolo, numero, segundos=None):
+    """El estado y el motivo LITERAL de la orden `numero` según el stream de
+    OrderService, escuchado en el momento. Devuelve (estado, motivo).
+
+    No deduce nada: anota la secuencia de estados que XTB emite (p. ej.
+    ACCEPTED -> REJECTED, o ACCEPTED y luego purgada) y el mensaje gRPC si lo
+    hay. Es lo que convierte 'XTB no tiene ni posición ni orden' (deducido) en
+    lo que XTB de verdad dijo."""
+    if not hasattr(broker, "eventos_contado"):
+        return (None, "")
+    segundos = ESCUCHA_CONTADO_SEG if segundos is None else segundos
+    secuencia, grpc_msgs, estado = [], [], None
+    try:
+        for ev in broker.eventos_contado(segundos):
+            if ev.get("event") == "CIERRE":
+                if ev.get("grpc_message"):
+                    grpc_msgs.append(str(ev["grpc_message"]))
+                continue
+            for o in ev.get("orders", []):
+                if str(o.get("order_id")) != str(numero):
+                    continue
+                st = o.get("status")
+                if st and (not secuencia or secuencia[-1] != st):
+                    secuencia.append(st)
+                    estado = st
+    except Exception as exc:  # noqa: BLE001 — escuchar no puede tumbar el envío
+        return (None, f"(stream OrderService no disponible: {exc!r})")
+    partes = []
+    if secuencia:
+        partes.append("OrderService: " + " -> ".join(secuencia))
+    elif estado is None:
+        partes.append("OrderService: la orden no llegó a aparecer (aceptada y "
+                      "purgada sin estado)")
+    partes.extend(f"grpc: {m}" for m in dict.fromkeys(grpc_msgs))
+    return (estado, "; ".join(partes))
 
 
 #: Reposición automática de compras rechazadas. XTB acepta la compra a mercado
@@ -554,13 +597,14 @@ def reponer_automatico(broker: bx.BrokerXTB, pendientes: dict, registro: dict,
     intentos: dict[str, int] = {}
 
     while True:
-        faltan = [o for t, o in decididas.items() if not _ya_entro(broker, t, hoy)]
-        if not faltan:
-            log("reposición: todas las compras de hoy han entrado.")
-            break
-
+        # El tope de 60 min se comprueba SIEMPRE, aunque no haya conexión, para
+        # no quedarse en un bucle infinito reintentando reconectar.
         min_tras = (ahora_fn() - apertura).total_seconds() / 60
         if min_tras >= REPOSICION_HASTA_MIN:
+            faltan = [o for t, o in decididas.items()
+                      if not _ya_entro(broker, t, hoy)]
+            if not faltan:
+                break
             problemas = []
             for o in faltan:
                 msg = (f"{o.ticker}: reposición agotada. XTB siguió rechazando la "
@@ -572,6 +616,21 @@ def reponer_automatico(broker: bx.BrokerXTB, pendientes: dict, registro: dict,
             log(f"❌ reposición agotada para {[o.ticker for o in faltan]}")
             _recontar_compras(broker, decididas, hoy)
             return problemas
+
+        # La sesión del WebSocket se cae en los 5 min de sueño (XTB cierra el
+        # socket ocioso). Sin esto, a partir del primer sueño TODA lectura
+        # fallaba y el gate decía 'esperar' hasta agotar la hora: 0 de 9 el
+        # 15/10. Reconectar reusa la caché (~2 s) y vuelve a pasar el candado.
+        if hasattr(broker, "asegurar_conexion") and not broker.asegurar_conexion():
+            log("  reposición: sin conexión con XTB este ciclo; se reintenta "
+                "en el siguiente.")
+            dormir(REPOSICION_CADA_MIN * 60)
+            continue
+
+        faltan = [o for t, o in decididas.items() if not _ya_entro(broker, t, hoy)]
+        if not faltan:
+            log("reposición: todas las compras de hoy han entrado.")
+            break
 
         for o in faltan:
             verdicto, motivo = amb.listo_para_reponer(
@@ -594,7 +653,7 @@ def reponer_automatico(broker: bx.BrokerXTB, pendientes: dict, registro: dict,
                 broker, orden.simbolo, orden.tipo,
                 lambda oo=orden: broker.comprar(oo.simbolo, oo.acciones,
                                                 objetivo=oo.objetivo, stop=oo.stop),
-                id_orden=orden.id)
+                id_orden=orden.id, escuchar_contado=_motivo_contado)
             log(f"    -> {e.estado}" + (f" a {e.precio}" if e.precio else "")
                 + (f" (orden {e.orden})" if e.orden else "")
                 + (f" ERROR: {e.error}" if e.error else ""))

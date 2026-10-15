@@ -334,3 +334,114 @@ def test_un_simbolo_que_no_existe_en_XTB_no_se_reintenta(entorno_reposicion, mon
         ahora_fn=reloj.ahora)
     assert broker.compras == [], "no debió reintentar un símbolo inexistente"
     assert problemas == [], "un descarte no es un rojo de reposición agotada"
+
+
+# --------------------------------------------------------------------------- #
+# Reconexión: la sesión se cae en el sueño y el bucle la recupera
+# --------------------------------------------------------------------------- #
+class BrokerConCaida(BrokerTimeline):
+    """Como BrokerTimeline, pero la sesión está caída los primeros `caidas`
+    ciclos (asegurar_conexion devuelve False) y luego se recupera."""
+
+    def __init__(self, plan, caidas=1, al_comprar=None):
+        super().__init__(plan, al_comprar=al_comprar)
+        self.caidas = caidas
+        self.intentos_conexion = 0
+
+    def asegurar_conexion(self):
+        self.intentos_conexion += 1
+        return self.intentos_conexion > self.caidas
+
+
+def test_una_caida_de_sesion_no_mata_la_reposicion(entorno_reposicion):
+    """EL CASO DEL 15/10. La sesión se cayó en el primer sueño y la reposición
+    se quedó 'esperando' hasta agotar la hora: 0 compras. Ahora reconecta: el
+    ciclo sin conexión se salta, y cuando vuelve, repone."""
+    _fila_rechazada(entorno_reposicion, orden_xtb=919)
+    reloj = Reloj(inicio_min_tras_apertura=5, paso_min=5)
+
+    def al_comprar(b):
+        b.plan.append(({"FICO": 2}, []))     # la reposición entra
+        b.paso = len(b.plan) - 1
+
+    broker = BrokerConCaida(
+        plan=[({}, [{"orden": 919, "ticker": "FICO.US",
+                     "estado": "REJECTED", "viva": False}])],
+        caidas=1, al_comprar=al_comprar)
+    problemas = ej.reponer_automatico(
+        broker, _pendientes_fico(), {"enviadas": {}},
+        dormir=lambda s: (reloj.dormir(), broker.avanzar()),
+        ahora_fn=reloj.ahora)
+    assert broker.intentos_conexion >= 2, "debió reintentar la conexión"
+    assert len(broker.compras) == 1, "tras reconectar, repuso una vez"
+    assert problemas == []
+
+
+def test_sin_conexion_toda_la_hora_es_rojo_no_bucle_infinito(entorno_reposicion):
+    """Si la sesión no vuelve nunca, el tope de 60 min se respeta igual: rojo
+    documentado, no un bucle infinito reintentando reconectar."""
+    reloj = Reloj(inicio_min_tras_apertura=5, paso_min=20)   # pasa de 60 pronto
+    broker = BrokerConCaida(
+        plan=[({}, [{"orden": 919, "ticker": "FICO.US",
+                     "estado": "REJECTED", "viva": False}])],
+        caidas=999)                           # nunca reconecta
+    problemas = ej.reponer_automatico(
+        broker, _pendientes_fico(), {"enviadas": {}},
+        dormir=lambda s: (reloj.dormir(), broker.avanzar()),
+        ahora_fn=reloj.ahora)
+    assert broker.compras == []
+    assert problemas and any("agotada" in p for p in problemas)
+
+
+# --------------------------------------------------------------------------- #
+# El motivo literal del stream de OrderService
+# --------------------------------------------------------------------------- #
+class BrokerStream:
+    def __init__(self, eventos):
+        self._eventos = eventos
+
+    def eventos_contado(self, segundos):
+        return self._eventos
+
+
+def test_motivo_contado_captura_la_secuencia_de_estados():
+    """El motivo deja de ser deducido: es lo que XTB emite en el stream."""
+    b = BrokerStream([
+        {"event": "SNAPSHOT", "orders": [{"order_id": 919, "status": "ACCEPTED"}]},
+        {"event": "UPDATE", "orders": [{"order_id": 919, "status": "REJECTED"}]},
+    ])
+    estado, motivo = ej._motivo_contado(b, "FICO.US", 919, segundos=0)
+    assert estado == "REJECTED"
+    assert "ACCEPTED -> REJECTED" in motivo
+
+
+def test_motivo_contado_incluye_el_mensaje_grpc():
+    b = BrokerStream([
+        {"event": "SNAPSHOT", "orders": [{"order_id": 919, "status": "ACCEPTED"}]},
+        {"event": "CIERRE", "orders": [], "grpc_message": "market is closed"},
+    ])
+    _, motivo = ej._motivo_contado(b, "FICO.US", 919, segundos=0)
+    assert "grpc: market is closed" in motivo
+
+
+def test_motivo_contado_dice_cuando_la_orden_ni_aparece():
+    b = BrokerStream([{"event": "SNAPSHOT", "orders": []}])
+    estado, motivo = ej._motivo_contado(b, "FICO.US", 919, segundos=0)
+    assert estado is None and "purgada" in motivo
+
+
+def test_enviar_resolviendo_registra_el_motivo_literal(entorno_reposicion):
+    """El motivo que llega a la bitácora deja de ser deducido ('no tiene ni
+    posición ni orden') y pasa a ser lo que XTB dijo en el stream."""
+    b = BrokerContado(contado=[{"orden": 777, "ticker": "FICO.US",
+                                "estado": "REJECTED", "viva": False}])
+    escuchar = lambda broker, simbolo, numero: (
+        "REJECTED", "OrderService: PENDING_NEW -> ACCEPTED -> REJECTED")
+    e = amb.enviar_resolviendo(
+        b, "FICO.US", ords.COMPRA,
+        lambda: bx.Ejecucion(ticker="FICO.US", lado="compra", acciones=2,
+                             estado="en_cola", orden=777),
+        dormir=lambda *_: None, id_orden="2026-10-15|A|FICO|compra",
+        escuchar_contado=escuchar)
+    assert e.estado == "rechazada"
+    assert "ACCEPTED -> REJECTED" in (e.error or "")

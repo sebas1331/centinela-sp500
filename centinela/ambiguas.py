@@ -218,12 +218,20 @@ REINTENTOS = 2
 
 def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
                        dormir=time.sleep, id_orden: str = "",
-                       referencia: float | None = None):
+                       referencia: float | None = None,
+                       escuchar_contado=None):
     """Manda una orden y, si el broker no sabe qué pasó, lo averigua.
 
     `mandar` es una función sin argumentos que devuelve una `Ejecucion`: así
     esta lógica vale igual para una compra que para una venta, y no necesita
     saber cuál de las dos está haciendo.
+
+    `escuchar_contado(broker, simbolo, numero) -> (estado, motivo)` se llama, si
+    se pasa, JUSTO tras enviar una orden que XTB aceptó, para escuchar el stream
+    de OrderService y capturar el ESTADO y el MOTIVO LITERAL con el que XTB la
+    resuelve (incluido el rechazo asíncrono de la apertura). Así el motivo que
+    se registra deja de ser deducido ('no tiene ni posición ni orden') y pasa a
+    ser lo que XTB dice. Por defecto None: los tests no lo necesitan.
 
     Devuelve la `Ejecucion` final. Cuando una ambigua resulta haber entrado, se
     devuelve como ejecutada —porque lo está— pero con el estado anotado en el
@@ -238,6 +246,23 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
         entrada_antes = _precio_entrada(broker, simbolo) if lado == "venta" else None
         saldo_antes = _saldo(broker)
         e = ultimo = mandar()
+
+        # El MOTIVO LITERAL, en el momento: nada más aceptar la orden se escucha
+        # el stream de OrderService, que es donde XTB cuenta —en segundos— qué
+        # hace con ella (ACCEPTED -> REJECTED en la apertura). Se captura antes de
+        # la confirmación por sondeo para no perderse el evento, que XTB purga
+        # enseguida. Sin intervención manual.
+        motivo_contado = ""
+        if escuchar_contado is not None and getattr(e, "orden", None):
+            try:
+                estado_c, motivo_contado = escuchar_contado(broker, simbolo, e.orden)
+                print(f"[OrderService] {simbolo} orden {e.orden}: "
+                      f"{estado_c or '?'} — {motivo_contado or 'sin motivo'}",
+                      flush=True)
+            except Exception as exc:  # noqa: BLE001 — escuchar no puede tumbar el envío
+                print(f"[OrderService] no se pudo escuchar ({exc!r}); se sigue.",
+                      flush=True)
+                motivo_contado = ""
 
         if e.ok:
             # "Aceptada" no es "ejecutada". XTB devuelve QUEUED con el mercado
@@ -264,6 +289,8 @@ def enviar_resolviendo(broker, simbolo: str, tipo: str, mandar,
                     e.error = (f"PARCIAL: XTB movió {e.acciones_hechas} de "
                                f"{e.acciones} acciones")
             if real == "rechazada":
+                # El motivo del stream (lo que XTB dijo) manda sobre el deducido.
+                porque = f"{motivo_contado} | {porque}" if motivo_contado else porque
                 e.error = porque
                 fiabilidad.anotar(fiabilidad.RECHAZADA, simbolo, tipo, porque,
                                   id_orden=id_orden)

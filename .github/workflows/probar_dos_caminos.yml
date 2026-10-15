@@ -1,0 +1,52 @@
+name: Probar los dos caminos de compra
+
+# ---------------------------------------------------------------------------
+# Manda 1 acción de F por el camino del EJECUTOR AUTOMÁTICO y por el del SCRIPT
+# que sí funcionó, con el mercado abierto, y compara. Si una entra y otra no, la
+# diferencia está en el código del envío. Manual: se lanza a mano en sesión.
+# F no es un ticker de la estrategia; la posición se vende al terminar.
+# ---------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: centinela-escritura
+  cancel-in-progress: false
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt -r requirements-broker.txt
+
+      - name: Instalar Chromium para el login
+        uses: ./.github/actions/chromium
+
+      - name: Restaurar sesión de XTB
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.centinela_xtb_session
+            ~/.centinela_xtb_ticket.json
+            ~/.centinela_xtb_cookies.json
+          key: xtb-sesion-${{ github.run_id }}
+          restore-keys: xtb-sesion-
+
+      - name: Comparar los dos caminos (1 acción de F)
+        env:
+          XTB_EMAIL: ${{ secrets.XTB_EMAIL }}
+          XTB_CUENTA: ${{ secrets.XTB_CUENTA }}
+          XTB_PASSWORD: ${{ secrets.XTB_PASSWORD }}
+        run: python scripts/probar_dos_caminos_xtb.py
