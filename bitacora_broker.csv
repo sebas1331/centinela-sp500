@@ -19,3 +19,4 @@ id,sesion,cuando_et,cartera,ticker,simbolo_xtb,tipo,acciones,estado,precio,orden
 2026-10-15|A|BE|entrada_tardia|r1,2026-10-15,2026-10-15T09:36:40.071043-04:00,A,BE,BE.US,entrada_tardia,7,rechazada,,919874074,302.35,210.62,,257.5,,XTB no tiene ni posición ni orden de BE.US tras 5 de 5 comprobaciones,
 2026-10-15|A|CIEN|entrada_tardia|r1,2026-10-15,2026-10-15T09:37:00.137298-04:00,A,CIEN,CIEN.US,entrada_tardia,4,rechazada,,919874294,512.99,316.45,,393.8800048828125,,XTB no tiene ni posición ni orden de CIEN.US tras 5 de 5 comprobaciones,
 2026-10-15|A|SKYD|entrada_tardia|r1,2026-10-15,2026-10-15T09:37:20.167160-04:00,A,SKYD,PSKY.US,entrada_tardia,239,rechazada,,919874506,9.42,6.21,,7.599999904632568,,XTB no tiene ni posición ni orden de PSKY.US tras 5 de 5 comprobaciones,
+2026-10-16|A|COHR|compra,2026-10-16,2026-10-16T09:35:25.626418-04:00,A,COHR,COHR.US,compra,6,no_disponible,,,341.76,220.53,250.6,,,no disponible en XTB como acción al contado,
