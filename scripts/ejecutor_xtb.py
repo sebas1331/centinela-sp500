@@ -264,11 +264,25 @@ def resultado_explicito(momento: str, motivo_cero: str = "") -> str:
                 + (f" ({r['ya_estaban']} ya las había hecho el vigilante)"
                    if r["ya_estaban"] else ""))
     cubiertas = r["enviadas"] + r["ya_estaban"]
-    if r["decididas"] == 0:
-        return f"ok: 0 órdenes — {motivo_cero or 'no se decidió ninguna entrada'}"
-    detalle = f"ok: {cubiertas} de {r['decididas']} órdenes"
+    # Una entrada descartada por no existir en XTB es un desenlace legítimo, no
+    # una orden que faltó: sale del denominador. El 16/10 COHR era la ÚNICA
+    # decisión del día y se descartó así; "0 de 1 órdenes" lo leía como fallo.
+    nd = r.get("no_disponibles", 0)
+    efectivas = r["decididas"] - nd
+    if efectivas <= 0:
+        nombres = r.get("no_disponibles_tickers")
+        if nombres:
+            detalle = (", ".join(nombres)
+                       + (" no disponible" if len(nombres) == 1
+                          else " no disponibles") + " en XTB")
+        else:
+            detalle = motivo_cero or "no se decidió ninguna entrada"
+        return f"ok: 0 órdenes — {detalle}"
+    detalle = f"ok: {cubiertas} de {efectivas} órdenes"
     if r["ya_estaban"]:
         detalle += f" ({r['ya_estaban']} ya estaban enviadas)"
+    if nd:
+        detalle += f" ({nd} no disponible{'s' if nd > 1 else ''} en XTB)"
     return detalle
 
 
@@ -358,7 +372,7 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         return []
     log(f"{len(cola)} orden(es) de tipo {tipo} para {hoy}.")
 
-    hechas, ya_estaban, no_disponibles = [], 0, 0
+    hechas, ya_estaban, no_disponibles, nd_tickers = [], 0, 0, []
     for o in cola:
         if ords.ya_enviada(registro, o.id):
             log(f"  {o.id}: ya enviada, se omite.")
@@ -378,6 +392,7 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
             ords.registrar_ejecucion(o, e)
             ords.marcar_enviada(registro, o.id, {"estado": ords.NO_DISPONIBLE})
             no_disponibles += 1
+            nd_tickers.append(o.ticker)
             continue
         # Antes de vender, preguntarle a XTB si la posición sigue ahí. Desde
         # que existe el vigilante de precios hay dos procesos que pueden cerrar
@@ -449,7 +464,8 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
     ENVIADAS[tipo] = {"decididas": len(cola),
                       "enviadas": sum(1 for _, e in hechas if e.ok),
                       "ya_estaban": ya_estaban,
-                      "no_disponibles": no_disponibles}
+                      "no_disponibles": no_disponibles,
+                      "no_disponibles_tickers": nd_tickers}
     return hechas
 
 
@@ -1429,16 +1445,22 @@ def main() -> int:
     # en verde es exactamente el fallo que esta sesión vino a cerrar.
     tipo = {"compras": ords.COMPRA, "ventas": ords.VENTA_TIEMPO}.get(args.momento)
     r = ENVIADAS.get(tipo) if tipo else None
-    if r and r["enviadas"] + r["ya_estaban"] < r["decididas"]:
-        faltan = r["decididas"] - r["enviadas"] - r["ya_estaban"]
-        msg = (f"Se decidieron {r['decididas']} orden(es) de {tipo} para hoy y "
-               f"solo {r['enviadas'] + r['ya_estaban']} llegaron al broker: "
-               f"faltan {faltan}.")
-        print(f"::error::{msg}", flush=True)
-        salud.registrar(_COMPONENTE[args.momento], "fallo:envio-incompleto", msg)
-        publicar_resultado("fallo:envio-incompleto")
-        log(f"❌ {msg}")
-        return 1
+    if r:
+        # Una entrada descartada por no existir en XTB no es una orden que
+        # faltó: no se envía a propósito y no cuenta en la fiabilidad. Sale del
+        # denominador, o el 16/10 COHR (única decisión) pintaba un rojo falso.
+        objetivo = r["decididas"] - r.get("no_disponibles", 0)
+        if r["enviadas"] + r["ya_estaban"] < objetivo:
+            faltan = objetivo - r["enviadas"] - r["ya_estaban"]
+            msg = (f"Se decidieron {objetivo} orden(es) de {tipo} para hoy y "
+                   f"solo {r['enviadas'] + r['ya_estaban']} llegaron al broker: "
+                   f"faltan {faltan}.")
+            print(f"::error::{msg}", flush=True)
+            salud.registrar(_COMPONENTE[args.momento], "fallo:envio-incompleto",
+                            msg)
+            publicar_resultado("fallo:envio-incompleto")
+            log(f"❌ {msg}")
+            return 1
 
     resultado = resultado_explicito(args.momento, motivo_de_cero(args.momento))
     salud.registrar(_COMPONENTE[args.momento], resultado)

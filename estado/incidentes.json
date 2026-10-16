@@ -1,5 +1,5 @@
 {
- "actualizado": "2026-10-14T10:00:00.000000-04:00",
+ "actualizado": "2026-10-16T09:50:57.899172-04:00",
  "incidentes": [
   {
    "arreglado": "2026-10-14",
@@ -98,6 +98,25 @@
     "2026-10-05|A|WDC|compra"
    ],
    "titulo": "Compra descartada por XTB al mandarla nada más abrir"
+  },
+  {
+   "arreglado": "2026-10-15",
+   "arreglo": "La reposición reconecta al inicio de cada ciclo con broker.asegurar_conexion() (reusa la caché en ~2 s y vuelve a pasar el candado de demo); si no hay conexión salta el ciclo sin bloquearse y respeta el tope de 60 min. Además, el ejecutor y la reposición se suscriben al stream de OrderService tras cada envío y anotan el estado y el motivo literal con que XTB resuelve la orden.",
+   "causa": "El 15/10 las tres compras del día (BE, CIEN y SKYD/PSKY) se rechazaron en los primeros minutos y la reposición tenía que reintentarlas hasta 60 min tras la apertura, que es la ventana en la que XTB sí ejecuta (WDC entró a las 09:58 el 05/10). Pero el WebSocket se cae en los 5 min de sueño entre vueltas (XTB cierra el socket ocioso) y la reposición no reconectaba: tras la primera ronda (~09:37) toda lectura lanzaba XTBConnectionError de 09:42 a 10:32, el gate decía 'esperar' y no se reintentó ni una vez más. Resultado: 0 de 9 (3 compras + sus reposiciones) y rojo a los 60 min. El contenido de la orden era idéntico al de las que sí entraron; la causa era la conexión, no el envío (comprobado el mismo día mandando 1 F por el camino del ejecutor y por el del script directo: entraron las dos).",
+   "commit": "930bb4a",
+   "componentes": [
+    "compras"
+   ],
+   "fecha": "2026-10-15",
+   "ordenes": [
+    "2026-10-15|A|BE|compra",
+    "2026-10-15|A|CIEN|compra",
+    "2026-10-15|A|SKYD|compra",
+    "2026-10-15|A|BE|entrada_tardia|r1",
+    "2026-10-15|A|CIEN|entrada_tardia|r1",
+    "2026-10-15|A|SKYD|entrada_tardia|r1"
+   ],
+   "titulo": "Reposición de compras que perdía la conexión: 0 de 9 el 15/10"
   }
  ]
 }

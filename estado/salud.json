@@ -10,8 +10,8 @@
     },
     "compras": {
       "cuando": "2026-10-16T09:35:30.420093-04:00",
-      "detalle": "Se decidieron 1 orden(es) de compra para hoy y solo 0 llegaron al broker: faltan 1.",
-      "resultado": "fallo:envio-incompleto",
+      "detalle": "",
+      "resultado": "ok: 0 órdenes — COHR no disponible en XTB",
       "run": "38895295527",
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38895295527"
     },

@@ -144,6 +144,31 @@ def test_un_simbolo_que_XTB_no_ofrece_no_se_envia_ni_cuenta(aislado, monkeypatch
     assert registro["enviadas"], "debió quedar registrada para no reintentar hoy"
 
 
+def test_la_unica_decision_no_disponible_es_ok_no_envio_incompleto(aislado,
+                                                                   monkeypatch):
+    """16/10: COHR era la ÚNICA decisión del día y XTB no lo ofrece. El ejecutor
+    lo descarta como no disponible y eso es un desenlace legítimo: el veredicto
+    es 'ok: 0 órdenes — COHR no disponible en XTB', NO 'fallo:envio-incompleto'
+    (se decidió 1 y llegaron 0). El descarte sale del denominador de la puerta
+    roja del main(), que es donde se pintaba el falso rojo."""
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-09-25"))
+    monkeypatch.setattr(ej.disp, "disponible",
+                        lambda broker, simbolo, *a, **k: simbolo != "COHR.US")
+    ej.ENVIADAS.clear()
+    ej.enviar(BrokerFalso(), _pendientes(_orden(ticker="COHR")), "compras",
+              {"enviadas": {}})
+
+    r = ej.ENVIADAS[ords.COMPRA]
+    assert r["decididas"] == 1 and r["enviadas"] == 0
+    assert r["no_disponibles"] == 1 and r["no_disponibles_tickers"] == ["COHR"]
+    assert ej.resultado_explicito("compras") == \
+        "ok: 0 órdenes — COHR no disponible en XTB"
+    # La puerta roja del main() resta las no disponibles: no hay hueco que pintar.
+    objetivo = r["decididas"] - r["no_disponibles"]
+    assert not (r["enviadas"] + r["ya_estaban"] < objetivo), \
+        "un descarte por no disponible no puede contar como envío incompleto"
+
+
 def test_el_registro_sobrevive_al_disco(aislado, monkeypatch):
     monkeypatch.setattr(ej, "datetime", _reloj("2026-09-25"))
     broker = BrokerFalso()
