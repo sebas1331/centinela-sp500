@@ -179,3 +179,9 @@ BE | dd=32.7% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Car
 CIEN | dd=66.3% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 COHR | dd=43.0% | prob=0.873 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
+
+===== escaneo postcierre 2026-10-16 18:00:57 ET =====
+POST-CIERRE 2026-10-16
+entradas ejecutadas: ['COHR']
+cambios de objetivo: 2
+cierres: [('WDC', 'B', 'tiempo', -0.2278)]

@@ -1,23 +1,7 @@
 {
-  "actualizado": "2026-10-16T08:45:56.965305-04:00",
-  "contador_grupo": 98,
-  "entradas_pendientes": [
-    {
-      "atr": 22.8743,
-      "carteras": [
-        "A"
-      ],
-      "fecha_decision": "2026-10-16",
-      "notas": "prob=0.873 score_fund=53.3 sent=0.0 (n=0)",
-      "proba": 0.8726,
-      "resistencia": 341.76,
-      "score_fundamental": 53.3,
-      "sector": "Information Technology",
-      "target_analista": 410.43317,
-      "ticker": "COHR",
-      "timestamp_escaneo": "2026-10-16T08:45:05.001049-04:00"
-    }
-  ],
+  "actualizado": "2026-10-16T18:00:57.137400-04:00",
+  "contador_grupo": 99,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -51,10 +35,15 @@
             "fecha": "2026-10-15",
             "motivo": "recálculo: ATR=51.58, resistencia=970.46",
             "objetivo": 970.46
+          },
+          {
+            "fecha": "2026-10-16",
+            "motivo": "recálculo: ATR=50.08, resistencia=967.99",
+            "objetivo": 967.99
           }
         ],
         "id": 166,
-        "objetivo": 970.46,
+        "objetivo": 967.99,
         "objetivo_inicial": 779.6816,
         "portafolio": "A",
         "proba": 0.8308,
@@ -136,52 +125,32 @@
         "sector": "Communication Services",
         "stop": 6.2128,
         "ticker": "SKYD"
+      },
+      {
+        "atr_entrada": 22.8743,
+        "dia_limite": "2026-10-29",
+        "entrada": 247.59,
+        "fecha_entrada": "2026-10-16",
+        "grupo": 99,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-10-16",
+            "motivo": "objetivo inicial",
+            "objetivo": 341.76
+          }
+        ],
+        "id": 176,
+        "objetivo": 341.76,
+        "objetivo_inicial": 341.76,
+        "portafolio": "A",
+        "proba": 0.8726,
+        "score_fundamental": 53.3,
+        "sector": "Information Technology",
+        "stop": 217.8792,
+        "ticker": "COHR"
       }
     ],
     "B": [
-      {
-        "atr_entrada": 28.9787,
-        "dia_limite": "2026-10-16",
-        "entrada": 429.935,
-        "fecha_entrada": "2026-10-05",
-        "grupo": 92,
-        "historial_objetivos": [
-          {
-            "fecha": "2026-10-05",
-            "motivo": "objetivo inicial",
-            "objetivo": 495.49
-          },
-          {
-            "fecha": "2026-10-07",
-            "motivo": "recálculo: ATR=28.51, resistencia=475.66",
-            "objetivo": 486.9561
-          },
-          {
-            "fecha": "2026-10-08",
-            "motivo": "recálculo: ATR=27.68, resistencia=475.66",
-            "objetivo": 485.2897
-          },
-          {
-            "fecha": "2026-10-09",
-            "motivo": "recálculo: ATR=26.58, resistencia=475.66",
-            "objetivo": 483.0887
-          },
-          {
-            "fecha": "2026-10-12",
-            "motivo": "recálculo: ATR=25.49, resistencia=475.66",
-            "objetivo": 480.9191
-          }
-        ],
-        "id": 163,
-        "objetivo": 480.9191,
-        "objetivo_inicial": 495.49,
-        "portafolio": "B",
-        "proba": 0.8125,
-        "score_fundamental": 88.6,
-        "sector": "Information Technology",
-        "stop": null,
-        "ticker": "WDC"
-      },
       {
         "atr_entrada": 54.6456,
         "dia_limite": "2026-10-22",
@@ -236,10 +205,15 @@
             "fecha": "2026-10-15",
             "motivo": "recálculo: ATR=51.58, resistencia=970.46",
             "objetivo": 970.46
+          },
+          {
+            "fecha": "2026-10-16",
+            "motivo": "recálculo: ATR=50.08, resistencia=967.99",
+            "objetivo": 967.99
           }
         ],
         "id": 167,
-        "objetivo": 970.46,
+        "objetivo": 967.99,
         "objetivo_inicial": 779.6816,
         "portafolio": "B",
         "proba": 0.8308,
@@ -354,9 +328,9 @@
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-10-15T18:00:49.549400-04:00",
-      "run": "38800665967",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38800665967"
+      "cuando": "2026-10-16T18:00:57.137384-04:00",
+      "run": "38966345987",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38966345987"
     },
     "preapertura": {
       "cuando": "2026-10-16T08:45:56.965291-04:00",
@@ -364,6 +338,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38895295527"
     }
   },
-  "ultima_postcierre": "2026-10-15",
+  "ultima_postcierre": "2026-10-16",
   "ultima_preapertura": "2026-10-16"
 }
