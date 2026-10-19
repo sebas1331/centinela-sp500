@@ -1,11 +1,93 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 29682.74,
-  "equity_xtb": 29682.74,
-  "leido": "2026-10-16T18:02:30.410628-04:00",
-  "posiciones": [],
-  "saldo": 29682.74,
-  "stops": {},
-  "valor_posiciones": 0.0
+  "equity": 29666.71,
+  "equity_xtb": 21841.87,
+  "leido": "2026-10-19T09:49:55.726702-04:00",
+  "posiciones": [
+    {
+      "acciones": 2.0,
+      "coste": null,
+      "invertido": 1330.58,
+      "pnl": 1.76,
+      "precio_actual": 666.17,
+      "precio_entrada": 665.29,
+      "precio_fuente": "cotizacion",
+      "ticker": "STX.US",
+      "valor": 1332.34
+    },
+    {
+      "acciones": 18.0,
+      "coste": null,
+      "invertido": 1662.84,
+      "pnl": -14.58,
+      "precio_actual": 91.57,
+      "precio_entrada": 92.38,
+      "precio_fuente": "cotizacion",
+      "ticker": "FLEX.US",
+      "valor": 1648.26
+    },
+    {
+      "acciones": 52.0,
+      "coste": null,
+      "invertido": 1716.0,
+      "pnl": -2.08,
+      "precio_actual": 32.96,
+      "precio_entrada": 33.0,
+      "precio_fuente": "cotizacion",
+      "ticker": "SMCI.US",
+      "valor": 1713.92
+    },
+    {
+      "acciones": 5.0,
+      "coste": null,
+      "invertido": 1747.45,
+      "pnl": 0.35,
+      "precio_actual": 349.56,
+      "precio_entrada": 349.49,
+      "precio_fuente": "cotizacion",
+      "ticker": "WDC.US",
+      "valor": 1747.8
+    },
+    {
+      "acciones": 1.0,
+      "coste": null,
+      "invertido": 1384.0,
+      "pnl": -1.48,
+      "precio_actual": 1382.52,
+      "precio_entrada": 1384.0,
+      "precio_fuente": "cotizacion",
+      "ticker": "SNDK.US",
+      "valor": 1382.52
+    }
+  ],
+  "saldo": 21841.87,
+  "stops": {
+    "FLEX.US": {
+      "acciones": 18.0,
+      "orden": 920686612,
+      "precio": 79.6
+    },
+    "SMCI.US": {
+      "acciones": 52.0,
+      "orden": 920686625,
+      "precio": 27.83
+    },
+    "SNDK.US": {
+      "acciones": 1.0,
+      "orden": 920686639,
+      "precio": 1143.38
+    },
+    "STX.US": {
+      "acciones": 2.0,
+      "orden": 920686673,
+      "precio": 562.33
+    },
+    "WDC.US": {
+      "acciones": 5.0,
+      "orden": 920686683,
+      "precio": 292.16
+    }
+  },
+  "valor_posiciones": 7824.84
 }

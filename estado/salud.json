@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-19T06:16:07.816052-04:00",
+  "actualizado": "2026-10-19T09:49:56.448388-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-16T14:41:09.741937-04:00",
@@ -9,11 +9,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38949071490"
     },
     "compras": {
-      "cuando": "2026-10-16T09:35:30.420093-04:00",
+      "cuando": "2026-10-19T09:49:56.448388-04:00",
       "detalle": "",
-      "resultado": "ok: 0 órdenes — COHR no disponible en XTB",
-      "run": "38895295527",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38895295527"
+      "resultado": "ok: 5 de 5 órdenes",
+      "run": "39242535504",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39242535504"
     },
     "postcierre": {
       "cuando": "2026-10-16T21:16:24.519640-04:00",

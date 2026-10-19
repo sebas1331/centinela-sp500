@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-16T09:35:25.630146-04:00",
+  "actualizado": "2026-10-19T09:49:39.423565-04:00",
   "enviadas": {
     "2026-09-30|A|FICO|compra": {
       "cuando": "2026-09-30T08:47:39.239857-04:00",
@@ -31,6 +31,31 @@
     "2026-10-16|A|COHR|compra": {
       "cuando": "2026-10-16T09:35:25.630129-04:00",
       "estado": "no_disponible"
+    },
+    "2026-10-19|A|FLEX|entrada_tardia|r2": {
+      "cuando": "2026-10-19T09:48:47.427380-04:00",
+      "estado": "ejecutada",
+      "orden": 920686062
+    },
+    "2026-10-19|A|SMCI|entrada_tardia|r2": {
+      "cuando": "2026-10-19T09:49:39.423556-04:00",
+      "estado": "ejecutada",
+      "orden": 920686375
+    },
+    "2026-10-19|A|SNDK|entrada_tardia|r2": {
+      "cuando": "2026-10-19T09:49:13.416027-04:00",
+      "estado": "ejecutada",
+      "orden": 920686249
+    },
+    "2026-10-19|A|STX|entrada_tardia|r2": {
+      "cuando": "2026-10-19T09:47:55.390784-04:00",
+      "estado": "ejecutada",
+      "orden": 920685674
+    },
+    "2026-10-19|A|WDC|entrada_tardia|r2": {
+      "cuando": "2026-10-19T09:48:21.422283-04:00",
+      "estado": "ejecutada",
+      "orden": 920685923
     }
   }
 }
