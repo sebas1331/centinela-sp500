@@ -350,6 +350,26 @@ def test_lo_que_el_broker_hace_queda_en_el_diario_antes_que_en_ningun_sitio():
     assert ops[:2] == ["orden", "enviada"]
 
 
+def test_la_cache_de_disponibilidad_esta_ignorada_para_no_romper_el_diario():
+    """El 2026-10-19 el job ejecutor terminó en failure tras comprar 5 posiciones
+    y ponerles su stop: el guard de publicar_diario.py vio estado/xtb_disponibles.json
+    —la caché diaria de disponibilidad que el ejecutor escribe en el pre-chequeo—
+    como un cambio suelto que el diario no publica y rompió en rojo. Esa caché es
+    regenerable (se reinicia sola cada día) y NO es un dato que haya que publicar:
+    va en .gitignore para que el guard (git status) no la vea. Si alguien la pone
+    en diario.RUTAS en vez de ignorarla, o deja de ignorarla, este test lo caza."""
+    from centinela import disponibilidad
+    rel = disponibilidad.ARCHIVO.resolve().relative_to(RAIZ).as_posix()
+    assert rel not in diario.RUTAS, (
+        "la caché de disponibilidad no es un dato publicable del diario: se "
+        "ignora, no se añade a RUTAS")
+    r = subprocess.run(["git", "check-ignore", rel],
+                       cwd=str(RAIZ), capture_output=True, text=True)
+    assert r.returncode == 0 and r.stdout.strip() == rel, (
+        f"{rel} tiene que estar en .gitignore, o el guard de publicar_diario.py "
+        f"rompe el job ejecutor en rojo aunque las compras y sus stops entren")
+
+
 # --------------------------------------------------------------------------- #
 # 4. La reconciliación detecta una venta de XTB que no está registrada
 # --------------------------------------------------------------------------- #

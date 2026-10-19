@@ -11,3 +11,10 @@ __pycache__/
 
 # Resultados intermedios del backtest (el .md sí se versiona)
 reportes/backtest_inicial.json
+
+# Caché diaria de disponibilidad de XTB (qué símbolos ofrece como acción al
+# contado). Regenerable: se reinicia sola cada día y el diario NO la publica. Si
+# se versionara, el guard de publicar_diario.py la vería como un cambio suelto y
+# rompería el job ejecutor en rojo aunque las compras y sus stops hubieran
+# entrado (fallo del 2026-10-19, run 39242535504).
+estado/xtb_disponibles.json
