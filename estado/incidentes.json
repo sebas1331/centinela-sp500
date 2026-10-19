@@ -1,5 +1,5 @@
 {
- "actualizado": "2026-10-16T09:50:57.899172-04:00",
+ "actualizado": "2026-10-19T10:43:05.379341-04:00",
  "incidentes": [
   {
    "arreglado": "2026-10-14",
@@ -117,6 +117,29 @@
     "2026-10-15|A|SKYD|entrada_tardia|r1"
    ],
    "titulo": "Reposición de compras que perdía la conexión: 0 de 9 el 15/10"
+  },
+  {
+   "arreglado": "2026-10-19",
+   "arreglo": "EJECUTOR_COMPRAS_MIN_TRAS_APERTURA pasa de (5, 60) a (15, 60): el primer envío se hace a las 09:45 ET (15 min tras abrir), fuera de la ventana de descarte observada, y la reposición sigue de respaldo hasta los 60 min. El primer intento lleva ahora la apertura del simulador como precio_simulador, para que su coste de ejecución se mida contra la apertura aunque entre ya en el primer envío; el coste se sigue midiendo contra la apertura a propósito, para ver cuánto cuesta esta hora.",
+   "causa": "El descarte silencioso de la apertura no dura unos segundos, dura minutos. La decisión del 2026-10-05 (esperar 5 min; primer envío a las 09:35) era una hipótesis con dos casos y dejaba escrito que si una compra a las 09:35 volvía a perderse quedaba descartada. El 2026-10-19 se perdió: las cinco compras del día (STX, WDC, FLEX, SNDK, SMCI) a las 09:35 y su reposición r1 de las 09:38-09:42 se rechazaron, y solo entraron en la r2 de las 09:47-09:49. El motivo literal capturado del stream de OrderService, en los tres primeros intentos de cada una, fue el mismo: 'la orden no llegó a aparecer (aceptada y purgada sin estado)' — XTB acepta la orden, devuelve número y la purga en silencio.",
+   "commit": "ef81e59",
+   "componentes": [
+    "compras"
+   ],
+   "fecha": "2026-10-19",
+   "ordenes": [
+    "2026-10-19|A|STX|compra",
+    "2026-10-19|A|WDC|compra",
+    "2026-10-19|A|FLEX|compra",
+    "2026-10-19|A|SNDK|compra",
+    "2026-10-19|A|SMCI|compra",
+    "2026-10-19|A|STX|entrada_tardia|r1",
+    "2026-10-19|A|WDC|entrada_tardia|r1",
+    "2026-10-19|A|FLEX|entrada_tardia|r1",
+    "2026-10-19|A|SNDK|entrada_tardia|r1",
+    "2026-10-19|A|SMCI|entrada_tardia|r1"
+   ],
+   "titulo": "XTB descarta las compras de los primeros minutos: primer envío a las 09:45"
   }
  ]
 }
