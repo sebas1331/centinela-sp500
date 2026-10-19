@@ -1,21 +1,77 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-16T18:01:38.832730-04:00",
+  "generado": "2026-10-19T08:46:42.149987-04:00",
   "ordenes": [
     {
-      "acciones": 6,
+      "acciones": 2,
       "cartera": "A",
-      "fecha_limite": "2026-10-29",
-      "id": "2026-10-16|A|COHR|compra",
+      "fecha_limite": "2026-10-30",
+      "id": "2026-10-19|A|STX|compra",
       "id_operacion": null,
-      "objetivo": 341.76,
+      "objetivo": 946.36,
       "precio_simulador": null,
-      "referencia": 250.6,
-      "sesion": "2026-10-16",
-      "stop": 220.53,
-      "ticker": "COHR",
+      "referencia": 639.01,
+      "sesion": "2026-10-19",
+      "stop": 562.33,
+      "ticker": "STX",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 5,
+      "cartera": "A",
+      "fecha_limite": "2026-10-30",
+      "id": "2026-10-19|A|WDC|compra",
+      "id_operacion": null,
+      "objetivo": 475.66,
+      "precio_simulador": null,
+      "referencia": 332.0,
+      "sesion": "2026-10-19",
+      "stop": 292.16,
+      "ticker": "WDC",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 18,
+      "cartera": "A",
+      "fecha_limite": "2026-10-30",
+      "id": "2026-10-19|A|FLEX|compra",
+      "id_operacion": null,
+      "objetivo": 121.84,
+      "precio_simulador": null,
+      "referencia": 90.46,
+      "sesion": "2026-10-19",
+      "stop": 79.6,
+      "ticker": "FLEX",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 1,
+      "cartera": "A",
+      "fecha_limite": "2026-10-30",
+      "id": "2026-10-19|A|SNDK|compra",
+      "id_operacion": null,
+      "objetivo": 1493.83,
+      "precio_simulador": null,
+      "referencia": 1299.3,
+      "sesion": "2026-10-19",
+      "stop": 1143.38,
+      "ticker": "SNDK",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 52,
+      "cartera": "A",
+      "fecha_limite": "2026-10-30",
+      "id": "2026-10-19|A|SMCI|compra",
+      "id_operacion": null,
+      "objetivo": 45.77,
+      "precio_simulador": null,
+      "referencia": 31.63,
+      "sesion": "2026-10-19",
+      "stop": 27.83,
+      "ticker": "SMCI",
       "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-16"
+  "sesion": "2026-10-19"
 }
