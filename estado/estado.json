@@ -1,7 +1,87 @@
 {
-  "actualizado": "2026-10-16T18:00:57.137400-04:00",
+  "actualizado": "2026-10-19T08:46:06.860154-04:00",
   "contador_grupo": 99,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 51.7246,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-10-19",
+      "notas": "prob=0.873 score_fund=81.0 sent=0.0 (n=0)",
+      "proba": 0.8726,
+      "resistencia": 946.36,
+      "score_fundamental": 81.0,
+      "sector": "Information Technology",
+      "target_analista": 1125.2084,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-10-19T08:45:05.001206-04:00"
+    },
+    {
+      "atr": 25.4384,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-19",
+      "notas": "prob=0.864 score_fund=90.5 sent=0.0 (n=0)",
+      "proba": 0.8636,
+      "resistencia": 475.66,
+      "score_fundamental": 90.5,
+      "sector": "Information Technology",
+      "target_analista": 656.8333,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-10-19T08:45:05.001206-04:00"
+    },
+    {
+      "atr": 6.5599,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-19",
+      "notas": "prob=0.831 score_fund=56.8 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 121.84,
+      "score_fundamental": 56.8,
+      "sector": "Information Technology",
+      "target_analista": 159.6,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-10-19T08:45:05.001206-04:00"
+    },
+    {
+      "atr": 97.2649,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-19",
+      "notas": "prob=0.831 score_fund=90.2 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 1909.48,
+      "score_fundamental": 90.2,
+      "sector": "Information Technology",
+      "target_analista": 2173.0,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-10-19T08:45:05.001206-04:00"
+    },
+    {
+      "atr": 2.5484,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-19",
+      "notas": "prob=0.831 score_fund=71.3 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 45.77,
+      "score_fundamental": 71.3,
+      "sector": "Information Technology",
+      "target_analista": 42.26667,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-10-19T08:45:05.001206-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -333,11 +413,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38966345987"
     },
     "preapertura": {
-      "cuando": "2026-10-16T08:45:56.965291-04:00",
-      "run": "38895295527",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/38895295527"
+      "cuando": "2026-10-19T08:46:06.860138-04:00",
+      "run": "39242535504",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39242535504"
     }
   },
   "ultima_postcierre": "2026-10-16",
-  "ultima_preapertura": "2026-10-16"
+  "ultima_preapertura": "2026-10-19"
 }
