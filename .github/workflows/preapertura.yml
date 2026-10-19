@@ -16,8 +16,10 @@ name: Escaneo pre-apertura
 #   - Llegar PRONTO no cuesta nada. Los datos son del cierre anterior.
 #
 # Así que ahora se dispara MUY por delante y el run que llega pronto DUERME
-# hasta que su ventana abre (hasta 120 min, ver ESPERA_VENTANA_MAX_MIN) en vez
-# de morir.
+# hasta que su ventana abre (hasta ESPERA_VENTANA_MAX_MIN = 330 min, el máximo
+# que cabe bajo el límite de 6 h por job de GitHub) en vez de morir. Un peldaño
+# que aterrice desde ~03:15 ET coge la sesión él solo; los anteriores ceden el
+# turno al siguiente ("omitido:antes-de-ventana", verde).
 #
 # ---------------------------------------------------------------------------
 # EL FALLO DEL 2026-08-27: LA ESCALERA DE ~5 h SE QUEDÓ CORTA
@@ -93,8 +95,10 @@ concurrency:
 jobs:
   preapertura:
     runs-on: ubuntu-latest
-    # Generoso: el run puede pasarse hasta 120 min dormido esperando su ventana.
-    timeout-minutes: 160
+    # El peldaño que coge el turno puede pasarse hasta ESPERA_VENTANA_MAX_MIN
+    # (330 min) dormido esperando su ventana; el timeout tiene que superarlo para
+    # no matarlo antes, y quedarse por debajo del límite duro de 6 h de GitHub.
+    timeout-minutes: 350
     outputs:
       resultado: ${{ steps.escaneo.outputs.resultado }}
     steps:

@@ -81,10 +81,18 @@ POSTCIERRE_OBJETIVO_DESPUES = 120   # 2 h después del cierre -> 18:00 ET
 # pronto no cuesta nada. Así que ahora los crons se lanzan MUY por delante y el
 # que llega pronto duerme hasta que su ventana abre, en vez de morir.
 #
-# El tope existe para no retener el turno de concurrencia indefinidamente: si al
-# agotarlo la ventana sigue sin abrir, el run termina con "omitido:antes-de-
-# ventana" (verde, inofensivo) y el siguiente peldaño de la escalera lo recoge.
-ESPERA_VENTANA_MAX_MIN = 120
+# El tope lo marca el límite DURO de 6 h por job de GitHub: un job que se pasa
+# lo mata GitHub. Con 330 min (5h30m) de sueño máximo y un timeout de job de 350
+# min queda margen de sobra para despertar y trabajar sin rozar las 6 h (ver
+# preapertura.yml / postcierre.yml, cuyos timeouts tienen que ser > este tope).
+# Así cualquier peldaño que aterrice desde ~03:15 ET (330 min antes de las 08:45)
+# coge la sesión él solo durmiendo hasta la ventana. El 2026-10-19 el único
+# peldaño a tiempo llegó a las 06:16 ET y, con el tope viejo de 120 min, cedía el
+# turno porque faltaban 149 min: la sesión dependió de que OTRO peldaño cayera
+# más cerca (y uno lo hizo, a las 07:09 ET; fue un casi-fallo, no un fallo). Si
+# un disparo llega todavía antes de que quepa la espera, cede el turno al
+# siguiente peldaño (termina en verde con "omitido:antes-de-ventana").
+ESPERA_VENTANA_MAX_MIN = 330
 
 # Margen del vigilante antes de dar por perdida una sesión: cuántas horas después
 # de que TOCABA hacer el post-cierre se empieza a exigir que esté commiteado.

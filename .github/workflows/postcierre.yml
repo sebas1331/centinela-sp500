@@ -57,8 +57,12 @@ concurrency:
 jobs:
   postcierre:
     runs-on: ubuntu-latest
-    # Generoso: el run puede pasarse hasta 120 min dormido esperando su ventana.
-    timeout-minutes: 165
+    # El peldaño que coge el turno puede pasarse hasta ESPERA_VENTANA_MAX_MIN
+    # (330 min) dormido esperando su ventana; el timeout tiene que superarlo para
+    # no matarlo antes, y quedarse por debajo del límite duro de 6 h de GitHub.
+    # (La ventana del post-cierre no tiene techo, así que casi nunca duerme tanto;
+    #  el margen existe por el mismo tope compartido.)
+    timeout-minutes: 350
     outputs:
       resultado: ${{ steps.escaneo.outputs.resultado }}
     steps:

@@ -120,6 +120,79 @@ def test_escalera_de_crons_postcierre_aguanta_retrasos():
                 f"post-cierre llega a tiempo")
 
 
+def _wf(nombre):
+    """El workflow parseado. `on:` lo lee PyYAML como la clave booleana True
+    (rareza de YAML 1.1), pero aquí solo se miran `jobs` y `concurrency`."""
+    import yaml
+    from pathlib import Path
+    ruta = Path(__file__).resolve().parent.parent / ".github/workflows" / nombre
+    return yaml.safe_load(ruta.read_text())
+
+
+def _timeout_del_job(nombre, job):
+    return _wf(nombre)["jobs"][job]["timeout-minutes"]
+
+
+# Regresión del casi-fallo del 2026-10-19. Aquel día el único peldaño de la
+# pre-apertura que llegó a tiempo lo hizo a las 06:16 ET y, con el tope viejo de
+# 120 min, cedía el turno ("omitido:antes-de-ventana") porque faltaban 149 min
+# para las 08:45 ET: la sesión dependía de que llegara OTRO peldaño más cerca
+# (uno llegó, a las 07:09 ET, y la salvó). Con la espera ampliada ese peldaño
+# duerme hasta la ventana y procesa la sesión él solo, sin depender de nadie.
+def test_un_solo_peldano_a_las_06_16_et_procesa_la_sesion(monkeypatch):
+    # 10:16 UTC = 06:16 ET (EDT); 11:16 UTC = 06:16 ET (EST). retraso 0: lo que
+    # se prueba es la HORA DE LLEGADA, no de qué cron viene.
+    def sirve_a_las_06_16():
+        return (_sirve(10, 16, 0, "2026-07-17",
+                       calendario.fase_preapertura,
+                       calendario.momento_preferido_preapertura)
+                and _sirve(11, 16, 0, "2026-01-15",
+                           calendario.fase_preapertura,
+                           calendario.momento_preferido_preapertura))
+
+    assert sirve_a_las_06_16(), (
+        "un peldaño a las 06:16 ET tiene que dormir hasta la ventana y procesar "
+        "la sesión él solo")
+    # Y que NO es vacuo: con el tope viejo de 120 min este mismo peldaño cedía.
+    # Ese era el casi-fallo del 19-oct que la ampliación corrige.
+    monkeypatch.setattr(config, "ESPERA_VENTANA_MAX_MIN", 120)
+    assert not sirve_a_las_06_16(), (
+        "con el tope viejo de 120 min el peldaño de las 06:16 ET cedía: si este "
+        "assert pasa, el test no está reproduciendo el casi-fallo del 19-oct")
+
+
+def test_la_espera_cabe_en_el_limite_de_6h_de_github():
+    """La espera ampliada no puede pasarse del tope DURO de 6 h por job de
+    GitHub (lo mataría). Y el timeout del job del escaneo tiene que SUPERAR la
+    espera: si fuera menor, GitHub mataría al peldaño dormido antes de que
+    abriera su ventana —justo lo que la espera existe para evitar—."""
+    LIMITE_GH_MIN = 6 * 60
+    assert config.ESPERA_VENTANA_MAX_MIN < LIMITE_GH_MIN
+    for wf, job in (("preapertura.yml", "preapertura"),
+                    ("postcierre.yml", "postcierre")):
+        timeout = _timeout_del_job(wf, job)
+        assert timeout < LIMITE_GH_MIN, (
+            f"{wf}:{job} timeout {timeout} llega al límite de 6 h de GitHub")
+        assert timeout >= config.ESPERA_VENTANA_MAX_MIN + 10, (
+            f"{wf}:{job} timeout {timeout} no deja dormir "
+            f"{config.ESPERA_VENTANA_MAX_MIN} min y además trabajar")
+
+
+def test_un_peldano_dormido_ni_bloquea_ni_lo_cancelan_los_siguientes():
+    """La escalera depende de que el peldaño que coge el turno y se duerme hasta
+    la ventana NO lo cancele un cron posterior (cancel-in-progress: false) y de
+    que el grupo de concurrencia serialice la escritura para que solo uno
+    trabaje (los demás, al despertar, ven la idempotencia y salen sin repetir).
+    Un cancel-in-progress: true mataría al que duerme en cuanto llegara el
+    siguiente peldaño, y la sesión se perdería."""
+    for wf in ("preapertura.yml", "postcierre.yml"):
+        conc = _wf(wf)["concurrency"]
+        assert conc["group"] == "centinela-escritura"
+        assert conc["cancel-in-progress"] is False, (
+            f"{wf}: cancel-in-progress debe ser false, o un cron posterior "
+            f"cancelaría al peldaño que está durmiendo hasta su ventana")
+
+
 def test_fases_distinguen_pronto_de_tarde():
     """El corazón del bug: llegar pronto y llegar tarde NO son lo mismo.
 
