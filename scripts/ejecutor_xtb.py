@@ -372,6 +372,14 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         return []
     log(f"{len(cola)} orden(es) de tipo {tipo} para {hoy}.")
 
+    # El coste de ejecución de las compras se mide contra la APERTURA del
+    # simulador (el precio al que el simulador entra), no contra el precio del
+    # momento del envío: así se ve cuánto cuesta entrar 15 min después de abrir.
+    # Lo necesita el PRIMER intento, que desde las 09:45 ET ya puede ejecutarse
+    # en vez de perderse; la reposición trae su propia apertura igual.
+    aperturas_compra = (_apertura_del_dia([o.ticker for o in cola])
+                        if tipo == ords.COMPRA else {})
+
     hechas, ya_estaban, no_disponibles, nd_tickers = [], 0, 0, []
     for o in cola:
         if ords.ya_enviada(registro, o.id):
@@ -422,6 +430,11 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
         # entró antes de decidir nada, y solo reintenta si confirma que no. El
         # identificador no cambia entre intentos: es la misma orden, no dos.
         if o.tipo == ords.COMPRA:
+            # Referencia de coste: la apertura del simulador (ver arriba). Si ya
+            # viniera con precio_simulador, se respeta.
+            if o.precio_simulador is None and aperturas_compra.get(o.ticker):
+                o = dataclasses.replace(
+                    o, precio_simulador=aperturas_compra[o.ticker])
             e = amb.enviar_resolviendo(
                 broker, o.simbolo, o.tipo,
                 lambda: broker.comprar(o.simbolo, o.acciones,

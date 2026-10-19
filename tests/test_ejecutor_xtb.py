@@ -7,6 +7,7 @@ lleva una hora abierto).
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from datetime import datetime, timedelta
@@ -77,6 +78,9 @@ def _libro_aparte(monkeypatch):
     # La comprobación de disponibilidad en XTB tiene su propio test; aquí se
     # asume que todo símbolo existe, para no depender de un broker con búsqueda.
     monkeypatch.setattr(_ej.disp, "disponible", lambda *a, **k: True)
+    # La referencia de coste (apertura del día) sale de la red; aquí se neutraliza
+    # por defecto para no salir a yfinance. El test del coste la sobreescribe.
+    monkeypatch.setattr(_ej, "_apertura_del_dia", lambda tickers: {})
 
 @pytest.fixture
 def aislado(tmp_path, monkeypatch):
@@ -290,14 +294,34 @@ def test_las_compras_se_mandan_DESPUES_de_la_apertura():
     las ejecutara al open. XTB las encola… y luego las descarta: el 2026-09-30
     se perdieron así las dos compras del día, y la bitácora decía "en_cola".
 
-    Comprobado a propósito con el mercado cerrado: XTB aceptó una compra y
-    devolvió "en cola" (orden 916785162); tres minutos después no había ni
-    posición ni orden.
+    Y no en los PRIMEROS MINUTOS: el 2026-10-19 las compras de las 09:35
+    (apertura+5) se volvieron a perder y solo entraron a las 09:47, así que el
+    primer envío pasó a las 09:45 (apertura+15). 09:35 ya no es "sí": es "espera".
     """
     ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:35:00"))
+    assert ok is ej.ESPERAR, "a los 5 min XTB todavía descarta; se espera a los 15"
+    ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "09:45:00"))
     assert ok is True
     ok, _ = ej.en_ventana("compras", _ahora("2026-09-25", "10:00:00"))
     assert ok is True
+
+
+def test_el_primer_intento_mide_su_coste_contra_la_apertura(aislado, monkeypatch):
+    """El coste de ejecución se mide contra la APERTURA del simulador, para ver
+    cuánto cuesta entrar 15 min tarde. Desde las 09:45 el primer intento puede
+    ejecutarse ya (no solo la reposición), así que tiene que llevar la apertura
+    como precio_simulador, aunque la orden venga sin él (como en pendientes.json)."""
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-09-25"))
+    monkeypatch.setattr(ej, "_apertura_del_dia", lambda tickers: {"MRNA": 100.0})
+    # Orden SIN precio_simulador, como las de verdad.
+    o = dataclasses.replace(_orden(ticker="MRNA"), precio_simulador=None)
+    ej.enviar(BrokerFalso(), _pendientes(o), "compras", {"enviadas": {}})
+
+    fila = next(f for f in ords.filas_de_sesion("2026-09-25")
+                if f["ticker"] == "MRNA")
+    assert float(fila["precio_simulador"]) == 100.0
+    # BrokerFalso compra a 101.0 -> coste +1 % sobre la apertura del simulador.
+    assert abs(float(fila["slippage_pct"]) - 1.0) < 0.01
 
 
 def test_antes_de_abrir_NO_se_manda_pero_tampoco_se_rinde():

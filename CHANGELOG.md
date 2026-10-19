@@ -5,6 +5,38 @@ o stop se aplica con menos de 30 operaciones cerradas nuevas, y todo cambio se
 documenta aquí con su justificación y evidencia estadística. El holdout (último
 año) nunca se reutiliza para tunear.
 
+## 2026-10-19 — La primera compra pasa de las 09:35 a las 09:45 ET
+
+**Síntoma**: las cinco compras del 2026-10-19 (STX, WDC, FLEX, SNDK, SMCI)
+enviadas a las 09:35 ET (apertura+5) se rechazaron, igual que su reposición r1
+de las 09:38–09:42; solo entraron en la r2 de las 09:47–09:49. El motivo literal
+capturado del stream de OrderService, en los tres primeros intentos de cada una,
+fue el mismo: «la orden no llegó a aparecer (aceptada y purgada sin estado)» —
+XTB acepta la orden, devuelve número y la descarta en silencio en los primeros
+minutos de sesión.
+
+**Causa**: el descarte de la apertura no dura unos segundos, dura minutos. La
+decisión del 2026-10-05 (esperar 5 min; primer envío a las 09:35) era una
+hipótesis con dos casos, y dejaba escrito que si una compra a las 09:35 volvía a
+perderse quedaba descartada. El 2026-10-19 se perdió: a las 09:35 se descarta, a
+las 09:47 entra.
+
+**Cambios**:
+- `EJECUTOR_COMPRAS_MIN_TRAS_APERTURA`: de `(5, 60)` a `(15, 60)`. El primer
+  envío pasa a las 09:45 ET (15 min tras abrir), fuera de la ventana de descarte
+  observada; la reposición sigue de respaldo hasta los 60 min.
+- El PRIMER intento de compra lleva ahora la apertura del simulador como
+  `precio_simulador` (antes solo la reposición), para que su coste de ejecución
+  se mida contra la apertura aunque entre ya en el primer envío. **El coste se
+  sigue midiendo contra la apertura a propósito**: es lo que dice cuánto cuesta
+  entrar esta hora más tarde.
+- Cierre limpio del WebSocket al terminar (`broker_xtb._cerrar_tareas_pendientes`):
+  se cancelan y se dejan terminar las tareas de fondo antes de cerrar el event
+  loop, para que no aparezca el ruido «Task was destroyed» / «Event loop is
+  closed» que GitHub marcaba como un ##[error] engañoso.
+
+Registrado también como incidente resuelto en `estado/incidentes.json`.
+
 ## 2026-10-07 — Corte de 11 min del latido: era GitHub; gravedad de los cortes
 
 **Síntoma**: el latido del vigilante de precios se cortó 11 min (11:05–11:16 ET,

@@ -51,6 +51,7 @@ se aceptan enteros ya calculados por `riesgo.acciones_enteras`.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -112,6 +113,32 @@ _SENALES_2FA = ("2FA is required", "AUTH_MANAGER_2FA_NO_SECRET",
 def _pide_codigo(exc: BaseException) -> bool:
     texto = f"{type(exc).__name__}: {exc}"
     return any(s.lower() in texto.lower() for s in _SENALES_2FA)
+
+
+def _cerrar_tareas_pendientes(loop: asyncio.AbstractEventLoop) -> None:
+    """Cancela y deja terminar las tareas que queden vivas en `loop`.
+
+    Cerrar un event loop con tareas pendientes (los bucles de ping/listen del
+    WebSocket, el keepalive de la librería, o los de un cliente que
+    `asegurar_conexion` descartó al reconectar) imprime "Task was destroyed but
+    it is pending" y, al recolectar la corutina `recv` a medias, un
+    "RuntimeError: Event loop is closed". No rompe nada —pasa durante el
+    apagado—, pero GitHub lo marca como ##[error] y parece un fallo. Cancelar y
+    ESPERAR a que la cancelación termine antes de cerrar lo evita. Best-effort:
+    apagar nunca puede tumbar al que llama.
+    """
+    try:
+        pendientes = [t for t in asyncio.all_tasks(loop) if not t.done()]
+    except RuntimeError:                     # el loop ya no es utilizable
+        return
+    for t in pendientes:
+        t.cancel()
+    if pendientes:
+        with contextlib.suppress(Exception):
+            loop.run_until_complete(
+                asyncio.gather(*pendientes, return_exceptions=True))
+    with contextlib.suppress(Exception):
+        loop.run_until_complete(loop.shutdown_asyncgens())
 
 
 # --------------------------------------------------------------------------- #
@@ -370,6 +397,16 @@ class BrokerXTB:
                 self._conectado = False
         finally:
             if self._loop is not None and not self._loop.is_closed():
+                # disconnect() CANCELA las tareas de fondo del WebSocket (ping,
+                # listen, keepalive), pero cancelar solo lo PIDE: si se cierra el
+                # loop acto seguido, esas tareas mueren a medias y Python imprime
+                # "Task was destroyed but it is pending" y, al recolectar el
+                # `recv` colgado, "RuntimeError: Event loop is closed". Es ruido
+                # de cierre inofensivo, pero GitHub lo marca como ##[error] y
+                # parece un fallo. Se deja que la cancelación termine antes de
+                # cerrar. Incluye tareas de clientes viejos que `asegurar_conexion`
+                # dejó atrás al reconectar.
+                _cerrar_tareas_pendientes(self._loop)
                 self._loop.close()
             self._loop = None
 

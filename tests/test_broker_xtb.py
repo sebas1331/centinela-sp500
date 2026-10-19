@@ -500,3 +500,28 @@ def test_la_huella_distingue_cuentas():
     assert config.es_cuenta_demo(CUENTA_PRUEBA)
     assert not config.es_cuenta_demo(CUENTA_PRUEBA + 1)
     assert not config.es_cuenta_demo("no-es-un-numero")
+
+
+def test_cerrar_tareas_pendientes_no_deja_nada_vivo_al_cerrar():
+    """Cerrar el event loop con tareas de fondo del WebSocket (ping, listen,
+    keepalive) todavía vivas imprime "Task was destroyed but it is pending" y,
+    al recolectar el `recv` a medias, "RuntimeError: Event loop is closed":
+    ruido de cierre que GitHub marca como ##[error] y parece un fallo (run
+    39242535504, 2026-10-19). El cierre limpio cancela y ESPERA a las pendientes
+    antes de cerrar, así que no queda ninguna viva."""
+    import asyncio
+    loop = asyncio.new_event_loop()
+
+    async def _crear_tareas_de_fondo():
+        loop.create_task(asyncio.sleep(3600))      # como ping_loop / listen_loop
+        loop.create_task(asyncio.sleep(3600))
+
+    loop.run_until_complete(_crear_tareas_de_fondo())
+    assert [t for t in asyncio.all_tasks(loop) if not t.done()], \
+        "setup: deben quedar dos tareas vivas"
+
+    bx._cerrar_tareas_pendientes(loop)
+
+    assert not [t for t in asyncio.all_tasks(loop) if not t.done()], \
+        "tras el cierre limpio no puede quedar ninguna tarea viva"
+    loop.close()      # ya sin pendientes: no hay 'Task was destroyed' ni ##[error]

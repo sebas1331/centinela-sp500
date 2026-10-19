@@ -6,8 +6,8 @@ precios con su bucle, el diario, la reconciliación. Lo único falso es XTB (un
 doble que mueve posiciones y saldo como el de verdad, sin devolver el precio
 al ejecutar) y el reloj.
 
-  09:31  compra de AAA y BBB tras la apertura (CCC ya estaba de antes)
-  09:35  arranca el vigilante: AAA y BBB con niveles, CCC sale HOY por tiempo
+  09:45  compra de AAA y BBB (15 min tras la apertura; CCC ya estaba de antes)
+  09:47  arranca el vigilante: AAA y BBB con niveles, CCC sale HOY por tiempo
   10:05  AAA cruza su objetivo -> venta, y JUSTO al publicarla otro workflow
          empuja al mismo CSV (el choque de push de siempre)
   10:30  el vigilante muere; 15 minutos sin latir; se relanza
@@ -106,7 +106,7 @@ class XTBEnVivo(XTBDeMentira):
 @pytest.fixture
 def dia(tmp_path, monkeypatch):
     """El mundo del día: estado del simulador, órdenes, reloj, remoto git."""
-    reloj = Reloj(datetime(2026, 10, 5, 9, 36, tzinfo=config.TZ_ET))
+    reloj = Reloj(datetime(2026, 10, 5, 9, 45, tzinfo=config.TZ_ET))
 
     class R(datetime):
         @classmethod
@@ -118,6 +118,9 @@ def dia(tmp_path, monkeypatch):
             monkeypatch.setattr(mod, "datetime", R)
     monkeypatch.setattr(amb, "ESPERA_CONFIRMACION", 0.0)
     monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-09-29")
+    # La apertura del día (referencia de coste del primer envío) sale de la red:
+    # aquí se neutraliza para no salir a yfinance en la simulación.
+    monkeypatch.setattr(ej, "_apertura_del_dia", lambda tickers: {})
 
     # CCC: abierta el 21/09 en el simulador, sale HOY por tiempo.
     estado = {"posiciones": {"A": [{
@@ -200,9 +203,9 @@ def _correr(d, s, hasta: datetime, cada: float = 30.0):
 def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     d, xtb, reloj = dia, dia["xtb"], dia["reloj"]
 
-    # --- 09:36 compras, 5 min tras la apertura -------------------------------
+    # --- 09:45 compras, 15 min tras la apertura ------------------------------
     ok, _ = ej.en_ventana("compras", reloj.ahora())
-    assert ok is True, "a las 09:36 la ventana de compras tiene que estar abierta"
+    assert ok is True, "a las 09:45 la ventana de compras tiene que estar abierta"
     registro = ords.cargar_enviadas()
     hechas = ej.enviar(xtb, ords.cargar_pendientes(), "compras", registro)
     ords.guardar_enviadas(registro)
@@ -212,8 +215,8 @@ def test_una_sesion_entera_de_la_compra_al_cierre(dia, monkeypatch):
     assert compras["AAA"]["precio"] == "100.01"
     assert compras["AAA"]["precio_fuente"] == "posicion"
 
-    # --- 09:38 arranca el vigilante -----------------------------------------
-    reloj.hasta(9, 38)
+    # --- 09:47 arranca el vigilante -----------------------------------------
+    reloj.hasta(9, 47)
     s = _sesion(d)
     s.arrancar()
     vigiladas = {v["ticker"]: v for v in s.vigiladas}
