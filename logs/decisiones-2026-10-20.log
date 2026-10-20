@@ -186,3 +186,9 @@ STX | dd=42.2% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 SMCI | dd=73.9% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 WDC | dd=56.0% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-10-20 18:01:18 ET =====
+POST-CIERRE 2026-10-20
+entradas ejecutadas: []
+cambios de objetivo: 6
+cierres: [('COHR', 'A', 'stop', -0.12)]
