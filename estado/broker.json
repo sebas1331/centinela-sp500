@@ -1,64 +1,64 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 29404.12,
+  "equity": 29681.45,
   "equity_xtb": 21841.87,
-  "leido": "2026-10-20T09:45:48.378132-04:00",
+  "leido": "2026-10-20T15:32:09.031901-04:00",
   "posiciones": [
     {
-      "acciones": 1.0,
+      "acciones": 2.0,
       "coste": 1670.6912273391401,
-      "invertido": 1384.0,
-      "pnl": -40.52,
-      "precio_actual": 1343.48,
-      "precio_entrada": 1384.0,
-      "precio_fuente": "cotizacion",
-      "ticker": "SNDK.US",
-      "valor": 1343.48
+      "invertido": 1330.58,
+      "pnl": 26.48,
+      "precio_actual": 678.53,
+      "precio_entrada": 665.29,
+      "precio_fuente": "bid",
+      "ticker": "STX.US",
+      "valor": 1357.06
     },
     {
       "acciones": 52.0,
       "coste": 1670.6912273391401,
       "invertido": 1716.0,
-      "pnl": -91.0,
-      "precio_actual": 31.25,
+      "pnl": -15.08,
+      "precio_actual": 32.71,
       "precio_entrada": 33.0,
-      "precio_fuente": "cotizacion",
+      "precio_fuente": "bid",
       "ticker": "SMCI.US",
-      "valor": 1625.0
+      "valor": 1700.92
     },
     {
       "acciones": 5.0,
       "coste": 1670.6912273391401,
       "invertido": 1747.45,
-      "pnl": -4.9,
-      "precio_actual": 348.51,
+      "pnl": 79.1,
+      "precio_actual": 365.31,
       "precio_entrada": 349.49,
-      "precio_fuente": "cotizacion",
+      "precio_fuente": "bid",
       "ticker": "WDC.US",
-      "valor": 1742.55
+      "valor": 1826.55
     },
     {
       "acciones": 18.0,
       "coste": 1670.6912273391401,
       "invertido": 1662.84,
-      "pnl": -118.98,
-      "precio_actual": 85.77,
+      "pnl": -81.0,
+      "precio_actual": 87.88,
       "precio_entrada": 92.38,
-      "precio_fuente": "cotizacion",
+      "precio_fuente": "bid",
       "ticker": "FLEX.US",
-      "valor": 1543.86
+      "valor": 1581.84
     },
     {
-      "acciones": 2.0,
+      "acciones": 1.0,
       "coste": 1670.6912273391401,
-      "invertido": 1330.58,
-      "pnl": -23.22,
-      "precio_actual": 653.68,
-      "precio_entrada": 665.29,
-      "precio_fuente": "cotizacion",
-      "ticker": "STX.US",
-      "valor": 1307.36
+      "invertido": 1384.0,
+      "pnl": -10.79,
+      "precio_actual": 1373.21,
+      "precio_entrada": 1384.0,
+      "precio_fuente": "bid",
+      "ticker": "SNDK.US",
+      "valor": 1373.21
     }
   ],
   "saldo": 21841.87,
@@ -89,5 +89,5 @@
       "precio": 300.92
     }
   },
-  "valor_posiciones": 7562.25
+  "valor_posiciones": 7839.58
 }
