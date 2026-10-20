@@ -664,11 +664,21 @@ def bloque_coste_ejecucion(desde: str | None = None) -> dict:
     # ¿Cuántas de las últimas compras DECIDIDAS acabaron como entrada tardía?
     # Una decisión es (sesión, ticker) con una orden de compra; acabó tardía si
     # esa misma sesión hay una entrada tardía ejecutada del mismo ticker.
+    #
+    # Esta señal mide si la compra NORMAL (al primer envío) sigue fallando, así
+    # que no puede contar las compras anteriores a un arreglo ya publicado: el
+    # 2026-10-19 las cinco entraron tardías porque el primer envío iba a las
+    # 09:35, dentro de la ventana de descarte de XTB; el arreglo lo movió a las
+    # 09:45 (incidente resuelto). Esas órdenes están listadas en el incidente, y
+    # se excluyen igual que en la fiabilidad: la regla cuenta solo lo posterior.
+    resueltas = incidentes.ordenes_resueltas()
     decididas, tardias = set(), set()
     if ruta.exists():
         with open(ruta, encoding="utf-8", newline="") as f:
             for r in _csv.DictReader(f, restval=""):
                 if str(r.get("sesion", "")) < desde or r["ticker"] in excluidos:
+                    continue
+                if r.get("id") in resueltas:
                     continue
                 clave = (r["sesion"], r["ticker"])
                 if r.get("tipo") == ords.COMPRA:

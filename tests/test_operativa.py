@@ -1003,6 +1003,32 @@ def test_dos_tardias_de_diez_aun_no_es_ambar(monkeypatch):
     assert not go.bloque_coste_ejecucion()["repuestas"]["ambar"]
 
 
+def test_las_tardias_de_un_incidente_resuelto_no_cuentan(monkeypatch):
+    """La regla mide si la compra NORMAL sigue fallando, así que no puede contar
+    las compras anteriores a un arreglo ya publicado. El 2026-10-19 las cinco
+    entraron tardías porque el primer envío iba a las 09:35 (ventana de descarte
+    de XTB); el cambio a las 09:45 quedó como incidente resuelto y sus órdenes de
+    compra se excluyen, igual que en la fiabilidad."""
+    from centinela import ordenes as o2
+    monkeypatch.setattr(config, "EJECUCION_DESDE", "2026-10-01")
+    # Tres compras que fallaron a la primera y entraron tardías el mismo día.
+    for tk in ["X1", "X2", "X3"]:
+        _compra(o2.COMPRA, tk, "2026-10-19", 0.0, estado="rechazada")
+        _compra(o2.ENTRADA_TARDIA, tk, "2026-10-19", 100.0, apertura=99.0)
+
+    # Sin incidente que las explique, 3 > 2 => ámbar (el test no es vacuo).
+    monkeypatch.setattr(go.incidentes, "ordenes_resueltas", lambda *a, **k: set())
+    sin = go.bloque_coste_ejecucion()["repuestas"]
+    assert sin["tardias"] == 3 and sin["ambar"]
+
+    # Con el incidente del cambio de horario (sus compras listadas), salen de la
+    # cuenta: la regla solo mira lo posterior al arreglo.
+    resueltas = {f"2026-10-19|A|{tk}|compra" for tk in ["X1", "X2", "X3"]}
+    monkeypatch.setattr(go.incidentes, "ordenes_resueltas", lambda *a, **k: resueltas)
+    con = go.bloque_coste_ejecucion()["repuestas"]
+    assert con["tardias"] == 0 and not con["ambar"]
+
+
 # --------------------------------------------------------------------------- #
 # Desfase de versiones entre el HTML y el JSON (página rota del 2026-10-05)
 # --------------------------------------------------------------------------- #
