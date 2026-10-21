@@ -1,0 +1,181 @@
+
+===== escaneo preapertura 2026-10-21 08:45:56 ET =====
+RESUMEN: universo=503 drawdown>=30%=167 con_senal=6
+AOS | dd=32.6% | prob=0.403 < umbral -> SIN SEÑAL
+ACN | dd=38.1% | prob=0.516 < umbral -> SIN SEÑAL
+ADBE | dd=63.3% | prob=0.496 < umbral -> SIN SEÑAL
+AES | dd=67.0% | prob=0.000 < umbral -> SIN SEÑAL
+AKAM | dd=74.1% | prob=0.731 < umbral -> SIN SEÑAL
+ALB | dd=69.9% | prob=0.562 < umbral -> SIN SEÑAL
+ARE | dd=76.6% | prob=0.593 < umbral -> SIN SEÑAL
+ALGN | dd=79.6% | prob=0.476 < umbral -> SIN SEÑAL
+AIG | dd=93.2% | prob=0.251 < umbral -> SIN SEÑAL
+APH | SERIE ROTA: el 2026-08-27 cayó de 161.34 a 80.69 (×0.5001). Parece una acción corporativa sin ajustar, no un movimiento de mercado: el drawdown y el ATR que saldrían de esta serie no son reales. Fuera del universo hasta que el salto salga de la ventana.
+APA | dd=53.1% | prob=0.431 < umbral -> SIN SEÑAL
+APO | dd=40.0% | prob=0.552 < umbral -> SIN SEÑAL
+AMAT | dd=45.2% | prob=0.649 < umbral -> SIN SEÑAL
+APP | dd=63.5% | prob=0.656 < umbral -> SIN SEÑAL
+APTV | dd=75.1% | prob=0.518 < umbral -> SIN SEÑAL
+ARES | dd=39.0% | prob=0.518 < umbral -> SIN SEÑAL
+AXON | dd=55.7% | prob=0.656 < umbral -> SIN SEÑAL
+BALL | dd=33.0% | prob=0.359 < umbral -> SIN SEÑAL
+BAX | dd=71.1% | prob=0.496 < umbral -> SIN SEÑAL
+TECH | dd=45.4% | prob=0.000 < umbral -> SIN SEÑAL
+BIIB | dd=49.4% | prob=0.423 < umbral -> SIN SEÑAL
+BX | dd=42.2% | prob=0.552 < umbral -> SIN SEÑAL
+XYZ | dd=73.0% | prob=0.496 < umbral -> SIN SEÑAL
+BE | dd=36.6% | prob=0.873 | ENTRAR | score_fund=47.9 | sent=0.0 | obj_analista=285.43076
+BA | dd=56.3% | prob=0.403 < umbral -> SIN SEÑAL
+BSX | dd=58.4% | prob=0.423 < umbral -> SIN SEÑAL
+AVGO | dd=32.3% | prob=0.552 < umbral -> SIN SEÑAL
+BR | dd=32.4% | prob=0.311 < umbral -> SIN SEÑAL
+BRO | dd=43.0% | prob=0.423 < umbral -> SIN SEÑAL
+BF.B | dd=62.0% | prob=0.403 < umbral -> SIN SEÑAL
+BXP | dd=44.8% | prob=0.440 < umbral -> SIN SEÑAL
+CHRW | dd=33.2% | prob=0.565 < umbral -> SIN SEÑAL
+CPT | dd=34.9% | prob=0.311 < umbral -> SIN SEÑAL
+CCL | dd=59.1% | prob=0.552 < umbral -> SIN SEÑAL
+CARR | dd=30.7% | prob=0.423 < umbral -> SIN SEÑAL
+CVNA | dd=38.1% | prob=0.649 < umbral -> SIN SEÑAL
+CAT | dd=32.4% | prob=0.562 < umbral -> SIN SEÑAL
+CDW | dd=39.1% | prob=0.552 < umbral -> SIN SEÑAL
+CRL | dd=31.5% | prob=0.518 < umbral -> SIN SEÑAL
+CHTR | dd=86.7% | prob=0.600 < umbral -> SIN SEÑAL
+CMG | dd=57.2% | prob=0.562 < umbral -> SIN SEÑAL
+CIEN | dd=67.6% | prob=0.873 | ENTRAR | score_fund=63.6 | sent=0.0 | obj_analista=512.9907
+C | dd=67.6% | prob=0.440 < umbral -> SIN SEÑAL
+CLX | dd=56.1% | prob=0.423 < umbral -> SIN SEÑAL
+COHR | dd=47.3% | prob=0.873 | ENTRAR | score_fund=53.3 | sent=0.0 | obj_analista=405.2158
+COIN | dd=61.6% | prob=0.731 < umbral -> SIN SEÑAL
+CMCSA | dd=54.6% | prob=0.403 < umbral -> SIN SEÑAL
+FIX | dd=32.6% | prob=0.700 < umbral -> SIN SEÑAL
+STZ | dd=48.8% | prob=0.403 < umbral -> SIN SEÑAL
+CEG | dd=37.0% | prob=0.656 < umbral -> SIN SEÑAL
+COO | dd=49.0% | prob=0.423 < umbral -> SIN SEÑAL
+CPRT | dd=56.8% | prob=0.476 < umbral -> SIN SEÑAL
+GLW | dd=51.3% | prob=0.731 < umbral -> SIN SEÑAL
+CSGP | dd=67.3% | prob=0.552 < umbral -> SIN SEÑAL
+CRH | dd=34.8% | prob=0.440 < umbral -> SIN SEÑAL
+CCI | dd=51.5% | prob=0.552 < umbral -> SIN SEÑAL
+DECK | dd=61.0% | prob=0.476 < umbral -> SIN SEÑAL
+DVN | dd=36.5% | prob=0.423 < umbral -> SIN SEÑAL
+DXCM | dd=48.0% | prob=0.403 < umbral -> SIN SEÑAL
+DG | dd=44.8% | prob=0.431 < umbral -> SIN SEÑAL
+DPZ | dd=40.5% | prob=0.476 < umbral -> SIN SEÑAL
+DASH | dd=32.9% | prob=0.565 < umbral -> SIN SEÑAL
+DOW | dd=45.8% | prob=0.423 < umbral -> SIN SEÑAL
+ECHO | dd=41.3% | prob=0.565 < umbral -> SIN SEÑAL
+EIX | dd=30.7% | prob=0.552 < umbral -> SIN SEÑAL
+EW | dd=33.0% | prob=0.311 < umbral -> SIN SEÑAL
+EFX | dd=42.1% | prob=0.552 < umbral -> SIN SEÑAL
+ERIE | dd=53.5% | prob=0.476 < umbral -> SIN SEÑAL
+EL | dd=69.5% | prob=0.440 < umbral -> SIN SEÑAL
+FDS | dd=36.0% | prob=0.552 < umbral -> SIN SEÑAL
+FICO | dd=66.7% | prob=0.731 < umbral -> SIN SEÑAL
+FIS | dd=73.5% | prob=0.476 < umbral -> SIN SEÑAL
+FSLR | dd=45.7% | prob=0.638 < umbral -> SIN SEÑAL
+FISV | SERIE ROTA: el 2025-10-29 cayó de 126.17 a 70.6 (×0.5596). Parece una acción corporativa sin ajustar, no un movimiento de mercado: el drawdown y el ATR que saldrían de esta serie no son reales. Fuera del universo hasta que el salto salga de la ventana.
+FLEX | dd=47.6% | prob=0.831 | ENTRAR | score_fund=57.5 | sent=0.0 | obj_analista=158.9
+F | dd=37.0% | prob=0.476 < umbral -> SIN SEÑAL
+IT | dd=62.4% | prob=0.518 < umbral -> SIN SEÑAL
+GNRC | dd=62.9% | prob=0.656 < umbral -> SIN SEÑAL
+GIS | dd=57.5% | prob=0.476 < umbral -> SIN SEÑAL
+GPN | dd=59.6% | prob=0.423 < umbral -> SIN SEÑAL
+GDDY | dd=49.6% | prob=0.552 < umbral -> SIN SEÑAL
+HAL | dd=43.3% | prob=0.423 < umbral -> SIN SEÑAL
+DOC | dd=34.0% | prob=0.423 < umbral -> SIN SEÑAL
+HSY | dd=32.9% | prob=0.311 < umbral -> SIN SEÑAL
+HRL | dd=56.6% | prob=0.403 < umbral -> SIN SEÑAL
+HWM | dd=31.7% | prob=0.552 < umbral -> SIN SEÑAL
+HII | dd=40.6% | prob=0.403 < umbral -> SIN SEÑAL
+ILMN | dd=50.4% | prob=0.607 < umbral -> SIN SEÑAL
+PODD | dd=59.8% | prob=0.552 < umbral -> SIN SEÑAL
+INTC | dd=35.6% | prob=0.731 < umbral -> SIN SEÑAL
+IFF | dd=33.6% | prob=0.251 < umbral -> SIN SEÑAL
+IP | dd=40.5% | prob=0.518 < umbral -> SIN SEÑAL
+INTU | dd=58.3% | prob=0.552 < umbral -> SIN SEÑAL
+INVH | dd=31.0% | prob=0.251 < umbral -> SIN SEÑAL
+JBL | dd=35.4% | prob=0.656 < umbral -> SIN SEÑAL
+KKR | dd=47.1% | prob=0.518 < umbral -> SIN SEÑAL
+KLAC | dd=47.4% | prob=0.651 < umbral -> SIN SEÑAL
+KHC | dd=62.0% | prob=0.423 < umbral -> SIN SEÑAL
+LHX | dd=33.9% | prob=0.402 < umbral -> SIN SEÑAL
+LRCX | dd=39.9% | prob=0.656 < umbral -> SIN SEÑAL
+LVS | dd=59.3% | prob=0.423 < umbral -> SIN SEÑAL
+LDOS | dd=37.4% | prob=0.403 < umbral -> SIN SEÑAL
+LEN | dd=56.6% | prob=0.562 < umbral -> SIN SEÑAL
+LII | dd=46.7% | prob=0.528 < umbral -> SIN SEÑAL
+LOW | dd=31.9% | prob=0.423 < umbral -> SIN SEÑAL
+LULU | dd=80.6% | prob=0.552 < umbral -> SIN SEÑAL
+MKC | dd=50.8% | prob=0.423 < umbral -> SIN SEÑAL
+MGM | dd=69.6% | prob=0.565 < umbral -> SIN SEÑAL
+MAA | dd=39.2% | prob=0.254 < umbral -> SIN SEÑAL
+MRNA | SERIE ROTA: el 2026-08-19 subió de 62.96 a 174.38 (×2.7697). Parece una acción corporativa sin ajustar, no un movimiento de mercado: el drawdown y el ATR que saldrían de esta serie no son reales. Fuera del universo hasta que el salto salga de la ventana.
+MNST | SERIE ROTA: el 2026-08-10 cayó de 90.36 a 45.72 (×0.5059). Parece una acción corporativa sin ajustar, no un movimiento de mercado: el drawdown y el ATR que saldrían de esta serie no son reales. Fuera del universo hasta que el salto salga de la ventana.
+MOS | dd=84.8% | prob=0.600 < umbral -> SIN SEÑAL
+NFLX | dd=48.8% | prob=0.423 < umbral -> SIN SEÑAL
+NKE | dd=77.1% | prob=0.476 < umbral -> SIN SEÑAL
+NOC | dd=30.7% | prob=0.423 < umbral -> SIN SEÑAL
+NCLH | dd=75.6% | prob=0.593 < umbral -> SIN SEÑAL
+NRG | dd=48.3% | prob=0.656 < umbral -> SIN SEÑAL
+NVR | dd=40.0% | prob=0.431 < umbral -> SIN SEÑAL
+ON | dd=44.0% | prob=0.649 < umbral -> SIN SEÑAL
+ORCL | dd=61.6% | prob=0.652 < umbral -> SIN SEÑAL
+OTIS | dd=30.9% | prob=0.311 < umbral -> SIN SEÑAL
+PYPL | dd=81.4% | prob=0.403 < umbral -> SIN SEÑAL
+PNR | dd=53.2% | prob=0.431 < umbral -> SIN SEÑAL
+PFE | dd=37.0% | prob=0.251 < umbral -> SIN SEÑAL
+PCG | dd=81.1% | prob=0.552 < umbral -> SIN SEÑAL
+PPG | dd=34.2% | prob=0.311 < umbral -> SIN SEÑAL
+QCOM | dd=32.1% | prob=0.586 < umbral -> SIN SEÑAL
+Q | dd=33.2% | prob=0.589 < umbral -> SIN SEÑAL
+RDDT | dd=45.0% | prob=0.656 < umbral -> SIN SEÑAL
+REGN | dd=32.8% | prob=0.403 < umbral -> SIN SEÑAL
+HOOD | dd=36.2% | prob=0.725 < umbral -> SIN SEÑAL
+ROL | dd=49.3% | prob=0.476 < umbral -> SIN SEÑAL
+ROP | dd=32.3% | prob=0.402 < umbral -> SIN SEÑAL
+CRM | dd=33.5% | prob=0.476 < umbral -> SIN SEÑAL
+SNDK | dd=42.0% | prob=0.731 < umbral -> SIN SEÑAL
+SBAC | dd=50.1% | prob=0.518 < umbral -> SIN SEÑAL
+SLB | dd=41.6% | prob=0.440 < umbral -> SIN SEÑAL
+STX | dd=41.0% | prob=0.812 | ENTRAR | score_fund=80.4 | sent=0.0 | obj_analista=1114.5
+NOW | dd=37.6% | prob=0.552 < umbral -> SIN SEÑAL
+SKYD | dd=65.3% | prob=0.873 | ENTRAR (EXCEPCIONAL: entra pese a deterioro) | score_fund=27.0 | sent=0.0 | obj_analista=9.00875
+SWKS | dd=53.8% | prob=0.600 < umbral -> SIN SEÑAL
+LUV | dd=34.0% | prob=0.552 < umbral -> SIN SEÑAL
+SWK | dd=49.8% | prob=0.461 < umbral -> SIN SEÑAL
+SMCI | dd=73.6% | prob=0.731 < umbral -> SIN SEÑAL
+SNPS | dd=31.3% | prob=0.562 < umbral -> SIN SEÑAL
+TMUS | dd=41.7% | prob=0.496 < umbral -> SIN SEÑAL
+TROW | dd=43.4% | prob=0.403 < umbral -> SIN SEÑAL
+TGT | dd=33.6% | prob=0.403 < umbral -> SIN SEÑAL
+TER | dd=31.0% | prob=0.731 < umbral -> SIN SEÑAL
+TPL | dd=41.4% | prob=0.565 < umbral -> SIN SEÑAL
+TSCO | dd=47.5% | prob=0.476 < umbral -> SIN SEÑAL
+TRMB | dd=35.6% | prob=0.423 < umbral -> SIN SEÑAL
+TYL | dd=43.0% | prob=0.476 < umbral -> SIN SEÑAL
+TSN | dd=36.5% | prob=0.311 < umbral -> SIN SEÑAL
+UBER | dd=32.4% | prob=0.423 < umbral -> SIN SEÑAL
+UDR | dd=32.1% | prob=0.311 < umbral -> SIN SEÑAL
+UPS | dd=47.7% | prob=0.311 < umbral -> SIN SEÑAL
+UNH | dd=30.7% | prob=0.476 < umbral -> SIN SEÑAL
+VRSK | dd=40.3% | prob=0.518 < umbral -> SIN SEÑAL
+VRT | dd=46.4% | prob=0.725 < umbral -> SIN SEÑAL
+VTRS | dd=69.8% | prob=0.423 < umbral -> SIN SEÑAL
+VST | dd=31.3% | prob=0.656 < umbral -> SIN SEÑAL
+DIS | dd=43.3% | prob=0.251 < umbral -> SIN SEÑAL
+WDC | dd=54.5% | prob=0.731 < umbral -> SIN SEÑAL
+WY | dd=47.8% | prob=0.431 < umbral -> SIN SEÑAL
+WDAY | dd=34.5% | prob=0.476 < umbral -> SIN SEÑAL
+WYNN | dd=62.6% | prob=0.518 < umbral -> SIN SEÑAL
+XYL | dd=31.2% | prob=0.403 < umbral -> SIN SEÑAL
+ZBRA | dd=37.5% | prob=0.311 < umbral -> SIN SEÑAL
+ZBH | dd=42.7% | prob=0.403 < umbral -> SIN SEÑAL
+ZTS | dd=66.1% | prob=0.403 < umbral -> SIN SEÑAL
+BE | dd=36.6% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+CIEN | dd=67.6% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+COHR | dd=47.3% | prob=0.873 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
+SKYD | dd=65.3% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+FLEX | dd=47.6% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+STX | dd=41.0% | prob=0.812 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
+DECIDIDAS PARA ENTRAR HOY (1): ['COHR']
