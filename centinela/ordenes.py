@@ -234,7 +234,8 @@ TIPOS_POR_EVENTO = {
 
 
 def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str,
-                       evento: str | None = None, hoy: str | None = None) -> Path:
+                       evento: str | None = None, hoy: str | None = None,
+                       descartes: list[dict] | None = None) -> Path:
     """Escribe las órdenes pendientes CONSERVANDO las del otro momento.
 
     POR QUÉ NO SE REESCRIBE EL FICHERO ENTERO (fallo del 2026-09-29)
@@ -261,6 +262,7 @@ def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str,
     mios = TIPOS_POR_EVENTO.get(evento or "", set())
 
     conservadas: list[dict] = []
+    previas: dict = {}
     if evento and ARCHIVO_PENDIENTES.exists():
         try:
             previas = json.loads(ARCHIVO_PENDIENTES.read_text(encoding="utf-8"))
@@ -276,11 +278,22 @@ def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str,
                 continue                       # duplicado exacto
             conservadas.append(o)
 
+    # Descartes del broker (p. ej. precio de la acción > capital por posición):
+    # NO son órdenes —no se envía nada—, viven en su propia lista para que la
+    # página los muestre en ámbar. Los aporta el momento de compras (preapertura);
+    # otro momento pasa `descartes=None` y se conservan los de sesiones no pasadas.
+    previas_desc = previas.get("descartes_broker", [])
+    conservados_desc = [d for d in previas_desc
+                        if str(d.get("sesion", "")) >= hoy
+                        and (descartes is None or d.get("sesion") != sesion)]
+    descartes_broker = conservados_desc + (descartes or [])
+
     datos = {
         "sesion": sesion,
         "cartera_broker": cartera,
         "generado": datetime.now(config.TZ_ET).isoformat(),
         "ordenes": conservadas + [asdict(o) for o in ordenes],
+        "descartes_broker": descartes_broker,
     }
     ARCHIVO_PENDIENTES.write_text(
         json.dumps(datos, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -291,9 +304,11 @@ def guardar_pendientes(ordenes: list[Orden], sesion: str, cartera: str,
 def cargar_pendientes(ruta: Path | None = None) -> dict:
     ruta = ruta or ARCHIVO_PENDIENTES
     if not ruta.exists():
-        return {"sesion": None, "cartera_broker": None, "ordenes": []}
+        return {"sesion": None, "cartera_broker": None, "ordenes": [],
+                "descartes_broker": []}
     datos = json.loads(ruta.read_text(encoding="utf-8"))
     datos["ordenes"] = [Orden(**o) for o in datos.get("ordenes", [])]
+    datos.setdefault("descartes_broker", [])
     return datos
 
 
@@ -409,6 +424,25 @@ def registrar_ejecucion(orden: Orden, ejecucion, ruta: Path | None = None) -> No
     if ruta == ARCHIVO_BITACORA_BROKER:
         from . import diario
         diario.anotar("orden", fila=fila)
+
+
+def registrar_descarte_broker(ticker: str, cartera: str, sesion: str, motivo: str,
+                              ruta: Path | None = None) -> None:
+    """Deja una fila NO_DISPONIBLE en la bitácora para una entrada que el broker
+    NO puede ejecutar (p. ej. el precio de una acción supera el capital por
+    posición: floor(capital/precio)=0). No es una orden —no se envía nada; por
+    eso no pasa por `Orden`, que exige acciones>=1—, pero la fila existe para que
+    la página la muestre en ámbar y no cuente ni como enviada ni en la
+    fiabilidad, IGUAL que un símbolo que XTB no ofrece."""
+    from types import SimpleNamespace
+    o = SimpleNamespace(
+        id=identificador(sesion, cartera, ticker, COMPRA), sesion=sesion,
+        cartera=cartera, ticker=ticker, simbolo=simbolo_xtb(ticker),
+        tipo=COMPRA, acciones=0, objetivo=None, stop=None, referencia=None,
+        precio_simulador=None)
+    e = SimpleNamespace(estado=NO_DISPONIBLE, precio=None, orden=None,
+                        error=motivo, cuando=None)
+    registrar_ejecucion(o, e, ruta=ruta)
 
 
 def _migrar_columnas(ruta: Path) -> None:

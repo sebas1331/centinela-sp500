@@ -480,11 +480,17 @@ def bloque_hoy(ordenes: list[dict], ahora: datetime) -> dict:
         if not descartes:
             huecos.append(f"{senales - decididas} señal(es) no llegaron a "
                           f"decisión y el log no dice por qué.")
-    # Un candidato que XTB no ofrece: informativo, no es un fallo. El ticker se
-    # queda sin operar y se dice por qué, una vez por símbolo.
-    for t in sorted({o.get("ticker") for o in no_disponibles}):
-        huecos.append(f"{t}: no disponible en XTB como acción al contado; "
-                      f"la entrada se descarta (no es un rechazo del broker).")
+    # Un candidato descartado sin enviar orden: informativo, no es un fallo. El
+    # motivo sale de la propia fila (no existe en XTB, o su precio supera el
+    # capital por posición), una vez por símbolo.
+    nd_motivos: dict[str, str] = {}
+    for o in no_disponibles:
+        nd_motivos.setdefault(
+            o.get("ticker"),
+            o.get("error") or "no disponible en XTB como acción al contado")
+    for t in sorted(nd_motivos):
+        huecos.append(f"{t}: {nd_motivos[t]}; la entrada se descarta "
+                      f"(no es un rechazo del broker).")
     decididas_operables = decididas - len({o.get("ticker") for o in no_disponibles})
     if decididas_operables > len(del_dia):
         huecos.append(f"{decididas_operables - len(del_dia)} decisión(es) sin "

@@ -148,6 +148,39 @@ def test_un_simbolo_que_XTB_no_ofrece_no_se_envia_ni_cuenta(aislado, monkeypatch
     assert registro["enviadas"], "debió quedar registrada para no reintentar hoy"
 
 
+def test_un_descarte_del_broker_por_capital_se_registra_como_no_disponible(
+        aislado, monkeypatch):
+    """Una entrada cuyo precio de una acción supera el capital por posición llega
+    como DESCARTE del broker (no como orden: floor(capital/precio)=0). El ejecutor
+    la registra en ámbar (NO_DISPONIBLE) con su motivo, sin enviar nada y sin
+    tocar la fiabilidad, igual que un símbolo que XTB no ofrece — y funciona
+    aunque ese día no haya ninguna orden que enviar."""
+    monkeypatch.setattr(ej, "datetime", _reloj("2026-09-25"))
+    anotadas = []
+    from centinela import fiabilidad
+    monkeypatch.setattr(fiabilidad, "anotar", lambda *a, **k: anotadas.append(1))
+    broker = BrokerFalso()
+    registro = {"enviadas": {}}
+    pendientes = {"sesion": "2026-09-25", "cartera_broker": "A", "ordenes": [],
+                  "descartes_broker": [
+                      {"ticker": "NVR", "sesion": "2026-09-25",
+                       "motivo": "precio mayor que el capital por posición",
+                       "precio": 5900.0, "capital_posicion": 1500.0}]}
+    ej.ENVIADAS.clear()
+    ej.enviar(broker, pendientes, "compras", registro)
+
+    assert broker.enviadas == [], "un descarte no manda ninguna orden"
+    assert anotadas == [], "un descarte no cuenta en la fiabilidad"
+    filas = list(ords.filas_de_sesion("2026-09-25"))
+    assert len(filas) == 1 and filas[0]["estado"] == ords.NO_DISPONIBLE
+    assert filas[0]["ticker"] == "NVR"
+    assert "precio mayor que el capital por posición" in (filas[0].get("error") or "")
+    assert ej.ENVIADAS[ords.COMPRA]["no_disponibles"] == 1
+    # Idempotente: un segundo disparo no escribe otra fila.
+    ej.enviar(broker, pendientes, "compras", registro)
+    assert len(list(ords.filas_de_sesion("2026-09-25"))) == 1
+
+
 def test_la_unica_decision_no_disponible_es_ok_no_envio_incompleto(aislado,
                                                                    monkeypatch):
     """16/10: COHR era la ÚNICA decisión del día y XTB no lo ofrece. El ejecutor

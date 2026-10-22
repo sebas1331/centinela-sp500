@@ -57,26 +57,28 @@ def _dia_limite(fecha_entrada_iso: str) -> str:
 # Pre-apertura: compras
 # --------------------------------------------------------------------------- #
 def ordenes_de_compra(sesion: str, cartera: str, capital: float | None,
-                      precios: dict) -> list[ords.Orden]:
-    """Una orden de compra por cada entrada decidida hoy para esta cartera.
+                      precios: dict) -> tuple[list[ords.Orden], list[dict]]:
+    """Órdenes de compra del día y los descartes del broker, para esta cartera.
 
-    El tamaño sale del slot de la cuenta simulada, truncado a acciones ENTERAS
-    (XTB no admite fracciones por la API). Una entrada que no llega ni a una
-    acción no se manda y se dice en voz alta: es capital insuficiente, no un
-    error, pero tampoco algo que deba pasar en silencio.
+    Devuelve `(ordenes, descartes)`. El tamaño de cada orden es
+    floor(capital por posición / precio): acciones ENTERAS que caben en el slot
+    de la cuenta simulada (XTB no admite fracciones por la API). Si una acción
+    cuesta MÁS que el slot, floor da 0 y en el broker no cabe ni una: no es una
+    orden ni un fallo —el simulador la cuenta con fracciones—, se devuelve como
+    DESCARTE del broker para que se muestre en ámbar y no desaparezca en silencio.
     """
     estado = est_mod.cargar()
     pendientes = [e for e in estado.get("entradas_pendientes", [])
                   if e.get("fecha_decision") == sesion
                   and cartera in e.get("carteras", ("A", "B"))]
     if not pendientes:
-        return []
+        return [], []
 
     cta = _cuenta_de_la_cartera(cartera, capital)
     slot = cta["equity_contable"] / cta["slots"]
     limite = _dia_limite(sesion)
 
-    salida = []
+    salida, descartes = [], []
     for e in pendientes:
         ref = _ultimo_cierre(precios, e["ticker"], antes_de=sesion)
         if ref is None:
@@ -85,9 +87,15 @@ def ordenes_de_compra(sesion: str, cartera: str, capital: float | None,
                 f"dimensionar la orden sin saber a cuánto cotiza.")
         acciones = riesgo.acciones_enteras(slot, ref)
         if acciones < 1:
-            log(f"  {e['ticker']}: NO cabe en el slot (${slot:,.0f} a "
-                f"${ref:,.2f}/acción). Se queda sin ejecutar en el broker; "
-                f"el simulador sí la contará.")
+            # El precio de una acción supera el capital por posición: floor = 0.
+            # En el broker no cabe; el simulador la contará con fracciones.
+            log(f"  {e['ticker']}: precio ${ref:,.2f} > capital por posición "
+                f"${slot:,.0f}: 0 acciones. Descarte del broker (ámbar).")
+            descartes.append({
+                "ticker": e["ticker"], "sesion": sesion,
+                "motivo": "precio mayor que el capital por posición",
+                "precio": round(ref, 2), "capital_posicion": round(slot, 2),
+            })
             continue
         atr = e.get("atr")
         objetivo = objetivos.objetivo_inicial(ref, atr, e.get("resistencia"),
@@ -100,7 +108,7 @@ def ordenes_de_compra(sesion: str, cartera: str, capital: float | None,
             stop=round(objetivos.stop_inicial(ref, atr), 2) if cartera == "A" else None,
             referencia=round(ref, 2), fecha_limite=limite,
         ))
-    return salida
+    return salida, descartes
 
 
 def _ultimo_cierre(precios: dict, ticker: str, antes_de: str | None = None):
@@ -178,15 +186,17 @@ def main() -> int:
         return 0
 
     cartera = config.CARTERA_BROKER
+    descartes = None                      # None = este evento no los toca
     if args.evento == "preapertura":
         from centinela import datos
         tickers = sorted({e["ticker"] for e in estado.get("entradas_pendientes", [])})
         precios = datos.actualizar_precios(tickers) if tickers else {}
-        ordenes = ordenes_de_compra(sesion, cartera, args.capital, precios)
+        ordenes, descartes = ordenes_de_compra(sesion, cartera, args.capital, precios)
     else:
         ordenes = ordenes_de_venta_por_tiempo(sesion, cartera, args.capital)
 
-    ruta = ords.guardar_pendientes(ordenes, sesion, cartera, args.evento)
+    ruta = ords.guardar_pendientes(ordenes, sesion, cartera, args.evento,
+                                   descartes=descartes)
     log(f"{len(ordenes)} orden(es) de {args.evento} para la cartera {cartera} "
         f"-> {ruta.relative_to(config.BASE_DIR)}")
     for o in ordenes:

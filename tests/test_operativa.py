@@ -365,6 +365,23 @@ def test_un_candidato_no_disponible_en_XTB_es_ambar_informativo_no_un_fallo():
     assert not any("NO ha ejecutado" in h for h in hoy_bloque["huecos"])
 
 
+def test_un_descarte_por_capital_muestra_su_motivo_en_ambar():
+    """Una compra descartada porque el precio de una acción supera el capital por
+    posición se explica con SU motivo (ámbar), no con el de 'no disponible en
+    XTB' ni como un fallo del ejecutor."""
+    from centinela import ordenes as ords
+    hoy = AHORA.date().isoformat()
+    ordenes = [{"sesion": hoy, "tipo": ords.COMPRA, "ticker": "NVR",
+                "estado": ords.NO_DISPONIBLE,
+                "error": "precio mayor que el capital por posición"}]
+    hoy_bloque = go.bloque_hoy(ordenes, AHORA)
+    assert hoy_bloque["no_disponibles"] == 1
+    assert any("NVR" in h and "precio mayor que el capital por posición" in h
+               for h in hoy_bloque["huecos"])
+    assert not any("el ejecutor no llegó a enviarlas" in h
+                   for h in hoy_bloque["huecos"])
+
+
 def test_el_html_detecta_datos_viejos_con_mercado_abierto():
     """Con mercado abierto y datos anteriores a la apertura → el browser detecta
     el rojo ANTES de llegar al umbral de 30 h."""

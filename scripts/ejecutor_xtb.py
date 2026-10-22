@@ -366,9 +366,35 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
     hoy = datetime.now(config.TZ_ET).date().isoformat()
     cola = [o for o in pendientes["ordenes"]
             if o.tipo == tipo and o.sesion == hoy]
+
+    # DESCARTES DEL BROKER: entradas decididas cuyo precio de una acción supera
+    # el capital por posición (floor(capital/precio)=0). No son órdenes —llegan
+    # en su propia lista, sin acciones que comprar—, pero se registran como
+    # NO_DISPONIBLE (ámbar informativo, sin enviar, fuera de la fiabilidad),
+    # IGUAL que un símbolo que XTB no ofrece. Se procesan ANTES de mirar la cola,
+    # que puede estar vacía si el día solo trajo descartes.
+    nd_desc, nd_desc_tk = 0, []
+    cartera = pendientes.get("cartera_broker") or config.CARTERA_BROKER
+    if tipo == ords.COMPRA:
+        for d in pendientes.get("descartes_broker", []):
+            if d.get("sesion") != hoy:
+                continue
+            did = ords.identificador(hoy, cartera, d["ticker"], ords.COMPRA)
+            if ords.ya_enviada(registro, did):
+                continue
+            log(f"  {d['ticker']}: {d.get('motivo')}; descarte del broker "
+                f"(no se envía, no cuenta en fiabilidad).")
+            ords.registrar_descarte_broker(d["ticker"], cartera, hoy,
+                                           d.get("motivo", "descartada por el broker"))
+            ords.marcar_enviada(registro, did, {"estado": ords.NO_DISPONIBLE})
+            nd_desc += 1
+            nd_desc_tk.append(d["ticker"])
+
     if not cola:
         log(f"no hay órdenes de tipo {tipo} para {hoy}.")
-        ENVIADAS[tipo] = {"decididas": 0, "enviadas": 0, "ya_estaban": 0}
+        ENVIADAS[tipo] = {"decididas": 0, "enviadas": 0, "ya_estaban": 0,
+                          "no_disponibles": nd_desc,
+                          "no_disponibles_tickers": nd_desc_tk}
         return []
     log(f"{len(cola)} orden(es) de tipo {tipo} para {hoy}.")
 
@@ -380,7 +406,9 @@ def enviar(broker: bx.BrokerXTB, pendientes: dict, momento: str,
     aperturas_compra = (_apertura_del_dia([o.ticker for o in cola])
                         if tipo == ords.COMPRA else {})
 
-    hechas, ya_estaban, no_disponibles, nd_tickers = [], 0, 0, []
+    # Los descartes del broker ya contados arriba entran en el recuento final de
+    # no disponibles (ámbar), igual que los símbolos que XTB no ofrece.
+    hechas, ya_estaban, no_disponibles, nd_tickers = [], 0, nd_desc, list(nd_desc_tk)
     for o in cola:
         if ords.ya_enviada(registro, o.id):
             log(f"  {o.id}: ya enviada, se omite.")
