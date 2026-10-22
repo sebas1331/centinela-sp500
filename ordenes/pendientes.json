@@ -1,6 +1,22 @@
 {
   "cartera_broker": "A",
-  "generado": "2026-10-22T08:46:28.313732-04:00",
-  "ordenes": [],
+  "descartes_broker": [],
+  "generado": "2026-10-22T18:01:50.721148-04:00",
+  "ordenes": [
+    {
+      "acciones": 2,
+      "cartera": "A",
+      "fecha_limite": "2026-10-23",
+      "id": "2026-10-23|A|FICO|venta_tiempo",
+      "id_operacion": 166,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-10-23",
+      "stop": null,
+      "ticker": "FICO",
+      "tipo": "venta_tiempo"
+    }
+  ],
   "sesion": "2026-10-22"
 }
