@@ -182,6 +182,19 @@ def test_mucho_antes_de_abrir_CON_posiciones_SI_se_arranca():
     assert "posición" in motivo or "dormirá" in motivo
 
 
+def test_demasiado_antes_de_abrir_CON_posiciones_NO_arranca_por_el_tope_de_6h():
+    """La espera tiene que caber en el límite de 6 h de GitHub: con posiciones se
+    arranca a dormir solo si falta menos que el tope de la pre-apertura
+    (ESPERA_VENTANA_MAX_MIN = 330 min). El 22-oct un peldaño de la 01:18 ET (492
+    min) lanzó un vigilante que no podía dormir 8 h; ahora cede a un cron
+    posterior, más cerca de la apertura."""
+    # 330 min justos (04:00 ET): cabe, se arranca a dormir.
+    assert hf.decidir(None, _et(4, 0), forzado=False, posiciones_xtb=5)[0]
+    # 492 min (01:18 ET): no cabe en 6 h; no se arranca aunque haya posiciones.
+    arrancar, motivo = hf.decidir(None, _et(1, 18), forzado=False, posiciones_xtb=5)
+    assert not arrancar and "apertura" in motivo
+
+
 def test_mucho_antes_de_abrir_posiciones_desconocidas_no_arranca():
     """Si no se sabe cuántas posiciones hay (posiciones_xtb=None) no se arrancan
     vigilantes extra por precaución: puede no haber nada que vigilar."""

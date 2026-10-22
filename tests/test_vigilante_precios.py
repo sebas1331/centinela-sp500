@@ -641,3 +641,36 @@ def test_pero_si_el_simulador_ya_la_tiene_manda_el_simulador(aislado, monkeypatc
 
     vigiladas = vp.cargar_vigiladas(BrokerFalso([_posicion("CTVA.US", 134)]))
     assert vigiladas[0]["objetivo"] == 30.0, "la bitácora pisó al simulador"
+
+
+# --------------------------------------------------------------------------- #
+# Arranque de madrugada con posiciones abiertas (22-oct)
+# --------------------------------------------------------------------------- #
+def test_posiciones_conocidas_cuenta_la_foto_aunque_no_traiga_lado(tmp_path,
+                                                                    monkeypatch):
+    """estado_broker escribe las posiciones ya filtradas a compra pero SIN el
+    campo `lado`. Contar `lado == 'buy'` daba 0 y el vigilante se retiraba de
+    madrugada pese a las 5 posiciones (22-oct). Se cuentan igual."""
+    monkeypatch.setattr(config, "ESTADO_DIR", tmp_path)
+    (tmp_path / "broker.json").write_text(json.dumps({"posiciones": [
+        {"ticker": "WDC.US", "acciones": 5.0},
+        {"ticker": "STX.US", "acciones": 2.0},
+        {"ticker": "FLEX.US", "acciones": 18.0},
+    ]}), encoding="utf-8")
+    assert vp._posiciones_conocidas() == 3
+
+
+def test_con_posiciones_se_espera_hasta_el_tope_de_la_preapertura():
+    """22-oct: el vigilante arrancó a 129 min de la apertura con 5 posiciones y
+    se retiró en vez de esperar (el tope era 45). Ahora, con posiciones, espera
+    hasta el mismo tope que la pre-apertura (ESPERA_VENTANA_MAX_MIN = 330, dentro
+    de las 6 h de GitHub); más temprano que eso, reposo (lo recoge un cron más
+    cerca). Sin posiciones, el tope sigue en 45: lo arranca el job de compras."""
+    assert config.ESPERA_VENTANA_MAX_MIN == 330
+    # Con posiciones: el caso de hoy (129 min) ahora espera.
+    assert vp._espera_antes_de_apertura(129, 5) == "esperar"
+    assert vp._espera_antes_de_apertura(config.ESPERA_VENTANA_MAX_MIN, 5) == "esperar"
+    assert vp._espera_antes_de_apertura(config.ESPERA_VENTANA_MAX_MIN + 1, 5) == "reposo"
+    # Sin posiciones: tope corto, lo arranca el job de compras tras abrir.
+    assert vp._espera_antes_de_apertura(129, 0) == "reposo"
+    assert vp._espera_antes_de_apertura(config.VIGILANTE_ESPERA_APERTURA_MAX_MIN, 0) == "esperar"

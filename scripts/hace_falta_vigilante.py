@@ -57,7 +57,13 @@ def decidir(latido: dict | None, ahora: datetime, forzado: bool,
     # ejecutor termine.
     faltan = (apertura - ahora).total_seconds() / 60.0
     if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
-        if posiciones_xtb:
+        # Con posiciones abiertas se arranca y el worker duerme hasta la
+        # apertura, pero solo si la espera cabe en el tope —el mismo que la
+        # pre-apertura, ESPERA_VENTANA_MAX_MIN, dentro de las 6 h de GitHub—; el
+        # vigilante usa ese mismo límite. Más temprano no: un cron posterior,
+        # más cerca de abrir, lo recogerá. Sin posiciones lo arranca el job de
+        # compras tras abrir.
+        if posiciones_xtb and faltan <= config.ESPERA_VENTANA_MAX_MIN:
             return True, (f"faltan {faltan:.0f} min para la apertura pero hay "
                           f"{posiciones_xtb} posición(es) conocida(s); el vigilante "
                           f"arrancará y dormirá hasta la apertura")

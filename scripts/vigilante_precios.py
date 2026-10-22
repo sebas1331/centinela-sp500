@@ -85,15 +85,41 @@ ESPERA_SUCESOR_SEG = 600
 
 
 def _posiciones_conocidas() -> int:
-    """Posiciones BUY abiertas según la última foto publicada de broker.json."""
+    """Posiciones abiertas según la última foto publicada de broker.json.
+
+    broker.json ya trae SOLO posiciones de compra: estado_broker.volcar las
+    filtra por `lado == "buy"` al escribirlas, pero NO guarda ese campo. Contar
+    aquí `lado == "buy"` daba SIEMPRE 0 —el campo no está en la foto— y el
+    vigilante se retiraba de madrugada ("lo arrancará el job de compras") dejando
+    las posiciones sin vigilar, pese a que `hace_falta` sí las veía y lo había
+    arrancado para dormir hasta la apertura (22-oct: 5 posiciones, retirado a las
+    07:20). Se cuentan todas las de la foto, igual que hace_falta_vigilante.
+    """
     ruta = config.ESTADO_DIR / "broker.json"
     if not ruta.exists():
         return 0
     try:
         data = json.loads(ruta.read_text(encoding="utf-8"))
-        return sum(1 for p in data.get("posiciones", []) if p.get("lado") == "buy")
+        return sum(1 for p in data.get("posiciones", [])
+                   if float(p.get("acciones") or 0) > 0)
     except Exception:
         return 0
+
+
+def _espera_antes_de_apertura(faltan_min: float, n_posiciones: int) -> str:
+    """Qué hacer si el vigilante arranca ANTES de la apertura: 'esperar' o 'reposo'.
+
+    Con posiciones abiertas hay que vigilar desde el primer minuto, así que se
+    espera dormido hasta la apertura hasta el MISMO tope que la pre-apertura
+    (ESPERA_VENTANA_MAX_MIN, dentro del límite de 6 h de GitHub); el relevo, que
+    se cuenta desde el inicio del job, cede el testigo al sucesor al abrir. Sin
+    posiciones no vale la pena retener el runner si falta mucho
+    (VIGILANTE_ESPERA_APERTURA_MAX_MIN): lo arranca el job de compras tras abrir.
+    Más temprano que el tope: reposo, y lo recoge un cron posterior más cerca.
+    """
+    tope = (config.ESPERA_VENTANA_MAX_MIN if n_posiciones
+            else config.VIGILANTE_ESPERA_APERTURA_MAX_MIN)
+    return "esperar" if faltan_min <= tope else "reposo"
 
 
 def en_prueba() -> bool:
@@ -899,19 +925,24 @@ def main() -> int:
 
     # ANTES DE ABRIR NO SE VIGILA. XTB encola las órdenes de mercado con la
     # sesión cerrada y luego las descarta, así que un disparo en el pre-mercado
-    # sería una venta que no ocurre. Si falta poco se espera; si falta mucho y
-    # no hay posiciones conocidas, se va en reposo y lo arranca el job de
-    # compras. Con posiciones conocidas se duerme aunque falte mucho: hay algo
-    # que vigilar desde el primer minuto y no podemos depender de que el
-    # ejecutor de compras termine antes de que la apertura lo pille.
+    # sería una venta que no ocurre. Con posiciones conocidas se duerme hasta la
+    # apertura hasta el tope de la pre-apertura (ESPERA_VENTANA_MAX_MIN = 330
+    # min, dentro de las 6 h de GitHub): hay algo que vigilar desde el primer
+    # minuto y no podemos depender de que el ejecutor de compras termine antes de
+    # que la apertura lo pille. Sin posiciones, solo si falta poco; si no, reposo
+    # y lo arranca el job de compras. Ver `_espera_antes_de_apertura`.
     if not args.forzar and ahora < apertura:
         faltan = (apertura - ahora).total_seconds() / 60.0
-        if faltan > config.VIGILANTE_ESPERA_APERTURA_MAX_MIN:
-            n = _posiciones_conocidas()
-            if n == 0:
-                return reposo(f"faltan {faltan:.0f} min para la apertura; lo "
-                              f"arrancará el job de compras tras abrir",
-                              "omitido:antes-de-apertura")
+        n = _posiciones_conocidas()
+        if _espera_antes_de_apertura(faltan, n) == "reposo":
+            return reposo(
+                f"faltan {faltan:.0f} min para la apertura" + (
+                    f", más que el tope de espera "
+                    f"({config.ESPERA_VENTANA_MAX_MIN} min) con {n} posición(es); "
+                    f"lo recogerá un cron posterior más cerca de abrir" if n else
+                    f"; lo arrancará el job de compras tras abrir"),
+                "omitido:antes-de-apertura")
+        if n:
             log(f"faltan {faltan:.0f} min para la apertura; "
                 f"{n} posición(es) conocida(s): se espera hasta la apertura.")
         else:
