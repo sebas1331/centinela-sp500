@@ -36,3 +36,4 @@ id,sesion,cuando_et,cartera,ticker,simbolo_xtb,tipo,acciones,estado,precio,orden
 2026-10-19|A|SNDK|entrada_tardia|r2,2026-10-19,2026-10-19T09:48:49.998722-04:00,A,SNDK,SNDK.US,entrada_tardia,1,ejecutada,1384.0,920686249,1493.83,1143.38,,1358.5,1.8771,,posicion
 2026-10-19|A|SMCI|entrada_tardia|r2,2026-10-19,2026-10-19T09:49:16.008937-04:00,A,SMCI,SMCI.US,entrada_tardia,52,ejecutada,33.0,920686375,45.77,27.83,,33.025001525878906,-0.0757,,posicion
 2026-10-21|A|COHR|compra,2026-10-21,2026-10-21T09:45:34.346477-04:00,A,COHR,COHR.US,compra,7,no_disponible,,,341.76,203.98,231.8,,,no disponible en XTB como acción al contado,
+2026-10-22|A|FLEX|stop_xtb,2026-10-22,2026-10-22T18:02:40.683278-04:00,A,FLEX,FLEX.US,stop_xtb,18,ejecutada,81.5056,,,81.5056,,81.5056,-0.0,,simulador
