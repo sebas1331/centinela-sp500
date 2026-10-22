@@ -8,6 +8,7 @@ Tres capas, de la más rápida a la más lenta:
 """
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -19,6 +20,7 @@ sys.path.insert(0, str(RAIZ))
 sys.path.insert(0, str(RAIZ / "scripts"))
 
 from centinela import config, latido as lat, salud  # noqa: E402
+import arrancar_vigilante_posiciones as avp  # noqa: E402
 import guardian_vigilante as gv  # noqa: E402
 import hace_falta_vigilante as hf  # noqa: E402
 import supervisor_vigilante as sv  # noqa: E402
@@ -193,6 +195,25 @@ def test_demasiado_antes_de_abrir_CON_posiciones_NO_arranca_por_el_tope_de_6h():
     # 492 min (01:18 ET): no cabe en 6 h; no se arranca aunque haya posiciones.
     arrancar, motivo = hf.decidir(None, _et(1, 18), forzado=False, posiciones_xtb=5)
     assert not arrancar and "apertura" in motivo
+
+
+def test_el_gate_de_posiciones_previas_cuenta_la_foto_sin_lado(tmp_path):
+    """El gate arrancar_vigilante_posiciones del pre-apertura cuenta las
+    posiciones de la foto SIN depender del campo `lado` (broker.json no lo
+    guarda), igual que hace_falta y _posiciones_conocidas. Contar lado=='buy'
+    daba 0 y dejaba las posiciones sin vigilar de madrugada (22-oct)."""
+    foto = tmp_path / "broker.json"
+    foto.write_text(json.dumps({"posiciones": [
+        {"ticker": "WDC.US", "acciones": 5.0},      # SIN campo 'lado'
+        {"ticker": "STX.US", "acciones": 2.0},
+        {"ticker": "FLEX.US", "acciones": 18.0}]}), encoding="utf-8")
+    assert avp.posiciones_en_foto(foto) == 3
+    # Con posiciones y hora de mercado, arranca; de madrugada o sin posiciones, no.
+    assert avp.arrancar(3, 14)[0]
+    assert not avp.arrancar(3, 5)[0]
+    assert not avp.arrancar(0, 14)[0]
+    # Foto inexistente o ilegible -> 0, sin reventar.
+    assert avp.posiciones_en_foto(tmp_path / "no-existe.json") == 0
 
 
 def test_mucho_antes_de_abrir_posiciones_desconocidas_no_arranca():
