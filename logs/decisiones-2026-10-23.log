@@ -178,3 +178,9 @@ BE | dd=38.0% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Car
 CIEN | dd=69.5% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 STX | dd=43.9% | prob=0.831 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (4): ['COHR', 'FLEX', 'LITE', 'STX']
+
+===== escaneo postcierre 2026-10-23 18:00:40 ET =====
+POST-CIERRE 2026-10-23
+entradas ejecutadas: ['COHR', 'FLEX', 'LITE']
+cambios de objetivo: 7
+cierres: [('FICO', 'A', 'tiempo', 0.2097), ('BE', 'A', 'stop', -0.12), ('FICO', 'B', 'tiempo', 0.2097)]
