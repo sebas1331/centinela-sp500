@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-23T16:00:07.082876-04:00",
+  "actualizado": "2026-10-23T18:02:15.312190-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-23T14:55:43.759868-04:00",
@@ -30,11 +30,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39998067023"
     },
     "reconcilia": {
-      "cuando": "2026-10-22T18:02:45.219513-04:00",
-      "detalle": "",
-      "resultado": "ok",
-      "run": "39837374099",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39837374099"
+      "cuando": "2026-10-23T18:02:15.312190-04:00",
+      "detalle": "FLEX.US: el simulador pide BAJAR el stop de 67.49 a 67.07, y eso no debería pasar; se mantiene 67.49 en XTB.",
+      "resultado": "diferencias",
+      "run": "40008315029",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40008315029"
     },
     "reentrenamiento": {
       "cuando": "2026-10-01T09:05:25.207173-04:00",
