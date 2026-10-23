@@ -1,89 +1,79 @@
 {
   "candado_ok": true,
   "divisa": "USD",
-  "equity": 29255.51,
+  "equity": null,
   "equity_xtb": 20187.74,
-  "leido": "2026-10-23T09:46:28.923480-04:00",
+  "leido": "2026-10-23T14:31:46.360986-04:00",
   "posiciones": [
-    {
-      "acciones": 21.0,
-      "coste": null,
-      "invertido": 1590.33,
-      "pnl": -9.03,
-      "precio_actual": 75.3,
-      "precio_entrada": 75.73,
-      "precio_fuente": "cotizacion",
-      "ticker": "FLEX.US",
-      "valor": 1581.3
-    },
-    {
-      "acciones": 2.0,
-      "coste": 1670.6912273391401,
-      "invertido": 1330.58,
-      "pnl": -75.96,
-      "precio_actual": 627.31,
-      "precio_entrada": 665.29,
-      "precio_fuente": "cotizacion",
-      "ticker": "STX.US",
-      "valor": 1254.62
-    },
     {
       "acciones": 1.0,
       "coste": 1670.6912273391401,
       "invertido": 1384.0,
-      "pnl": -125.46,
-      "precio_actual": 1258.54,
+      "pnl": -122.4,
+      "precio_actual": 1261.6,
       "precio_entrada": 1384.0,
-      "precio_fuente": "cotizacion",
+      "precio_fuente": "bid",
       "ticker": "SNDK.US",
-      "valor": 1258.54
-    },
-    {
-      "acciones": 5.0,
-      "coste": 1670.6912273391401,
-      "invertido": 1747.45,
-      "pnl": -29.4,
-      "precio_actual": 343.61,
-      "precio_entrada": 349.49,
-      "precio_fuente": "cotizacion",
-      "ticker": "WDC.US",
-      "valor": 1718.05
-    },
-    {
-      "acciones": 52.0,
-      "coste": 1670.6912273391401,
-      "invertido": 1716.0,
-      "pnl": 32.24,
-      "precio_actual": 33.62,
-      "precio_entrada": 33.0,
-      "precio_fuente": "cotizacion",
-      "ticker": "SMCI.US",
-      "valor": 1748.24
+      "valor": 1261.6
     },
     {
       "acciones": 2.0,
       "coste": null,
       "invertido": 1528.28,
-      "pnl": -21.26,
-      "precio_actual": 753.51,
+      "pnl": null,
+      "precio_actual": null,
       "precio_entrada": 764.14,
-      "precio_fuente": "cotizacion",
+      "precio_fuente": "sin-precio",
       "ticker": "LITE.US",
-      "valor": 1507.02
+      "valor": null
+    },
+    {
+      "acciones": 52.0,
+      "coste": 1670.6912273391401,
+      "invertido": 1716.0,
+      "pnl": 18.2,
+      "precio_actual": 33.35,
+      "precio_entrada": 33.0,
+      "precio_fuente": "bid",
+      "ticker": "SMCI.US",
+      "valor": 1734.2
+    },
+    {
+      "acciones": 5.0,
+      "coste": 1670.6912273391401,
+      "invertido": 1747.45,
+      "pnl": -24.25,
+      "precio_actual": 344.64,
+      "precio_entrada": 349.49,
+      "precio_fuente": "bid",
+      "ticker": "WDC.US",
+      "valor": 1723.2
+    },
+    {
+      "acciones": 21.0,
+      "coste": null,
+      "invertido": 1590.33,
+      "pnl": null,
+      "precio_actual": null,
+      "precio_entrada": 75.73,
+      "precio_fuente": "sin-precio",
+      "ticker": "FLEX.US",
+      "valor": null
+    },
+    {
+      "acciones": 2.0,
+      "coste": 1670.6912273391401,
+      "invertido": 1330.58,
+      "pnl": -47.0,
+      "precio_actual": 641.79,
+      "precio_entrada": 665.29,
+      "precio_fuente": "bid",
+      "ticker": "STX.US",
+      "valor": 1283.58
     }
   ],
   "saldo": 20187.74,
   "stops": {
-    "FLEX.US": {
-      "acciones": 21.0,
-      "orden": 921810367,
-      "precio": 67.49
-    },
-    "LITE.US": {
-      "acciones": 2.0,
-      "orden": 921810377,
-      "precio": 662.24
-    },
     "SMCI.US": {
       "acciones": 52.0,
       "orden": 920686625,
@@ -105,5 +95,5 @@
       "precio": 300.92
     }
   },
-  "valor_posiciones": 9067.77
+  "valor_posiciones": 6002.58
 }
