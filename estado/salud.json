@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-10-23T08:35:47.676466-04:00",
+  "actualizado": "2026-10-23T09:46:29.499801-04:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-22T15:05:41.040120-04:00",
@@ -9,11 +9,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39836897635"
     },
     "compras": {
-      "cuando": "2026-10-22T09:45:26.930459-04:00",
+      "cuando": "2026-10-23T09:46:29.499801-04:00",
       "detalle": "",
-      "resultado": "ok: 0 órdenes — 2 señal(es) descartada(s): COHR — ya hay posición abierta en Cartera A y Cartera B.; FLEX — ya hay posición abierta en Cartera A y Cartera B.; SKYD — ya hay posición abierta en Cartera A y Cartera B.",
-      "run": "39740827281",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39740827281"
+      "resultado": "ok: 2 de 2 órdenes (1 no disponible en XTB)",
+      "run": "39917469645",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/39917469645"
     },
     "postcierre": {
       "cuando": "2026-10-22T21:27:27.932303-04:00",

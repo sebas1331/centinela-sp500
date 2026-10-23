@@ -40,3 +40,5 @@ cuando,sesion,id,simbolo,tipo,estado,detalle
 2026-10-19T09:48:47.426151-04:00,2026-10-19,2026-10-19|A|FLEX|entrada_tardia|r2,FLEX.US,entrada_tardia,ejecutada,XTB lo refleja: FLEX.US pasó de 0 a 18 acciones (intento 1)
 2026-10-19T09:49:13.414882-04:00,2026-10-19,2026-10-19|A|SNDK|entrada_tardia|r2,SNDK.US,entrada_tardia,ejecutada,XTB lo refleja: SNDK.US pasó de 0 a 1 acciones (intento 1)
 2026-10-19T09:49:39.422553-04:00,2026-10-19,2026-10-19|A|SMCI|entrada_tardia|r2,SMCI.US,entrada_tardia,ejecutada,XTB lo refleja: SMCI.US pasó de 0 a 52 acciones (intento 1)
+2026-10-23T09:45:56.059594-04:00,2026-10-23,2026-10-23|A|FLEX|compra,FLEX.US,compra,ejecutada,XTB lo refleja: FLEX.US pasó de 0 a 21 acciones (intento 1)
+2026-10-23T09:46:21.080023-04:00,2026-10-23,2026-10-23|A|LITE|compra,LITE.US,compra,ejecutada,XTB lo refleja: LITE.US pasó de 0 a 2 acciones (intento 1)
