@@ -183,3 +183,9 @@ CIEN | dd=69.7% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en C
 STX | dd=44.9% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 SKYD | dd=62.1% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['BE', 'FIX']
+
+===== escaneo postcierre 2026-10-26 18:00:51 ET =====
+POST-CIERRE 2026-10-26
+entradas ejecutadas: ['BE', 'FIX']
+cambios de objetivo: 5
+cierres: [('COHR', 'B', 'tiempo', -0.203)]
