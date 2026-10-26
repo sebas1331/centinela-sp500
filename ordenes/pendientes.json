@@ -1,50 +1,36 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-23T18:01:18.013381-04:00",
+  "generado": "2026-10-26T08:46:28.990368-04:00",
   "ordenes": [
     {
-      "acciones": 7,
+      "acciones": 8,
       "cartera": "A",
-      "fecha_limite": "2026-11-05",
-      "id": "2026-10-23|A|COHR|compra",
+      "fecha_limite": "2026-11-06",
+      "id": "2026-10-26|A|BE|compra",
       "id_operacion": null,
-      "objetivo": 251.46,
+      "objetivo": 302.35,
       "precio_simulador": null,
-      "referencia": 207.82,
-      "sesion": "2026-10-23",
-      "stop": 182.88,
-      "ticker": "COHR",
+      "referencia": 193.3,
+      "sesion": "2026-10-26",
+      "stop": 170.1,
+      "ticker": "BE",
       "tipo": "compra"
     },
     {
-      "acciones": 21,
+      "acciones": 1,
       "cartera": "A",
-      "fecha_limite": "2026-11-05",
-      "id": "2026-10-23|A|FLEX|compra",
+      "fecha_limite": "2026-11-06",
+      "id": "2026-10-26|A|FIX|compra",
       "id_operacion": null,
-      "objetivo": 89.96,
+      "objetivo": 1338.19,
       "precio_simulador": null,
-      "referencia": 76.69,
-      "sesion": "2026-10-23",
-      "stop": 67.49,
-      "ticker": "FLEX",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 2,
-      "cartera": "A",
-      "fecha_limite": "2026-11-05",
-      "id": "2026-10-23|A|LITE|compra",
-      "id_operacion": null,
-      "objetivo": 1165.03,
-      "precio_simulador": null,
-      "referencia": 752.54,
-      "sesion": "2026-10-23",
-      "stop": 662.24,
-      "ticker": "LITE",
+      "referencia": 1160.86,
+      "sesion": "2026-10-26",
+      "stop": 1021.56,
+      "ticker": "FIX",
       "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-23"
+  "sesion": "2026-10-26"
 }
