@@ -1,36 +1,22 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-26T18:01:34.546404-04:00",
+  "generado": "2026-10-27T08:46:37.941690-04:00",
   "ordenes": [
     {
-      "acciones": 8,
+      "acciones": 2,
       "cartera": "A",
-      "fecha_limite": "2026-11-06",
-      "id": "2026-10-26|A|BE|compra",
+      "fecha_limite": "2026-11-09",
+      "id": "2026-10-27|A|FICO|compra",
       "id_operacion": null,
-      "objetivo": 302.35,
+      "objetivo": 936.0,
       "precio_simulador": null,
-      "referencia": 193.3,
-      "sesion": "2026-10-26",
-      "stop": 170.1,
-      "ticker": "BE",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 1,
-      "cartera": "A",
-      "fecha_limite": "2026-11-06",
-      "id": "2026-10-26|A|FIX|compra",
-      "id_operacion": null,
-      "objetivo": 1338.19,
-      "precio_simulador": null,
-      "referencia": 1160.86,
-      "sesion": "2026-10-26",
-      "stop": 1021.56,
-      "ticker": "FIX",
+      "referencia": 708.07,
+      "sesion": "2026-10-27",
+      "stop": 623.1,
+      "ticker": "FICO",
       "tipo": "compra"
     }
   ],
-  "sesion": "2026-10-26"
+  "sesion": "2026-10-27"
 }
