@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-10-26T18:00:51.541692-04:00",
+  "actualizado": "2026-10-27T08:46:02.440852-04:00",
   "contador_grupo": 111,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 20.7978,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-10-27",
+      "notas": "prob=0.873 score_fund=53.3 sent=0.0 (n=0)",
+      "proba": 0.8726,
+      "resistencia": 341.76,
+      "score_fundamental": 53.3,
+      "sector": "Information Technology",
+      "target_analista": 395.99854,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-10-27T08:45:05.001343-04:00"
+    },
+    {
+      "atr": 50.1578,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-27",
+      "notas": "prob=0.831 score_fund=76.9 sent=0.0 (n=0)",
+      "proba": 0.8308,
+      "resistencia": 828.95,
+      "score_fundamental": 76.9,
+      "sector": "Information Technology",
+      "target_analista": 935.9984,
+      "ticker": "FICO",
+      "timestamp_escaneo": "2026-10-27T08:45:05.001343-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -628,11 +660,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40400455755"
     },
     "preapertura": {
-      "cuando": "2026-10-26T08:45:54.061625-04:00",
-      "run": "40287567405",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40287567405"
+      "cuando": "2026-10-27T08:46:02.440830-04:00",
+      "run": "40468894569",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40468894569"
     }
   },
   "ultima_postcierre": "2026-10-26",
-  "ultima_preapertura": "2026-10-26"
+  "ultima_preapertura": "2026-10-27"
 }
