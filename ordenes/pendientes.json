@@ -1,36 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-28T08:46:48.644241-04:00",
-  "ordenes": [
-    {
-      "acciones": 4,
-      "cartera": "A",
-      "fecha_limite": "2026-10-28",
-      "id": "2026-10-28|A|CIEN|venta_tiempo",
-      "id_operacion": 172,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-28",
-      "stop": null,
-      "ticker": "CIEN",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 239,
-      "cartera": "A",
-      "fecha_limite": "2026-10-28",
-      "id": "2026-10-28|A|SKYD|venta_tiempo",
-      "id_operacion": 174,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-28",
-      "stop": null,
-      "ticker": "SKYD",
-      "tipo": "venta_tiempo"
-    }
-  ],
+  "generado": "2026-10-28T18:01:38.456155-04:00",
+  "ordenes": [],
   "sesion": "2026-10-28"
 }
