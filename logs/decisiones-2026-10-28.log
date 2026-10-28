@@ -171,3 +171,9 @@ COHR | dd=46.4% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=50.0% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 SKYD | dd=62.2% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-10-28 18:00:58 ET =====
+POST-CIERRE 2026-10-28
+entradas ejecutadas: []
+cambios de objetivo: 2
+cierres: [('CIEN', 'A', 'tiempo', 0.0605), ('SKYD', 'A', 'tiempo', 0.1006), ('FLEX', 'A', 'objetivo', 0.1742), ('FIX', 'A', 'objetivo', 0.1479), ('BE', 'B', 'tiempo', 0.0169), ('CIEN', 'B', 'tiempo', 0.0605), ('SKYD', 'B', 'tiempo', 0.1006), ('FIX', 'B', 'objetivo', 0.1479)]
