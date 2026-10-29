@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-10-28T18:00:58.684300-04:00",
+  "actualizado": "2026-10-29T08:45:50.346862-04:00",
   "contador_grupo": 113,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 19.7181,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-10-29",
+      "notas": "prob=0.873 score_fund=61.2 sent=0.0 (n=0)",
+      "proba": 0.8726,
+      "resistencia": 300.8,
+      "score_fundamental": 61.2,
+      "sector": "Industrials",
+      "target_analista": 284.76923,
+      "ticker": "BE",
+      "timestamp_escaneo": "2026-10-29T08:45:05.001331-04:00"
+    },
+    {
+      "atr": 0.6363,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-10-29",
+      "notas": "prob=0.873 score_fund=24.2 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8726,
+      "resistencia": 10.26,
+      "score_fundamental": 24.2,
+      "sector": "Communication Services",
+      "target_analista": 9.14667,
+      "ticker": "SKYD",
+      "timestamp_escaneo": "2026-10-29T08:45:05.001331-04:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -508,11 +540,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40760993393"
     },
     "preapertura": {
-      "cuando": "2026-10-28T08:46:06.670557-04:00",
-      "run": "40656261006",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40656261006"
+      "cuando": "2026-10-29T08:45:50.346840-04:00",
+      "run": "40841788143",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/40841788143"
     }
   },
   "ultima_postcierre": "2026-10-28",
-  "ultima_preapertura": "2026-10-28"
+  "ultima_preapertura": "2026-10-29"
 }
