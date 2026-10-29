@@ -172,3 +172,9 @@ BE | dd=35.1% | prob=0.873 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta
 COHR | dd=45.5% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 STX | dd=39.0% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['BE', 'SKYD']
+
+===== escaneo postcierre 2026-10-29 18:00:55 ET =====
+POST-CIERRE 2026-10-29
+entradas ejecutadas: ['SKYD']
+cambios de objetivo: 9
+cierres: []
