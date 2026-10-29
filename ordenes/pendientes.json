@@ -1,7 +1,22 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-28T18:01:38.456155-04:00",
-  "ordenes": [],
-  "sesion": "2026-10-28"
+  "generado": "2026-10-29T08:46:32.733165-04:00",
+  "ordenes": [
+    {
+      "acciones": 216,
+      "cartera": "A",
+      "fecha_limite": "2026-11-11",
+      "id": "2026-10-29|A|SKYD|compra",
+      "id_operacion": null,
+      "objetivo": 10.26,
+      "precio_simulador": null,
+      "referencia": 7.77,
+      "sesion": "2026-10-29",
+      "stop": 6.84,
+      "ticker": "SKYD",
+      "tipo": "compra"
+    }
+  ],
+  "sesion": "2026-10-29"
 }
