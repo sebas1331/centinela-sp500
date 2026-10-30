@@ -1,64 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-30T08:46:36.458892-04:00",
-  "ordenes": [
-    {
-      "acciones": 2,
-      "cartera": "A",
-      "fecha_limite": "2026-10-30",
-      "id": "2026-10-30|A|STX|venta_tiempo",
-      "id_operacion": 177,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-30",
-      "stop": null,
-      "ticker": "STX",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 4,
-      "cartera": "A",
-      "fecha_limite": "2026-10-30",
-      "id": "2026-10-30|A|WDC|venta_tiempo",
-      "id_operacion": 178,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-30",
-      "stop": null,
-      "ticker": "WDC",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 1,
-      "cartera": "A",
-      "fecha_limite": "2026-10-30",
-      "id": "2026-10-30|A|SNDK|venta_tiempo",
-      "id_operacion": 182,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-30",
-      "stop": null,
-      "ticker": "SNDK",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 50,
-      "cartera": "A",
-      "fecha_limite": "2026-10-30",
-      "id": "2026-10-30|A|SMCI|venta_tiempo",
-      "id_operacion": 184,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-10-30",
-      "stop": null,
-      "ticker": "SMCI",
-      "tipo": "venta_tiempo"
-    }
-  ],
+  "generado": "2026-10-30T18:01:42.558054-04:00",
+  "ordenes": [],
   "sesion": "2026-10-30"
 }
