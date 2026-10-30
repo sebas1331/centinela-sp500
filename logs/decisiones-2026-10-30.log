@@ -168,3 +168,9 @@ BE | dd=36.7% | prob=0.873 | ENTRADA DESCARTADA: ya hay posición abierta en Car
 COHR | dd=46.1% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 SKYD | dd=61.4% | prob=0.831 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (0): []
+
+===== escaneo postcierre 2026-10-30 18:01:01 ET =====
+POST-CIERRE 2026-10-30
+entradas ejecutadas: []
+cambios de objetivo: 1
+cierres: [('STX', 'A', 'tiempo', -0.0298), ('WDC', 'A', 'tiempo', 0.0706), ('SNDK', 'A', 'stop', -0.12), ('SMCI', 'A', 'tiempo', -0.0023), ('WDC', 'B', 'tiempo', 0.0706), ('FLEX', 'B', 'tiempo', -0.0663), ('SNDK', 'B', 'tiempo', -0.1528), ('SMCI', 'B', 'tiempo', -0.0023)]
