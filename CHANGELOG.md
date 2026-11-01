@@ -2333,3 +2333,8 @@ registrado debajo con su evidencia._
 - Precisión walk-forward (fresca): 84.4% (señales=10284).
 - Operaciones cerradas nuevas desde 2026-09-01: 58.
 - Umbral SIN cambios (0.79). Regla dura: se requieren ≥30 cierres nuevos y evidencia. Solo se re-ajustaron los pesos con datos nuevos.
+## 2026-11-01 — Reentrenamiento mensual
+- Datos: 234,842 eventos, hasta 2026-10-16.
+- Precisión walk-forward (fresca): 84.8% (señales=10264).
+- Operaciones cerradas nuevas desde 2026-10-01: 39.
+- **Cambio de umbral:** 0.79 → 0.82 (≥30 cierres nuevos + evidencia WF).
