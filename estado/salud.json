@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-11-02T11:55:09.343814-05:00",
+  "actualizado": "2026-11-02T12:00:30.662056-05:00",
   "runs": {
     "apertura": {
       "cuando": "2026-10-30T15:53:10.525279-04:00",
@@ -51,11 +51,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41147433928"
     },
     "vigilante": {
-      "cuando": "2026-11-01T14:10:15.901091-05:00",
-      "detalle": "",
-      "resultado": "ok",
-      "run": "41340269942",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41340269942"
+      "cuando": "2026-11-02T12:00:30.662056-05:00",
+      "detalle": "El vigilante de precios está en reposo (la sesión ya cerró) y hay 1 posición(es) con nivel sin vigilar.",
+      "resultado": "fallo:job-en-rojo (fallo:1-problemas)",
+      "run": "41486772724",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41486772724"
     },
     "vigilante_precios": {
       "cuando": "2026-11-02T11:55:09.343814-05:00",
