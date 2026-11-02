@@ -1,7 +1,88 @@
 {
-  "actualizado": "2026-10-30T18:01:01.125738-04:00",
+  "actualizado": "2026-11-02T08:46:04.278529-05:00",
   "contador_grupo": 115,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 9.9069,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-02",
+      "notas": "prob=0.894 score_fund=95.5 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 164.94,
+      "score_fundamental": 95.5,
+      "sector": "Communication Services",
+      "target_analista": 165.84666,
+      "ticker": "RDDT",
+      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
+    },
+    {
+      "atr": 6.9703,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-02",
+      "notas": "prob=0.893 score_fund=34.8 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8934,
+      "resistencia": 118.2,
+      "score_fundamental": 34.8,
+      "sector": "Information Technology",
+      "target_analista": 93.88372,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
+    },
+    {
+      "atr": 17.6697,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-02",
+      "notas": "prob=0.876 score_fund=69.0 sent=0.0 (n=0)",
+      "proba": 0.8757,
+      "resistencia": 301.2042,
+      "score_fundamental": 69.0,
+      "sector": "Information Technology",
+      "target_analista": 340.56198,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
+    },
+    {
+      "atr": 100.1718,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-02",
+      "notas": "prob=0.875 score_fund=99.1 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 1743.24,
+      "score_fundamental": 99.1,
+      "sector": "Information Technology",
+      "target_analista": 2029.0416,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
+    },
+    {
+      "atr": 8.3901,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-02",
+      "notas": "prob=0.875 score_fund=56.1 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 159.5,
+      "score_fundamental": 56.1,
+      "sector": "Information Technology",
+      "target_analista": 154.68826,
+      "ticker": "NOW",
+      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -358,11 +439,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41118936064"
     },
     "preapertura": {
-      "cuando": "2026-10-30T08:45:51.532765-04:00",
-      "run": "41019058087",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41019058087"
+      "cuando": "2026-11-02T08:46:04.278506-05:00",
+      "run": "41420181277",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41420181277"
     }
   },
   "ultima_postcierre": "2026-10-30",
-  "ultima_preapertura": "2026-10-30"
+  "ultima_preapertura": "2026-11-02"
 }
