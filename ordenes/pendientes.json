@@ -1,7 +1,78 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-10-30T18:01:42.558054-04:00",
-  "ordenes": [],
-  "sesion": "2026-10-30"
+  "generado": "2026-11-02T08:46:59.927773-05:00",
+  "ordenes": [
+    {
+      "acciones": 18,
+      "cartera": "A",
+      "fecha_limite": "2026-11-13",
+      "id": "2026-11-02|A|RDDT|compra",
+      "id_operacion": null,
+      "objetivo": 111.54,
+      "precio_simulador": null,
+      "referencia": 91.73,
+      "sesion": "2026-11-02",
+      "stop": 80.72,
+      "ticker": "RDDT",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 25,
+      "cartera": "A",
+      "fecha_limite": "2026-11-13",
+      "id": "2026-11-02|A|INTC|compra",
+      "id_operacion": null,
+      "objetivo": 93.88,
+      "precio_simulador": null,
+      "referencia": 65.76,
+      "sesion": "2026-11-02",
+      "stop": 57.87,
+      "ticker": "INTC",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 8,
+      "cartera": "A",
+      "fecha_limite": "2026-11-13",
+      "id": "2026-11-02|A|MRVL|compra",
+      "id_operacion": null,
+      "objetivo": 301.2,
+      "precio_simulador": null,
+      "referencia": 196.4,
+      "sesion": "2026-11-02",
+      "stop": 172.83,
+      "ticker": "MRVL",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 1,
+      "cartera": "A",
+      "fecha_limite": "2026-11-13",
+      "id": "2026-11-02|A|SNDK|compra",
+      "id_operacion": null,
+      "objetivo": 1743.24,
+      "precio_simulador": null,
+      "referencia": 1150.89,
+      "sesion": "2026-11-02",
+      "stop": 1012.78,
+      "ticker": "SNDK",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 15,
+      "cartera": "A",
+      "fecha_limite": "2026-11-13",
+      "id": "2026-11-02|A|NOW|compra",
+      "id_operacion": null,
+      "objetivo": 154.69,
+      "precio_simulador": null,
+      "referencia": 105.12,
+      "sesion": "2026-11-02",
+      "stop": 92.51,
+      "ticker": "NOW",
+      "tipo": "compra"
+    }
+  ],
+  "sesion": "2026-11-02"
 }
