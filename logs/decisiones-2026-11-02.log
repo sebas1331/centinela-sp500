@@ -169,3 +169,9 @@ ZTS | dd=66.2% | prob=0.421 < umbral -> SIN SEÑAL
 COHR | dd=52.2% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 BE | dd=42.2% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['RDDT', 'INTC', 'MRVL', 'SNDK', 'NOW']
+
+===== escaneo postcierre 2026-11-02 18:05:04 ET =====
+POST-CIERRE 2026-11-02
+entradas ejecutadas: ['RDDT', 'INTC', 'MRVL', 'SNDK', 'NOW']
+cambios de objetivo: 13
+cierres: [('MRVL', 'A', 'stop', -0.12)]

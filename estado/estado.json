@@ -1,88 +1,7 @@
 {
-  "actualizado": "2026-11-02T08:46:04.278529-05:00",
-  "contador_grupo": 115,
-  "entradas_pendientes": [
-    {
-      "atr": 9.9069,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-11-02",
-      "notas": "prob=0.894 score_fund=95.5 sent=0.0 (n=0)",
-      "proba": 0.8945,
-      "resistencia": 164.94,
-      "score_fundamental": 95.5,
-      "sector": "Communication Services",
-      "target_analista": 165.84666,
-      "ticker": "RDDT",
-      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
-    },
-    {
-      "atr": 6.9703,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-11-02",
-      "notas": "prob=0.893 score_fund=34.8 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
-      "proba": 0.8934,
-      "resistencia": 118.2,
-      "score_fundamental": 34.8,
-      "sector": "Information Technology",
-      "target_analista": 93.88372,
-      "ticker": "INTC",
-      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
-    },
-    {
-      "atr": 17.6697,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-11-02",
-      "notas": "prob=0.876 score_fund=69.0 sent=0.0 (n=0)",
-      "proba": 0.8757,
-      "resistencia": 301.2042,
-      "score_fundamental": 69.0,
-      "sector": "Information Technology",
-      "target_analista": 340.56198,
-      "ticker": "MRVL",
-      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
-    },
-    {
-      "atr": 100.1718,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-11-02",
-      "notas": "prob=0.875 score_fund=99.1 sent=0.0 (n=0)",
-      "proba": 0.8753,
-      "resistencia": 1743.24,
-      "score_fundamental": 99.1,
-      "sector": "Information Technology",
-      "target_analista": 2029.0416,
-      "ticker": "SNDK",
-      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
-    },
-    {
-      "atr": 8.3901,
-      "carteras": [
-        "A",
-        "B"
-      ],
-      "fecha_decision": "2026-11-02",
-      "notas": "prob=0.875 score_fund=56.1 sent=0.0 (n=0)",
-      "proba": 0.8753,
-      "resistencia": 159.5,
-      "score_fundamental": 56.1,
-      "sector": "Information Technology",
-      "target_analista": 154.68826,
-      "ticker": "NOW",
-      "timestamp_escaneo": "2026-11-02T08:45:05.001370-05:00"
-    }
-  ],
+  "actualizado": "2026-11-02T18:05:04.527935-05:00",
+  "contador_grupo": 120,
+  "entradas_pendientes": [],
   "posiciones": {
     "A": [
       {
@@ -238,10 +157,15 @@
             "fecha": "2026-10-29",
             "motivo": "recálculo: ATR=0.61, resistencia=9.87",
             "objetivo": 9.87
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=0.57, resistencia=9.84",
+            "objetivo": 9.84
           }
         ],
         "id": 199,
-        "objetivo": 9.87,
+        "objetivo": 9.84,
         "objetivo_inicial": 10.26,
         "portafolio": "A",
         "proba": 0.8726,
@@ -249,6 +173,118 @@
         "sector": "Communication Services",
         "stop": 6.864,
         "ticker": "SKYD"
+      },
+      {
+        "atr_entrada": 9.9069,
+        "dia_limite": "2026-11-13",
+        "entrada": 92.21,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 116,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 112.0238
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=9.58, resistencia=164.94",
+            "objetivo": 111.3685
+          }
+        ],
+        "id": 201,
+        "objetivo": 111.3685,
+        "objetivo_inicial": 112.0238,
+        "portafolio": "A",
+        "proba": 0.8945,
+        "score_fundamental": 95.5,
+        "sector": "Communication Services",
+        "stop": 81.1448,
+        "ticker": "RDDT"
+      },
+      {
+        "atr_entrada": 6.9703,
+        "dia_limite": "2026-11-13",
+        "entrada": 65.38,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 117,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 93.8837
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=6.93, resistencia=118.20",
+            "objetivo": 79.2342
+          }
+        ],
+        "id": 203,
+        "objetivo": 79.2342,
+        "objetivo_inicial": 93.8837,
+        "portafolio": "A",
+        "proba": 0.8934,
+        "score_fundamental": 34.8,
+        "sector": "Information Technology",
+        "stop": 57.5344,
+        "ticker": "INTC"
+      },
+      {
+        "atr_entrada": 100.1718,
+        "dia_limite": "2026-11-13",
+        "entrada": 1158.5,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 119,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 1743.24
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=99.58, resistencia=1733.28",
+            "objetivo": 1733.28
+          }
+        ],
+        "id": 207,
+        "objetivo": 1733.28,
+        "objetivo_inicial": 1743.24,
+        "portafolio": "A",
+        "proba": 0.8753,
+        "score_fundamental": 99.1,
+        "sector": "Information Technology",
+        "stop": 1019.48,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 8.3901,
+        "dia_limite": "2026-11-13",
+        "entrada": 104.85,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 120,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 154.6883
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=8.15, resistencia=159.50",
+            "objetivo": 121.1545
+          }
+        ],
+        "id": 209,
+        "objetivo": 121.1545,
+        "objetivo_inicial": 154.6883,
+        "portafolio": "A",
+        "proba": 0.8753,
+        "score_fundamental": 56.1,
+        "sector": "Information Technology",
+        "stop": 92.268,
+        "ticker": "NOW"
       }
     ],
     "B": [
@@ -316,10 +352,15 @@
             "fecha": "2026-10-29",
             "motivo": "recálculo: ATR=50.04, resistencia=903.00",
             "objetivo": 903.0
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=52.37, resistencia=863.50",
+            "objetivo": 863.5
           }
         ],
         "id": 191,
-        "objetivo": 903.0,
+        "objetivo": 863.5,
         "objetivo_inicial": 733.805,
         "portafolio": "B",
         "proba": 0.8308,
@@ -339,10 +380,15 @@
             "fecha": "2026-10-27",
             "motivo": "objetivo inicial",
             "objetivo": 341.76
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=20.49, resistencia=341.30",
+            "objetivo": 341.3
           }
         ],
         "id": 195,
-        "objetivo": 341.76,
+        "objetivo": 341.3,
         "objetivo_inicial": 341.76,
         "portafolio": "B",
         "proba": 0.8726,
@@ -418,10 +464,15 @@
             "fecha": "2026-10-29",
             "motivo": "recálculo: ATR=0.61, resistencia=9.87",
             "objetivo": 9.87
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=0.57, resistencia=9.84",
+            "objetivo": 9.84
           }
         ],
         "id": 200,
-        "objetivo": 9.87,
+        "objetivo": 9.84,
         "objetivo_inicial": 10.26,
         "portafolio": "B",
         "proba": 0.8726,
@@ -429,14 +480,154 @@
         "sector": "Communication Services",
         "stop": null,
         "ticker": "SKYD"
+      },
+      {
+        "atr_entrada": 9.9069,
+        "dia_limite": "2026-11-13",
+        "entrada": 92.21,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 116,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 112.0238
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=9.58, resistencia=164.94",
+            "objetivo": 111.3685
+          }
+        ],
+        "id": 202,
+        "objetivo": 111.3685,
+        "objetivo_inicial": 112.0238,
+        "portafolio": "B",
+        "proba": 0.8945,
+        "score_fundamental": 95.5,
+        "sector": "Communication Services",
+        "stop": null,
+        "ticker": "RDDT"
+      },
+      {
+        "atr_entrada": 6.9703,
+        "dia_limite": "2026-11-13",
+        "entrada": 65.38,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 117,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 93.8837
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=6.93, resistencia=118.20",
+            "objetivo": 79.2342
+          }
+        ],
+        "id": 204,
+        "objetivo": 79.2342,
+        "objetivo_inicial": 93.8837,
+        "portafolio": "B",
+        "proba": 0.8934,
+        "score_fundamental": 34.8,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "INTC"
+      },
+      {
+        "atr_entrada": 17.6697,
+        "dia_limite": "2026-11-13",
+        "entrada": 191.89,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 118,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 227.2294
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=18.39, resistencia=301.20",
+            "objetivo": 301.2042
+          }
+        ],
+        "id": 206,
+        "objetivo": 301.2042,
+        "objetivo_inicial": 227.2294,
+        "portafolio": "B",
+        "proba": 0.8757,
+        "score_fundamental": 69.0,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "MRVL"
+      },
+      {
+        "atr_entrada": 100.1718,
+        "dia_limite": "2026-11-13",
+        "entrada": 1158.5,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 119,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 1743.24
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=99.58, resistencia=1733.28",
+            "objetivo": 1733.28
+          }
+        ],
+        "id": 208,
+        "objetivo": 1733.28,
+        "objetivo_inicial": 1743.24,
+        "portafolio": "B",
+        "proba": 0.8753,
+        "score_fundamental": 99.1,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "SNDK"
+      },
+      {
+        "atr_entrada": 8.3901,
+        "dia_limite": "2026-11-13",
+        "entrada": 104.85,
+        "fecha_entrada": "2026-11-02",
+        "grupo": 120,
+        "historial_objetivos": [
+          {
+            "fecha": "2026-11-02",
+            "motivo": "objetivo inicial",
+            "objetivo": 154.6883
+          },
+          {
+            "fecha": "2026-11-02",
+            "motivo": "recálculo: ATR=8.15, resistencia=159.50",
+            "objetivo": 121.1545
+          }
+        ],
+        "id": 210,
+        "objetivo": 121.1545,
+        "objetivo_inicial": 154.6883,
+        "portafolio": "B",
+        "proba": 0.8753,
+        "score_fundamental": 56.1,
+        "sector": "Information Technology",
+        "stop": null,
+        "ticker": "NOW"
       }
     ]
   },
   "ultima_ejecucion": {
     "postcierre": {
-      "cuando": "2026-10-30T18:01:01.125717-04:00",
-      "run": "41118936064",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41118936064"
+      "cuando": "2026-11-02T18:05:04.527903-05:00",
+      "run": "41542391740",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41542391740"
     },
     "preapertura": {
       "cuando": "2026-11-02T08:46:04.278506-05:00",
@@ -444,6 +635,6 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41420181277"
     }
   },
-  "ultima_postcierre": "2026-10-30",
+  "ultima_postcierre": "2026-11-02",
   "ultima_preapertura": "2026-11-02"
 }
