@@ -177,3 +177,9 @@ BE | dd=44.1% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Car
 SNDK | dd=54.3% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 STX | dd=48.1% | prob=0.887 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['MRVL', 'CIEN', 'TWLO', 'STX', 'DELL']
+
+===== escaneo postcierre 2026-11-03 18:00:50 ET =====
+POST-CIERRE 2026-11-03
+entradas ejecutadas: ['MRVL', 'CIEN', 'TWLO', 'STX', 'DELL']
+cambios de objetivo: 22
+cierres: [('LITE', 'A', 'stop', -0.12)]
