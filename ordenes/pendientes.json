@@ -1,7 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-04T08:46:46.254890-05:00",
+  "generado": "2026-11-04T18:01:14.254524-05:00",
   "ordenes": [
     {
       "acciones": 2,
@@ -30,6 +30,20 @@
       "stop": 237.03,
       "ticker": "TER",
       "tipo": "compra"
+    },
+    {
+      "acciones": 7,
+      "cartera": "A",
+      "fecha_limite": "2026-11-05",
+      "id": "2026-11-05|A|COHR|venta_tiempo",
+      "id_operacion": 187,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-05",
+      "stop": null,
+      "ticker": "COHR",
+      "tipo": "venta_tiempo"
     }
   ],
   "sesion": "2026-11-04"
