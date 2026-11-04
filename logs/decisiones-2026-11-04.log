@@ -179,3 +179,9 @@ SNDK | dd=52.2% | prob=0.875 | ENTRADA DESCARTADA: ya hay posición abierta en C
 STX | dd=47.0% | prob=0.875 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TWLO | dd=53.3% | prob=0.875 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['LITE', 'TER']
+
+===== escaneo postcierre 2026-11-04 18:00:39 ET =====
+POST-CIERRE 2026-11-04
+entradas ejecutadas: ['LITE', 'TER']
+cambios de objetivo: 16
+cierres: [('INTC', 'A', 'stop', -0.12), ('SNDK', 'A', 'stop', -0.12)]
