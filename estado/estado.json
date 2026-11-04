@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-11-03T18:00:50.013112-05:00",
+  "actualizado": "2026-11-04T08:46:06.853148-05:00",
   "contador_grupo": 125,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 77.4681,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-04",
+      "notas": "prob=0.941 score_fund=60.9 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.9407,
+      "resistencia": 1143.0,
+      "score_fundamental": 60.9,
+      "sector": "Information Technology",
+      "target_analista": 1110.071,
+      "ticker": "LITE",
+      "timestamp_escaneo": "2026-11-04T08:45:05.001240-05:00"
+    },
+    {
+      "atr": 21.4073,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-04",
+      "notas": "prob=0.875 score_fund=85.0 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 416.69,
+      "score_fundamental": 85.0,
+      "sector": "Information Technology",
+      "target_analista": 424.66666,
+      "ticker": "TER",
+      "timestamp_escaneo": "2026-11-04T08:45:05.001240-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -896,11 +928,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41716442177"
     },
     "preapertura": {
-      "cuando": "2026-11-03T08:45:55.261095-05:00",
-      "run": "41611112133",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41611112133"
+      "cuando": "2026-11-04T08:46:06.853129-05:00",
+      "run": "41804337668",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41804337668"
     }
   },
   "ultima_postcierre": "2026-11-03",
-  "ultima_preapertura": "2026-11-03"
+  "ultima_preapertura": "2026-11-04"
 }
