@@ -177,3 +177,9 @@ STX | dd=51.3% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 DELL | dd=37.5% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 TER | dd=48.6% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['INTC', 'DDOG', 'FLEX', 'SNDK', 'FIX']
+
+===== escaneo postcierre 2026-11-05 18:00:50 ET =====
+POST-CIERRE 2026-11-05
+entradas ejecutadas: ['INTC', 'DDOG', 'FLEX', 'SNDK', 'FIX']
+cambios de objetivo: 11
+cierres: [('COHR', 'A', 'stop', -0.12), ('BE', 'A', 'stop', -0.12), ('MRVL', 'A', 'stop', -0.1312), ('CIEN', 'A', 'stop', -0.1203), ('STX', 'A', 'stop', -0.151), ('DELL', 'A', 'stop', -0.1255), ('LITE', 'A', 'stop', -0.12), ('TER', 'A', 'stop', -0.12), ('FLEX', 'A', 'stop', -0.12), ('SNDK', 'A', 'stop', -0.12), ('LITE', 'B', 'tiempo', -0.3281), ('STX', 'B', 'tiempo', -0.2629)]
