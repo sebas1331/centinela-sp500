@@ -1,22 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-05T08:47:21.188563-05:00",
+  "generado": "2026-11-05T18:01:30.416157-05:00",
   "ordenes": [
-    {
-      "acciones": 7,
-      "cartera": "A",
-      "fecha_limite": "2026-11-05",
-      "id": "2026-11-05|A|COHR|venta_tiempo",
-      "id_operacion": 187,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-05",
-      "stop": null,
-      "ticker": "COHR",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 28,
       "cartera": "A",
