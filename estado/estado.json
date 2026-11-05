@@ -1,7 +1,86 @@
 {
-  "actualizado": "2026-11-04T18:00:39.276834-05:00",
+  "actualizado": "2026-11-05T08:46:43.580051-05:00",
   "contador_grupo": 127,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 6.4229,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-05",
+      "notas": "prob=0.941 score_fund=35.8 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.9407,
+      "resistencia": 111.6,
+      "score_fundamental": 35.8,
+      "sector": "Information Technology",
+      "target_analista": 92.72093,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-11-05T08:45:01.297159-05:00"
+    },
+    {
+      "atr": 17.1347,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-05",
+      "notas": "prob=0.893 score_fund=38.0 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 300.68,
+      "score_fundamental": 38.0,
+      "sector": "Information Technology",
+      "target_analista": 295.54935,
+      "ticker": "DDOG",
+      "timestamp_escaneo": "2026-11-05T08:45:01.297159-05:00"
+    },
+    {
+      "atr": 7.0584,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-05",
+      "notas": "prob=0.893 score_fund=61.7 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 121.59,
+      "score_fundamental": 61.7,
+      "sector": "Information Technology",
+      "target_analista": 156.5,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-11-05T08:45:01.297159-05:00"
+    },
+    {
+      "atr": 99.0814,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-05",
+      "notas": "prob=0.893 score_fund=99.4 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 1675.0,
+      "score_fundamental": 99.4,
+      "sector": "Information Technology",
+      "target_analista": 2023.625,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-11-05T08:45:01.297159-05:00"
+    },
+    {
+      "atr": 96.017,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-05",
+      "notas": "prob=0.875 score_fund=87.4 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 1742.16,
+      "score_fundamental": 87.4,
+      "sector": "Industrials",
+      "target_analista": 1820.5555,
+      "ticker": "FIX",
+      "timestamp_escaneo": "2026-11-05T08:45:01.297159-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -984,11 +1063,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41914080571"
     },
     "preapertura": {
-      "cuando": "2026-11-04T08:46:06.853129-05:00",
-      "run": "41804337668",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/41804337668"
+      "cuando": "2026-11-05T08:46:43.580029-05:00",
+      "run": "42001967613",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42001967613"
     }
   },
   "ultima_postcierre": "2026-11-04",
-  "ultima_preapertura": "2026-11-04"
+  "ultima_preapertura": "2026-11-05"
 }
