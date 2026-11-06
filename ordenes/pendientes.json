@@ -1,7 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-06T08:46:26.880968-05:00",
+  "generado": "2026-11-06T18:01:43.649336-05:00",
   "ordenes": [
     {
       "acciones": 9,
@@ -72,6 +72,20 @@
       "stop": 117.52,
       "ticker": "MRVL",
       "tipo": "compra"
+    },
+    {
+      "acciones": 2,
+      "cartera": "A",
+      "fecha_limite": "2026-11-09",
+      "id": "2026-11-09|A|FICO|venta_tiempo",
+      "id_operacion": 196,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-09",
+      "stop": null,
+      "ticker": "FICO",
+      "tipo": "venta_tiempo"
     }
   ],
   "sesion": "2026-11-06"
