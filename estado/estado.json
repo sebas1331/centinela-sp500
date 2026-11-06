@@ -1,7 +1,84 @@
 {
-  "actualizado": "2026-11-05T18:00:50.493553-05:00",
+  "actualizado": "2026-11-06T08:45:58.005197-05:00",
   "contador_grupo": 132,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 21.7411,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-06",
+      "notas": "prob=0.951 score_fund=61.2 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 280.5,
+      "score_fundamental": 61.2,
+      "sector": "Industrials",
+      "target_analista": 284.8846,
+      "ticker": "BE",
+      "timestamp_escaneo": "2026-11-06T08:45:05.001460-05:00"
+    },
+    {
+      "atr": 28.1783,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-06",
+      "notas": "prob=0.951 score_fund=65.2 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 454.73,
+      "score_fundamental": 65.2,
+      "sector": "Information Technology",
+      "target_analista": 512.9907,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-11-06T08:45:05.001460-05:00"
+    },
+    {
+      "atr": 21.1134,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-06",
+      "notas": "prob=0.951 score_fund=64.8 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 332.09,
+      "score_fundamental": 64.8,
+      "sector": "Information Technology",
+      "target_analista": 387.79852,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-11-06T08:45:05.001460-05:00"
+    },
+    {
+      "atr": 80.7752,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-06",
+      "notas": "prob=0.951 score_fund=58.5 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.951,
+      "resistencia": 1143.0,
+      "score_fundamental": 58.5,
+      "sector": "Information Technology",
+      "target_analista": 1110.071,
+      "ticker": "LITE",
+      "timestamp_escaneo": "2026-11-06T08:45:05.001460-05:00"
+    },
+    {
+      "atr": 18.4289,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-06",
+      "notas": "prob=0.951 score_fund=72.6 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 283.78,
+      "score_fundamental": 72.6,
+      "sector": "Information Technology",
+      "target_analista": 313.72513,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-11-06T08:45:05.001460-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -817,11 +894,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42112506627"
     },
     "preapertura": {
-      "cuando": "2026-11-05T08:46:43.580029-05:00",
-      "run": "42001967613",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42001967613"
+      "cuando": "2026-11-06T08:45:58.005178-05:00",
+      "run": "42193995531",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42193995531"
     }
   },
   "ultima_postcierre": "2026-11-05",
-  "ultima_preapertura": "2026-11-05"
+  "ultima_preapertura": "2026-11-06"
 }
