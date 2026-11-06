@@ -1,12 +1,12 @@
 {
-  "actualizado": "2026-11-06T14:56:21.115828-05:00",
+  "actualizado": "2026-11-06T15:17:24.011400-05:00",
   "runs": {
     "apertura": {
-      "cuando": "2026-11-05T16:22:20.128653-05:00",
+      "cuando": "2026-11-06T15:17:24.011400-05:00",
       "detalle": "",
       "resultado": "ok",
-      "run": "42111856987",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42111856987"
+      "run": "42286892619",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42286892619"
     },
     "compras": {
       "cuando": "2026-11-06T09:46:13.261433-05:00",
