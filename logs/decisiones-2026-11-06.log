@@ -187,3 +187,9 @@ COHR | dd=61.4% | prob=0.951 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 INTC | dd=63.3% | prob=0.951 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRVL | dd=59.5% | prob=0.951 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['BE', 'CIEN', 'COHR', 'LITE', 'MRVL']
+
+===== escaneo postcierre 2026-11-06 18:01:02 ET =====
+POST-CIERRE 2026-11-06
+entradas ejecutadas: ['BE', 'CIEN', 'COHR', 'LITE', 'MRVL']
+cambios de objetivo: 24
+cierres: []
