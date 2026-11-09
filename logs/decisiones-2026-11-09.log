@@ -188,3 +188,9 @@ COHR | dd=56.2% | prob=0.941 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=58.2% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DELL | dd=44.8% | prob=0.894 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['SNDK', 'STX', 'FLEX', 'WDC', 'DELL']
+
+===== escaneo postcierre 2026-11-09 18:46:01 ET =====
+POST-CIERRE 2026-11-09
+entradas ejecutadas: ['SNDK', 'STX', 'FLEX', 'WDC', 'DELL']
+cambios de objetivo: 30
+cierres: [('FICO', 'A', 'tiempo', 0.0277), ('COHR', 'B', 'tiempo', -0.0126), ('FICO', 'B', 'tiempo', 0.0277)]
