@@ -1,7 +1,85 @@
 {
-  "actualizado": "2026-11-06T18:01:02.034708-05:00",
+  "actualizado": "2026-11-09T08:45:57.541330-05:00",
   "contador_grupo": 137,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 108.4622,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-09",
+      "notas": "prob=0.951 score_fund=99.9 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 1539.1,
+      "score_fundamental": 99.9,
+      "sector": "Information Technology",
+      "target_analista": 2047.375,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-11-09T08:45:01.731574-05:00"
+    },
+    {
+      "atr": 54.5283,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-09",
+      "notas": "prob=0.951 score_fund=89.2 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 770.0,
+      "score_fundamental": 89.2,
+      "sector": "Information Technology",
+      "target_analista": 1044.8334,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-11-09T08:45:01.731574-05:00"
+    },
+    {
+      "atr": 7.2705,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-09",
+      "notas": "prob=0.933 score_fund=63.3 sent=0.0 (n=0)",
+      "proba": 0.9333,
+      "resistencia": 121.59,
+      "score_fundamental": 63.3,
+      "sector": "Information Technology",
+      "target_analista": 156.5,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-11-09T08:45:01.731574-05:00"
+    },
+    {
+      "atr": 27.8793,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-09",
+      "notas": "prob=0.933 score_fund=94.8 sent=0.0 (n=0)",
+      "proba": 0.9333,
+      "resistencia": 402.23,
+      "score_fundamental": 94.8,
+      "sector": "Information Technology",
+      "target_analista": 613.375,
+      "ticker": "WDC",
+      "timestamp_escaneo": "2026-11-09T08:45:01.731574-05:00"
+    },
+    {
+      "atr": 34.1359,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-09",
+      "notas": "prob=0.894 score_fund=69.7 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 585.32,
+      "score_fundamental": 69.7,
+      "sector": "Information Technology",
+      "target_analista": 590.0,
+      "ticker": "DELL",
+      "timestamp_escaneo": "2026-11-09T08:45:01.731574-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1075,11 +1153,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42291434885"
     },
     "preapertura": {
-      "cuando": "2026-11-06T08:45:58.005178-05:00",
-      "run": "42193995531",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42193995531"
+      "cuando": "2026-11-09T08:45:57.541308-05:00",
+      "run": "42595213990",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42595213990"
     }
   },
   "ultima_postcierre": "2026-11-06",
-  "ultima_preapertura": "2026-11-06"
+  "ultima_preapertura": "2026-11-09"
 }
