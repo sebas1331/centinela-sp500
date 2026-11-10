@@ -1,7 +1,54 @@
 {
-  "actualizado": "2026-11-09T18:46:01.690122-05:00",
+  "actualizado": "2026-11-10T08:46:07.665535-05:00",
   "contador_grupo": 142,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 22.5427,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-10",
+      "notas": "prob=0.894 score_fund=61.9 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 290.53,
+      "score_fundamental": 61.9,
+      "sector": "Information Technology",
+      "target_analista": 369.3984,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-11-10T08:45:05.001416-05:00"
+    },
+    {
+      "atr": 9.2955,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-10",
+      "notas": "prob=0.893 score_fund=62.8 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 157.57,
+      "score_fundamental": 62.8,
+      "sector": "Information Technology",
+      "target_analista": 151.10526,
+      "ticker": "P",
+      "timestamp_escaneo": "2026-11-10T08:45:05.001416-05:00"
+    },
+    {
+      "atr": 23.2656,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-10",
+      "notas": "prob=0.893 score_fund=85.4 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 381.1,
+      "score_fundamental": 85.4,
+      "sector": "Information Technology",
+      "target_analista": 424.66666,
+      "ticker": "TER",
+      "timestamp_escaneo": "2026-11-10T08:45:05.001416-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1287,11 +1334,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42722901608"
     },
     "preapertura": {
-      "cuando": "2026-11-09T08:45:57.541308-05:00",
-      "run": "42595213990",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42595213990"
+      "cuando": "2026-11-10T08:46:07.665518-05:00",
+      "run": "42782938097",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42782938097"
     }
   },
   "ultima_postcierre": "2026-11-09",
-  "ultima_preapertura": "2026-11-09"
+  "ultima_preapertura": "2026-11-10"
 }
