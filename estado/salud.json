@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-11-10T10:49:32.476974-05:00",
+  "actualizado": "2026-11-10T11:07:52.573177-05:00",
   "runs": {
     "apertura": {
       "cuando": "2026-11-09T18:43:52.290753-05:00",
@@ -58,11 +58,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42845276050"
     },
     "vigilante_precios": {
-      "cuando": "2026-11-10T10:49:32.476974-05:00",
-      "detalle": "10:02 terminó con código 1; 10:03 terminó con código 1; 10:04 terminó con código 1; 10:05 terminó con código 1; 10:06 terminó con código 1; 10:07 terminó con código 1; 10:08 terminó con código 1; 10:10 terminó con código 1; 10:11 terminó con código 1; 10:13 terminó con código 1; 10:14 terminó con có",
+      "cuando": "2026-11-10T11:07:52.573177-05:00",
+      "detalle": "10:20 terminó con código 1; 10:21 terminó con código 1; 10:22 terminó con código 1; 10:23 terminó con código 1; 10:24 terminó con código 1; 10:25 terminó con código 1; 10:27 terminó con código 1; 10:28 terminó con código 1; 10:29 terminó con código 1; 10:31 terminó con código 1; 10:32 terminó con có",
       "resultado": "fallo:31-reinicio(s)",
-      "run": "42839927999",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42839927999"
+      "run": "42840533415",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42840533415"
     }
   }
 }
