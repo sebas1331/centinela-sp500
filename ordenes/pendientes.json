@@ -1,36 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-10T18:01:17.412996-05:00",
+  "generado": "2026-11-11T08:46:29.262305-05:00",
   "ordenes": [
-    {
-      "acciones": 14,
-      "cartera": "A",
-      "fecha_limite": "2026-11-23",
-      "id": "2026-11-10|A|P|compra",
-      "id_operacion": null,
-      "objetivo": 157.57,
-      "precio_simulador": null,
-      "referencia": 102.84,
-      "sesion": "2026-11-10",
-      "stop": 90.5,
-      "ticker": "P",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 6,
-      "cartera": "A",
-      "fecha_limite": "2026-11-23",
-      "id": "2026-11-10|A|TER|compra",
-      "id_operacion": null,
-      "objetivo": 381.1,
-      "precio_simulador": null,
-      "referencia": 246.0,
-      "sesion": "2026-11-10",
-      "stop": 216.48,
-      "ticker": "TER",
-      "tipo": "compra"
-    },
     {
       "acciones": 215,
       "cartera": "A",
@@ -44,7 +16,21 @@
       "stop": null,
       "ticker": "SKYD",
       "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 55,
+      "cartera": "A",
+      "fecha_limite": "2026-11-24",
+      "id": "2026-11-11|A|SMCI|compra",
+      "id_operacion": null,
+      "objetivo": 38.02,
+      "precio_simulador": null,
+      "referencia": 27.79,
+      "sesion": "2026-11-11",
+      "stop": 24.46,
+      "ticker": "SMCI",
+      "tipo": "compra"
     }
   ],
-  "sesion": "2026-11-10"
+  "sesion": "2026-11-11"
 }
