@@ -183,3 +183,9 @@ DELL | dd=43.8% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en C
 P | dd=35.3% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 INTC | dd=59.2% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (1): ['SMCI']
+
+===== escaneo postcierre 2026-11-11 18:00:48 ET =====
+POST-CIERRE 2026-11-11
+entradas ejecutadas: ['SMCI']
+cambios de objetivo: 32
+cierres: [('SKYD', 'A', 'tiempo', 0.0128), ('BE', 'B', 'tiempo', -0.0522), ('SKYD', 'B', 'tiempo', 0.0128)]
