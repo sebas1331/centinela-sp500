@@ -1,22 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-11T08:46:29.262305-05:00",
+  "generado": "2026-11-11T18:01:17.732164-05:00",
   "ordenes": [
-    {
-      "acciones": 215,
-      "cartera": "A",
-      "fecha_limite": "2026-11-11",
-      "id": "2026-11-11|A|SKYD|venta_tiempo",
-      "id_operacion": 199,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-11",
-      "stop": null,
-      "ticker": "SKYD",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 55,
       "cartera": "A",
