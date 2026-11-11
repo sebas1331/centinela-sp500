@@ -1,7 +1,24 @@
 {
-  "actualizado": "2026-11-10T18:00:44.131303-05:00",
+  "actualizado": "2026-11-11T08:45:56.966117-05:00",
   "contador_grupo": 145,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 2.5027,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-11",
+      "notas": "prob=0.893 score_fund=75.8 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 38.02,
+      "score_fundamental": 75.8,
+      "sector": "Information Technology",
+      "target_analista": 43.6,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-11-11T08:45:05.002102-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1549,11 +1566,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42903176462"
     },
     "preapertura": {
-      "cuando": "2026-11-10T08:46:07.665518-05:00",
-      "run": "42782938097",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42782938097"
+      "cuando": "2026-11-11T08:45:56.966094-05:00",
+      "run": "42993883313",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42993883313"
     }
   },
   "ultima_postcierre": "2026-11-10",
-  "ultima_preapertura": "2026-11-10"
+  "ultima_preapertura": "2026-11-11"
 }
