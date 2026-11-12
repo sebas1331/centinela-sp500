@@ -170,3 +170,9 @@ LITE | dd=43.3% | prob=0.941 | ENTRADA DESCARTADA: ya hay posición abierta en C
 SNDK | dd=58.5% | prob=0.933 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 BE | dd=40.4% | prob=0.894 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (1): ['BE']
+
+===== escaneo postcierre 2026-11-12 18:00:46 ET =====
+POST-CIERRE 2026-11-12
+entradas ejecutadas: []
+cambios de objetivo: 14
+cierres: [('SMCI', 'A', 'stop', -0.12)]
