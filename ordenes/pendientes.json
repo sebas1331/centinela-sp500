@@ -1,22 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-11T18:01:17.732164-05:00",
-  "ordenes": [
-    {
-      "acciones": 55,
-      "cartera": "A",
-      "fecha_limite": "2026-11-24",
-      "id": "2026-11-11|A|SMCI|compra",
-      "id_operacion": null,
-      "objetivo": 38.02,
-      "precio_simulador": null,
-      "referencia": 27.79,
-      "sesion": "2026-11-11",
-      "stop": 24.46,
-      "ticker": "SMCI",
-      "tipo": "compra"
-    }
-  ],
-  "sesion": "2026-11-11"
+  "generado": "2026-11-12T08:46:26.198132-05:00",
+  "ordenes": [],
+  "sesion": "2026-11-12"
 }
