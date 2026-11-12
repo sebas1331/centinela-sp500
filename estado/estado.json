@@ -1,7 +1,23 @@
 {
-  "actualizado": "2026-11-11T18:00:48.624692-05:00",
+  "actualizado": "2026-11-12T08:45:55.886591-05:00",
   "contador_grupo": 146,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 22.0999,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-12",
+      "notas": "prob=0.894 score_fund=59.5 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 241.37,
+      "score_fundamental": 59.5,
+      "sector": "Industrials",
+      "target_analista": 283.84616,
+      "ticker": "BE",
+      "timestamp_escaneo": "2026-11-12T08:45:05.001545-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1606,11 +1622,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43106487640"
     },
     "preapertura": {
-      "cuando": "2026-11-11T08:45:56.966094-05:00",
-      "run": "42993883313",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/42993883313"
+      "cuando": "2026-11-12T08:45:55.886562-05:00",
+      "run": "43182761273",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43182761273"
     }
   },
   "ultima_postcierre": "2026-11-11",
-  "ultima_preapertura": "2026-11-11"
+  "ultima_preapertura": "2026-11-12"
 }
