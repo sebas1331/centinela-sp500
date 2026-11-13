@@ -177,3 +177,9 @@ SMCI | dd=78.0% | prob=0.893 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 COHR | dd=47.3% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRVL | dd=50.1% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (2): ['SMCI', 'AXON']
+
+===== escaneo postcierre 2026-11-13 18:00:39 ET =====
+POST-CIERRE 2026-11-13
+entradas ejecutadas: ['SMCI', 'AXON']
+cambios de objetivo: 10
+cierres: [('RDDT', 'A', 'tiempo', 0.0677), ('NOW', 'A', 'tiempo', -0.0248), ('RDDT', 'B', 'tiempo', 0.0677), ('INTC', 'B', 'tiempo', -0.0875), ('MRVL', 'B', 'tiempo', -0.1831), ('SNDK', 'B', 'tiempo', -0.2361), ('NOW', 'B', 'tiempo', -0.0248)]
