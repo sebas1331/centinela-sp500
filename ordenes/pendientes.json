@@ -1,36 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-13T08:46:32.603949-05:00",
+  "generado": "2026-11-13T18:01:16.982186-05:00",
   "ordenes": [
-    {
-      "acciones": 18,
-      "cartera": "A",
-      "fecha_limite": "2026-11-13",
-      "id": "2026-11-13|A|RDDT|venta_tiempo",
-      "id_operacion": 201,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-13",
-      "stop": null,
-      "ticker": "RDDT",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 15,
-      "cartera": "A",
-      "fecha_limite": "2026-11-13",
-      "id": "2026-11-13|A|NOW|venta_tiempo",
-      "id_operacion": 209,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-13",
-      "stop": null,
-      "ticker": "NOW",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 56,
       "cartera": "A",
@@ -58,6 +30,20 @@
       "stop": 270.26,
       "ticker": "AXON",
       "tipo": "compra"
+    },
+    {
+      "acciones": 8,
+      "cartera": "A",
+      "fecha_limite": "2026-11-16",
+      "id": "2026-11-16|A|TWLO|venta_tiempo",
+      "id_operacion": 214,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-16",
+      "stop": null,
+      "ticker": "TWLO",
+      "tipo": "venta_tiempo"
     }
   ],
   "sesion": "2026-11-13"
