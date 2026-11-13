@@ -1,7 +1,39 @@
 {
-  "actualizado": "2026-11-12T18:00:46.411918-05:00",
+  "actualizado": "2026-11-13T08:45:54.181143-05:00",
   "contador_grupo": 147,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 2.7213,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-13",
+      "notas": "prob=0.893 score_fund=75.8 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 37.45,
+      "score_fundamental": 75.8,
+      "sector": "Information Technology",
+      "target_analista": 43.6,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-11-13T08:45:05.001603-05:00"
+    },
+    {
+      "atr": 23.1034,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-13",
+      "notas": "prob=0.875 score_fund=32.7 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8753,
+      "resistencia": 439.76,
+      "score_fundamental": 32.7,
+      "sector": "Industrials",
+      "target_analista": 541.3158,
+      "ticker": "AXON",
+      "timestamp_escaneo": "2026-11-13T08:45:05.001603-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1671,11 +1703,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43313766645"
     },
     "preapertura": {
-      "cuando": "2026-11-12T08:45:55.886562-05:00",
-      "run": "43182761273",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43182761273"
+      "cuando": "2026-11-13T08:45:54.181118-05:00",
+      "run": "43401320570",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43401320570"
     }
   },
   "ultima_postcierre": "2026-11-12",
-  "ultima_preapertura": "2026-11-12"
+  "ultima_preapertura": "2026-11-13"
 }
