@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-11-14T14:27:48.025235-05:00",
+  "actualizado": "2026-11-15T14:56:30.832016-05:00",
   "runs": {
     "apertura": {
       "cuando": "2026-11-13T16:15:36.241143-05:00",
@@ -51,11 +51,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43537584893"
     },
     "vigilante": {
-      "cuando": "2026-11-14T14:27:48.025235-05:00",
+      "cuando": "2026-11-15T14:56:30.832016-05:00",
       "detalle": "El ejecutor del Mac no reportó la orden 2026-11-13|A|SMCI|compra (compra de 56 SMCI). O su run no llegó a correr, o falló antes de publicar. Revisa los runs del ejecutor en Actions.",
       "resultado": "fallo:job-en-rojo (fallo:2-problemas)",
-      "run": "43632131251",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43632131251"
+      "run": "43755126196",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43755126196"
     },
     "vigilante_precios": {
       "cuando": "2026-11-13T16:03:24.110596-05:00",
