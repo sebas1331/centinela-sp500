@@ -177,3 +177,9 @@ DELL | dd=42.1% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=55.1% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 MRVL | dd=52.5% | prob=0.893 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (2): ['SNDK', 'MRVL']
+
+===== escaneo postcierre 2026-11-16 18:43:24 ET =====
+POST-CIERRE 2026-11-16
+entradas ejecutadas: []
+cambios de objetivo: 9
+cierres: [('TWLO', 'A', 'tiempo', -0.0389), ('CIEN', 'B', 'tiempo', -0.1216), ('TWLO', 'B', 'tiempo', -0.0389), ('DELL', 'B', 'tiempo', -0.1991)]
