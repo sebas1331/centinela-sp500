@@ -1,7 +1,38 @@
 {
-  "actualizado": "2026-11-13T18:00:39.381979-05:00",
+  "actualizado": "2026-11-16T08:46:06.139916-05:00",
   "contador_grupo": 149,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 106.7995,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-16",
+      "notas": "prob=0.933 score_fund=99.8 sent=0.0 (n=0)",
+      "proba": 0.9333,
+      "resistencia": 1424.479,
+      "score_fundamental": 99.8,
+      "sector": "Information Technology",
+      "target_analista": 2047.375,
+      "ticker": "SNDK",
+      "timestamp_escaneo": "2026-11-16T08:45:05.002234-05:00"
+    },
+    {
+      "atr": 17.1715,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-16",
+      "notas": "prob=0.893 score_fund=69.4 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 253.66,
+      "score_fundamental": 69.4,
+      "sector": "Information Technology",
+      "target_analista": 310.31824,
+      "ticker": "MRVL",
+      "timestamp_escaneo": "2026-11-16T08:45:05.002234-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1349,11 +1380,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43509970638"
     },
     "preapertura": {
-      "cuando": "2026-11-13T08:45:54.181118-05:00",
-      "run": "43401320570",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43401320570"
+      "cuando": "2026-11-16T08:46:06.139888-05:00",
+      "run": "43840496622",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43840496622"
     }
   },
   "ultima_postcierre": "2026-11-13",
-  "ultima_preapertura": "2026-11-13"
+  "ultima_preapertura": "2026-11-16"
 }
