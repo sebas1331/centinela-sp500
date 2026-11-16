@@ -1,36 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-13T18:01:16.982186-05:00",
+  "generado": "2026-11-16T08:46:42.207234-05:00",
   "ordenes": [
-    {
-      "acciones": 56,
-      "cartera": "A",
-      "fecha_limite": "2026-11-27",
-      "id": "2026-11-13|A|SMCI|compra",
-      "id_operacion": null,
-      "objetivo": 37.45,
-      "precio_simulador": null,
-      "referencia": 26.99,
-      "sesion": "2026-11-13",
-      "stop": 23.75,
-      "ticker": "SMCI",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 4,
-      "cartera": "A",
-      "fecha_limite": "2026-11-27",
-      "id": "2026-11-13|A|AXON|compra",
-      "id_operacion": null,
-      "objetivo": 439.76,
-      "precio_simulador": null,
-      "referencia": 307.11,
-      "sesion": "2026-11-13",
-      "stop": 270.26,
-      "ticker": "AXON",
-      "tipo": "compra"
-    },
     {
       "acciones": 8,
       "cartera": "A",
@@ -46,5 +18,5 @@
       "tipo": "venta_tiempo"
     }
   ],
-  "sesion": "2026-11-13"
+  "sesion": "2026-11-16"
 }
