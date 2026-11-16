@@ -1,22 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-16T08:46:42.207234-05:00",
-  "ordenes": [
-    {
-      "acciones": 8,
-      "cartera": "A",
-      "fecha_limite": "2026-11-16",
-      "id": "2026-11-16|A|TWLO|venta_tiempo",
-      "id_operacion": 214,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-16",
-      "stop": null,
-      "ticker": "TWLO",
-      "tipo": "venta_tiempo"
-    }
-  ],
+  "generado": "2026-11-16T18:43:51.098921-05:00",
+  "ordenes": [],
   "sesion": "2026-11-16"
 }
