@@ -1,7 +1,50 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-17T08:46:39.202588-05:00",
-  "ordenes": [],
+  "generado": "2026-11-17T18:01:35.041351-05:00",
+  "ordenes": [
+    {
+      "acciones": 28,
+      "cartera": "A",
+      "fecha_limite": "2026-11-18",
+      "id": "2026-11-18|A|INTC|venta_tiempo",
+      "id_operacion": 222,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-18",
+      "stop": null,
+      "ticker": "INTC",
+      "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 8,
+      "cartera": "A",
+      "fecha_limite": "2026-11-18",
+      "id": "2026-11-18|A|DDOG|venta_tiempo",
+      "id_operacion": 223,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-18",
+      "stop": null,
+      "ticker": "DDOG",
+      "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 1,
+      "cartera": "A",
+      "fecha_limite": "2026-11-18",
+      "id": "2026-11-18|A|FIX|venta_tiempo",
+      "id_operacion": 228,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-18",
+      "stop": null,
+      "ticker": "FIX",
+      "tipo": "venta_tiempo"
+    }
+  ],
   "sesion": "2026-11-17"
 }
