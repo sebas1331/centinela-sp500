@@ -1,7 +1,53 @@
 {
-  "actualizado": "2026-11-16T18:43:24.716815-05:00",
+  "actualizado": "2026-11-17T08:45:57.461631-05:00",
   "contador_grupo": 151,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 27.2246,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-17",
+      "notas": "prob=0.894 score_fund=62.5 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 368.24,
+      "score_fundamental": 62.5,
+      "sector": "Information Technology",
+      "target_analista": 511.74072,
+      "ticker": "CIEN",
+      "timestamp_escaneo": "2026-11-17T08:45:05.001282-05:00"
+    },
+    {
+      "atr": 35.198,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-17",
+      "notas": "prob=0.894 score_fund=69.1 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 507.39,
+      "score_fundamental": 69.1,
+      "sector": "Information Technology",
+      "target_analista": 583.68,
+      "ticker": "DELL",
+      "timestamp_escaneo": "2026-11-17T08:45:05.001282-05:00"
+    },
+    {
+      "atr": 5.6527,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-17",
+      "notas": "prob=0.893 score_fund=34.0 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8934,
+      "resistencia": 95.68,
+      "score_fundamental": 34.0,
+      "sector": "Information Technology",
+      "target_analista": 90.65116,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-11-17T08:45:05.001282-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1228,11 +1274,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43981550978"
     },
     "preapertura": {
-      "cuando": "2026-11-16T08:46:06.139888-05:00",
-      "run": "43840496622",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/43840496622"
+      "cuando": "2026-11-17T08:45:57.461614-05:00",
+      "run": "44046429725",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44046429725"
     }
   },
   "ultima_postcierre": "2026-11-16",
-  "ultima_preapertura": "2026-11-16"
+  "ultima_preapertura": "2026-11-17"
 }
