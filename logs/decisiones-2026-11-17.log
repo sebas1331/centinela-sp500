@@ -189,3 +189,9 @@ MRVL | dd=55.9% | prob=0.894 | ENTRADA DESCARTADA: ya hay posición abierta en C
 FLEX | dd=55.2% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 INTC | dd=61.0% | prob=0.893 | ENTRADA SOLO EN CARTERA B: ya hay posición abierta en Cartera A.
 DECIDIDAS PARA ENTRAR HOY (3): ['CIEN', 'DELL', 'INTC']
+
+===== escaneo postcierre 2026-11-17 18:00:58 ET =====
+POST-CIERRE 2026-11-17
+entradas ejecutadas: []
+cambios de objetivo: 11
+cierres: [('SNDK', 'A', 'stop', -0.12), ('SMCI', 'A', 'stop', -0.12), ('TER', 'B', 'tiempo', -0.1154)]
