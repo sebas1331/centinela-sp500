@@ -1,7 +1,7 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-17T18:01:35.041351-05:00",
+  "generado": "2026-11-18T08:46:31.824973-05:00",
   "ordenes": [
     {
       "acciones": 28,
@@ -44,7 +44,63 @@
       "stop": null,
       "ticker": "FIX",
       "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 1,
+      "cartera": "A",
+      "fecha_limite": "2026-12-02",
+      "id": "2026-11-18|A|SNDK|compra",
+      "id_operacion": null,
+      "objetivo": 1003.12,
+      "precio_simulador": null,
+      "referencia": 797.24,
+      "sesion": "2026-11-18",
+      "stop": 701.57,
+      "ticker": "SNDK",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 62,
+      "cartera": "A",
+      "fecha_limite": "2026-12-02",
+      "id": "2026-11-18|A|SMCI|compra",
+      "id_operacion": null,
+      "objetivo": 37.45,
+      "precio_simulador": null,
+      "referencia": 24.14,
+      "sesion": "2026-11-18",
+      "stop": 21.24,
+      "ticker": "SMCI",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 7,
+      "cartera": "A",
+      "fecha_limite": "2026-12-02",
+      "id": "2026-11-18|A|VRT|compra",
+      "id_operacion": null,
+      "objetivo": 254.73,
+      "precio_simulador": null,
+      "referencia": 190.37,
+      "sesion": "2026-11-18",
+      "stop": 167.53,
+      "ticker": "VRT",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 13,
+      "cartera": "A",
+      "fecha_limite": "2026-12-02",
+      "id": "2026-11-18|A|COIN|compra",
+      "id_operacion": null,
+      "objetivo": 133.93,
+      "precio_simulador": null,
+      "referencia": 115.02,
+      "sesion": "2026-11-18",
+      "stop": 101.22,
+      "ticker": "COIN",
+      "tipo": "compra"
     }
   ],
-  "sesion": "2026-11-17"
+  "sesion": "2026-11-18"
 }
