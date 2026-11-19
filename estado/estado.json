@@ -1,7 +1,70 @@
 {
-  "actualizado": "2026-11-18T18:00:51.266330-05:00",
+  "actualizado": "2026-11-19T08:45:59.267459-05:00",
   "contador_grupo": 159,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 6.7772,
+      "carteras": [
+        "B"
+      ],
+      "fecha_decision": "2026-11-19",
+      "notas": "prob=0.893 score_fund=62.3 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 95.22,
+      "score_fundamental": 62.3,
+      "sector": "Information Technology",
+      "target_analista": 154.4,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-11-19T08:45:05.001379-05:00"
+    },
+    {
+      "atr": 5.2592,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-19",
+      "notas": "prob=0.893 score_fund=34.1 sent=0.0 (n=0) (EXCEPCIONAL: entra pese a deterioro)",
+      "proba": 0.8934,
+      "resistencia": 95.68,
+      "score_fundamental": 34.1,
+      "sector": "Information Technology",
+      "target_analista": 90.65116,
+      "ticker": "INTC",
+      "timestamp_escaneo": "2026-11-19T08:45:05.001379-05:00"
+    },
+    {
+      "atr": 13.6151,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-19",
+      "notas": "prob=0.875 score_fund=37.2 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 285.0,
+      "score_fundamental": 37.2,
+      "sector": "Information Technology",
+      "target_analista": 269.65457,
+      "ticker": "DDOG",
+      "timestamp_escaneo": "2026-11-19T08:45:05.001379-05:00"
+    },
+    {
+      "atr": 15.6205,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-19",
+      "notas": "prob=0.875 score_fund=85.0 sent=0.0 (n=0)",
+      "proba": 0.8753,
+      "resistencia": 260.58,
+      "score_fundamental": 85.0,
+      "sector": "Information Technology",
+      "target_analista": 362.1,
+      "ticker": "LRCX",
+      "timestamp_escaneo": "2026-11-19T08:45:05.001379-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -1151,11 +1214,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44412509068"
     },
     "preapertura": {
-      "cuando": "2026-11-18T08:46:02.015984-05:00",
-      "run": "44268620102",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44268620102"
+      "cuando": "2026-11-19T08:45:59.267422-05:00",
+      "run": "44491443261",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44491443261"
     }
   },
   "ultima_postcierre": "2026-11-18",
-  "ultima_preapertura": "2026-11-18"
+  "ultima_preapertura": "2026-11-19"
 }
