@@ -1,64 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-18T18:01:20.433622-05:00",
+  "generado": "2026-11-19T08:46:37.470434-05:00",
   "ordenes": [
-    {
-      "acciones": 1,
-      "cartera": "A",
-      "fecha_limite": "2026-12-02",
-      "id": "2026-11-18|A|SNDK|compra",
-      "id_operacion": null,
-      "objetivo": 1003.12,
-      "precio_simulador": null,
-      "referencia": 797.24,
-      "sesion": "2026-11-18",
-      "stop": 701.57,
-      "ticker": "SNDK",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 62,
-      "cartera": "A",
-      "fecha_limite": "2026-12-02",
-      "id": "2026-11-18|A|SMCI|compra",
-      "id_operacion": null,
-      "objetivo": 37.45,
-      "precio_simulador": null,
-      "referencia": 24.14,
-      "sesion": "2026-11-18",
-      "stop": 21.24,
-      "ticker": "SMCI",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 7,
-      "cartera": "A",
-      "fecha_limite": "2026-12-02",
-      "id": "2026-11-18|A|VRT|compra",
-      "id_operacion": null,
-      "objetivo": 254.73,
-      "precio_simulador": null,
-      "referencia": 190.37,
-      "sesion": "2026-11-18",
-      "stop": 167.53,
-      "ticker": "VRT",
-      "tipo": "compra"
-    },
-    {
-      "acciones": 13,
-      "cartera": "A",
-      "fecha_limite": "2026-12-02",
-      "id": "2026-11-18|A|COIN|compra",
-      "id_operacion": null,
-      "objetivo": 133.93,
-      "precio_simulador": null,
-      "referencia": 115.02,
-      "sesion": "2026-11-18",
-      "stop": 101.22,
-      "ticker": "COIN",
-      "tipo": "compra"
-    },
     {
       "acciones": 8,
       "cartera": "A",
@@ -128,7 +72,49 @@
       "stop": null,
       "ticker": "MRVL",
       "tipo": "venta_tiempo"
+    },
+    {
+      "acciones": 27,
+      "cartera": "A",
+      "fecha_limite": "2026-12-03",
+      "id": "2026-11-19|A|INTC|compra",
+      "id_operacion": null,
+      "objetivo": 65.19,
+      "precio_simulador": null,
+      "referencia": 54.67,
+      "sesion": "2026-11-19",
+      "stop": 48.11,
+      "ticker": "INTC",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 9,
+      "cartera": "A",
+      "fecha_limite": "2026-12-03",
+      "id": "2026-11-19|A|DDOG|compra",
+      "id_operacion": null,
+      "objetivo": 194.34,
+      "precio_simulador": null,
+      "referencia": 167.11,
+      "sesion": "2026-11-19",
+      "stop": 147.06,
+      "ticker": "DDOG",
+      "tipo": "compra"
+    },
+    {
+      "acciones": 7,
+      "cartera": "A",
+      "fecha_limite": "2026-12-03",
+      "id": "2026-11-19|A|LRCX|compra",
+      "id_operacion": null,
+      "objetivo": 260.58,
+      "precio_simulador": null,
+      "referencia": 211.67,
+      "sesion": "2026-11-19",
+      "stop": 186.27,
+      "ticker": "LRCX",
+      "tipo": "compra"
     }
   ],
-  "sesion": "2026-11-18"
+  "sesion": "2026-11-19"
 }
