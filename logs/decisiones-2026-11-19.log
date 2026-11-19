@@ -199,3 +199,9 @@ WDC | dd=64.0% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Ca
 P | dd=36.1% | prob=0.887 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 COIN | dd=75.1% | prob=0.875 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 DECIDIDAS PARA ENTRAR HOY (4): ['FLEX', 'INTC', 'DDOG', 'LRCX']
+
+===== escaneo postcierre 2026-11-19 18:00:52 ET =====
+POST-CIERRE 2026-11-19
+entradas ejecutadas: ['INTC', 'DDOG', 'LRCX']
+cambios de objetivo: 9
+cierres: [('BE', 'A', 'tiempo', -0.0829), ('CIEN', 'A', 'tiempo', 0.0387), ('COHR', 'A', 'tiempo', 0.1339), ('LITE', 'A', 'tiempo', -0.0282), ('MRVL', 'A', 'tiempo', -0.0455), ('LITE', 'B', 'tiempo', -0.0282)]
