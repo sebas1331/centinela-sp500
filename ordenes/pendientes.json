@@ -1,64 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-20T08:46:19.661090-05:00",
+  "generado": "2026-11-20T18:01:39.197697-05:00",
   "ordenes": [
-    {
-      "acciones": 3,
-      "cartera": "A",
-      "fecha_limite": "2026-11-20",
-      "id": "2026-11-20|A|STX|venta_tiempo",
-      "id_operacion": 237,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-20",
-      "stop": null,
-      "ticker": "STX",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 20,
-      "cartera": "A",
-      "fecha_limite": "2026-11-20",
-      "id": "2026-11-20|A|FLEX|venta_tiempo",
-      "id_operacion": 239,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-20",
-      "stop": null,
-      "ticker": "FLEX",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 5,
-      "cartera": "A",
-      "fecha_limite": "2026-11-20",
-      "id": "2026-11-20|A|WDC|venta_tiempo",
-      "id_operacion": 240,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-20",
-      "stop": null,
-      "ticker": "WDC",
-      "tipo": "venta_tiempo"
-    },
-    {
-      "acciones": 4,
-      "cartera": "A",
-      "fecha_limite": "2026-11-20",
-      "id": "2026-11-20|A|DELL|venta_tiempo",
-      "id_operacion": 242,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-20",
-      "stop": null,
-      "ticker": "DELL",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 8,
       "cartera": "A",
@@ -128,6 +72,20 @@
       "stop": 231.11,
       "ticker": "CIEN",
       "tipo": "compra"
+    },
+    {
+      "acciones": 15,
+      "cartera": "A",
+      "fecha_limite": "2026-11-23",
+      "id": "2026-11-23|A|P|venta_tiempo",
+      "id_operacion": 244,
+      "objetivo": null,
+      "precio_simulador": null,
+      "referencia": null,
+      "sesion": "2026-11-23",
+      "stop": null,
+      "ticker": "P",
+      "tipo": "venta_tiempo"
     }
   ],
   "sesion": "2026-11-20"
