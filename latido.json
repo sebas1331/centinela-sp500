@@ -1,0 +1,22 @@
+{
+ "arrancado": "2026-11-20T16:00:24.393876-05:00",
+ "broker": null,
+ "cuando": "2026-11-20T16:00:24.579340-05:00",
+ "error_broker": null,
+ "estado": "en-reposo",
+ "historial": [
+  {
+   "cuando": "2026-11-20T16:00:24.579340-05:00",
+   "estado": "en-reposo",
+   "n": 0,
+   "run": "44808807960",
+   "sin_stop": null
+  }
+ ],
+ "motivo": "la sesión ya cerró",
+ "reinicios": 0,
+ "relevo": null,
+ "run": "44808807960",
+ "url_run": "https://github.com/sebas1331/centinela-sp500/actions/runs/44808807960",
+ "vigiladas": []
+}
