@@ -194,3 +194,9 @@ MRVL | dd=58.0% | prob=0.941 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 COHR | dd=51.1% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 CIEN | dd=75.2% | prob=0.894 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['BE', 'LITE', 'MRVL', 'COHR', 'CIEN']
+
+===== escaneo postcierre 2026-11-20 18:00:57 ET =====
+POST-CIERRE 2026-11-20
+entradas ejecutadas: ['BE', 'LITE', 'MRVL', 'COHR', 'CIEN']
+cambios de objetivo: 13
+cierres: [('STX', 'A', 'tiempo', -0.0256), ('FLEX', 'A', 'tiempo', -0.0921), ('WDC', 'A', 'tiempo', -0.037), ('DELL', 'A', 'stop', -0.12), ('TER', 'A', 'stop', -0.12), ('SNDK', 'A', 'stop', -0.8884), ('SMCI', 'A', 'stop', -0.12), ('VRT', 'A', 'stop', -0.12), ('LRCX', 'A', 'stop', -0.12), ('BE', 'A', 'stop', -0.12), ('COHR', 'A', 'stop', -0.12), ('STX', 'B', 'tiempo', -0.0256), ('WDC', 'B', 'tiempo', -0.037)]
