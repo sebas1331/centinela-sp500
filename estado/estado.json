@@ -1,7 +1,84 @@
 {
-  "actualizado": "2026-11-20T18:00:57.568067-05:00",
+  "actualizado": "2026-11-23T08:45:45.009167-05:00",
   "contador_grupo": 168,
-  "entradas_pendientes": [],
+  "entradas_pendientes": [
+    {
+      "atr": 21.1263,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-23",
+      "notas": "prob=0.951 score_fund=59.5 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 231.665,
+      "score_fundamental": 59.5,
+      "sector": "Industrials",
+      "target_analista": 282.69232,
+      "ticker": "BE",
+      "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    },
+    {
+      "atr": 23.843,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-23",
+      "notas": "prob=0.951 score_fund=63.0 sent=0.0 (n=0)",
+      "proba": 0.951,
+      "resistencia": 246.9,
+      "score_fundamental": 63.0,
+      "sector": "Information Technology",
+      "target_analista": 371.9185,
+      "ticker": "COHR",
+      "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    },
+    {
+      "atr": 33.1436,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-23",
+      "notas": "prob=0.941 score_fund=70.6 sent=0.0 (n=0)",
+      "proba": 0.9407,
+      "resistencia": 507.39,
+      "score_fundamental": 70.6,
+      "sector": "Information Technology",
+      "target_analista": 578.88,
+      "ticker": "DELL",
+      "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    },
+    {
+      "atr": 45.4074,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-23",
+      "notas": "prob=0.894 score_fund=67.4 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 594.0,
+      "score_fundamental": 67.4,
+      "sector": "Information Technology",
+      "target_analista": 657.74286,
+      "ticker": "AMD",
+      "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    },
+    {
+      "atr": 6.921,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-23",
+      "notas": "prob=0.894 score_fund=64.1 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 95.22,
+      "score_fundamental": 64.1,
+      "sector": "Information Technology",
+      "target_analista": 154.4,
+      "ticker": "FLEX",
+      "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    }
+  ],
   "posiciones": {
     "A": [
       {
@@ -845,11 +922,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44826906122"
     },
     "preapertura": {
-      "cuando": "2026-11-20T08:45:45.962306-05:00",
-      "run": "44704368110",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/44704368110"
+      "cuando": "2026-11-23T08:45:45.009148-05:00",
+      "run": "45145080792",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45145080792"
     }
   },
   "ultima_postcierre": "2026-11-20",
-  "ultima_preapertura": "2026-11-20"
+  "ultima_preapertura": "2026-11-23"
 }
