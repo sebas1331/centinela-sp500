@@ -214,3 +214,9 @@ CIEN | dd=77.8% | prob=0.933 | ENTRADA DESCARTADA: ya hay posición abierta en C
 P | dd=41.6% | prob=0.894 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 FLEX | dd=60.3% | prob=0.894 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['BE', 'COHR', 'DELL', 'AMD', 'FLEX']
+
+===== escaneo postcierre 2026-11-23 21:07:13 ET =====
+POST-CIERRE 2026-11-23
+entradas ejecutadas: []
+cambios de objetivo: 0
+cierres: []
