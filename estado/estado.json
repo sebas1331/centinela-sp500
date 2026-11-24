@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-11-23T21:07:13.624416-05:00",
+  "actualizado": "2026-11-24T08:46:21.825477-05:00",
   "contador_grupo": 168,
   "entradas_pendientes": [
     {
@@ -77,6 +77,83 @@
       "target_analista": 154.4,
       "ticker": "FLEX",
       "timestamp_escaneo": "2026-11-23T08:45:02.707443-05:00"
+    },
+    {
+      "atr": 52.9761,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-24",
+      "notas": "prob=0.894 score_fund=87.3 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 718.65,
+      "score_fundamental": 87.3,
+      "sector": "Information Technology",
+      "target_analista": 1035.25,
+      "ticker": "STX",
+      "timestamp_escaneo": "2026-11-24T08:45:05.001719-05:00"
+    },
+    {
+      "atr": 2.5836,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-24",
+      "notas": "prob=0.894 score_fund=75.8 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 36.4,
+      "score_fundamental": 75.8,
+      "sector": "Information Technology",
+      "target_analista": 43.6,
+      "ticker": "SMCI",
+      "timestamp_escaneo": "2026-11-24T08:45:05.001719-05:00"
+    },
+    {
+      "atr": 23.0508,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-24",
+      "notas": "prob=0.894 score_fund=85.8 sent=0.0 (n=0)",
+      "proba": 0.8945,
+      "resistencia": 328.83,
+      "score_fundamental": 85.8,
+      "sector": "Information Technology",
+      "target_analista": 413.0625,
+      "ticker": "TER",
+      "timestamp_escaneo": "2026-11-24T08:45:05.001719-05:00"
+    },
+    {
+      "atr": 66.4302,
+      "carteras": [
+        "A",
+        "B"
+      ],
+      "fecha_decision": "2026-11-24",
+      "notas": "prob=0.893 score_fund=96.5 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 990.0,
+      "score_fundamental": 96.5,
+      "sector": "Information Technology",
+      "target_analista": 1550.2444,
+      "ticker": "MU",
+      "timestamp_escaneo": "2026-11-24T08:45:05.001719-05:00"
+    },
+    {
+      "atr": 17.9422,
+      "carteras": [
+        "A"
+      ],
+      "fecha_decision": "2026-11-24",
+      "notas": "prob=0.893 score_fund=86.8 sent=0.0 (n=0)",
+      "proba": 0.8934,
+      "resistencia": 254.73,
+      "score_fundamental": 86.8,
+      "sector": "Industrials",
+      "target_analista": 332.55267,
+      "ticker": "VRT",
+      "timestamp_escaneo": "2026-11-24T08:45:05.001719-05:00"
     }
   ],
   "posiciones": {
@@ -922,11 +999,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45309870747"
     },
     "preapertura": {
-      "cuando": "2026-11-23T08:45:45.009148-05:00",
-      "run": "45145080792",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45145080792"
+      "cuando": "2026-11-24T08:46:21.825455-05:00",
+      "run": "45373876709",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45373876709"
     }
   },
   "ultima_postcierre": "2026-11-23",
-  "ultima_preapertura": "2026-11-23"
+  "ultima_preapertura": "2026-11-24"
 }
