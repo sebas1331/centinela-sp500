@@ -1,22 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-23T08:46:20.935105-05:00",
+  "generado": "2026-11-23T21:07:51.640261-05:00",
   "ordenes": [
-    {
-      "acciones": 15,
-      "cartera": "A",
-      "fecha_limite": "2026-11-23",
-      "id": "2026-11-23|A|P|venta_tiempo",
-      "id_operacion": 244,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-23",
-      "stop": null,
-      "ticker": "P",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 9,
       "cartera": "A",
