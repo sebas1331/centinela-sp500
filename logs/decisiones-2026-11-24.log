@@ -201,3 +201,9 @@ FLEX | dd=55.7% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en C
 INTC | dd=58.1% | prob=0.893 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 VRT | dd=50.9% | prob=0.893 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['STX', 'SMCI', 'TER', 'MU', 'VRT']
+
+===== escaneo postcierre 2026-11-24 18:51:10 ET =====
+POST-CIERRE 2026-11-24
+entradas ejecutadas: ['BE', 'COHR', 'DELL', 'AMD', 'FLEX', 'STX', 'SMCI', 'TER', 'MU', 'VRT']
+cambios de objetivo: 12
+cierres: [('P', 'A', 'tiempo', -0.09), ('BE', 'A', 'stop', -0.12), ('COHR', 'A', 'stop', -0.12), ('DELL', 'A', 'stop', -0.1754), ('AMD', 'A', 'stop', -0.12), ('FLEX', 'A', 'stop', -0.12), ('COHR', 'B', 'tiempo', -0.0869), ('P', 'B', 'tiempo', -0.09), ('SMCI', 'B', 'tiempo', -0.2363)]
