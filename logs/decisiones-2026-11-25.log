@@ -196,3 +196,9 @@ MRVL | dd=60.1% | prob=0.951 | ENTRADA DESCARTADA: ya hay posición abierta en C
 CIEN | dd=77.4% | prob=0.941 | ENTRADA DESCARTADA: ya hay posición abierta en Cartera A y Cartera B.
 AMD | dd=37.2% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['BE', 'COHR', 'DELL', 'AMD', 'P']
+
+===== escaneo postcierre 2026-11-25 18:34:04 ET =====
+POST-CIERRE 2026-11-25
+entradas ejecutadas: ['BE', 'COHR', 'DELL', 'AMD', 'P']
+cambios de objetivo: 15
+cierres: [('COIN', 'A', 'stop', -0.1477), ('INTC', 'A', 'stop', -0.12), ('DDOG', 'A', 'stop', -0.12), ('LITE', 'A', 'stop', -0.1287), ('CIEN', 'A', 'stop', -0.1349), ('STX', 'A', 'stop', -0.12), ('TER', 'A', 'stop', -0.12), ('MU', 'A', 'stop', -0.1411), ('BE', 'B', 'tiempo', -0.2195)]
