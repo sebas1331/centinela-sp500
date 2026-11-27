@@ -1,5 +1,5 @@
 {
-  "actualizado": "2026-11-27T12:25:45.621299-05:00",
+  "actualizado": "2026-11-27T12:25:48.515068-05:00",
   "runs": {
     "apertura": {
       "cuando": "2026-11-26T18:32:38.275400-05:00",
@@ -51,11 +51,11 @@
       "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45931892560"
     },
     "vigilante": {
-      "cuando": "2026-11-26T18:16:42.666495-05:00",
-      "detalle": "El ejecutor del Mac no reportó la orden 2026-11-25|A|BE|compra (compra de 8 BE). O su run no llegó a correr, o falló antes de publicar. Revisa los runs del ejecutor en Actions.",
-      "resultado": "fallo:job-en-rojo (fallo:5-problemas)",
-      "run": "45909873913",
-      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/45909873913"
+      "cuando": "2026-11-27T12:25:48.515068-05:00",
+      "detalle": "El vigilante de precios está en reposo (la sesión ya cerró) y hay 1 posición(es) con nivel sin vigilar.",
+      "resultado": "fallo:job-en-rojo (fallo:1-problemas)",
+      "run": "46041624588",
+      "url": "https://github.com/sebas1331/centinela-sp500/actions/runs/46041624588"
     },
     "vigilante_precios": {
       "cuando": "2026-11-27T11:54:26.869698-05:00",
