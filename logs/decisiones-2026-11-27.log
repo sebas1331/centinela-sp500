@@ -195,3 +195,9 @@ CIEN | dd=77.0% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abier
 MU | dd=52.1% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 STX | dd=58.7% | prob=0.933 | ENTRADA SOLO EN CARTERA A: ya hay posición abierta en Cartera B.
 DECIDIDAS PARA ENTRAR HOY (5): ['BE', 'LITE', 'CIEN', 'MU', 'STX']
+
+===== escaneo postcierre 2026-11-27 18:21:33 ET =====
+POST-CIERRE 2026-11-27
+entradas ejecutadas: ['LITE', 'CIEN', 'MU', 'STX']
+cambios de objetivo: 28
+cierres: [('AXON', 'A', 'tiempo', 0.1834), ('AXON', 'B', 'tiempo', 0.1834)]
