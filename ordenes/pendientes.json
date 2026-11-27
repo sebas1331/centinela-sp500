@@ -1,22 +1,8 @@
 {
   "cartera_broker": "A",
   "descartes_broker": [],
-  "generado": "2026-11-27T08:46:55.960189-05:00",
+  "generado": "2026-11-27T18:22:04.992343-05:00",
   "ordenes": [
-    {
-      "acciones": 2,
-      "cartera": "A",
-      "fecha_limite": "2026-11-27",
-      "id": "2026-11-27|A|AXON|venta_tiempo",
-      "id_operacion": 251,
-      "objetivo": null,
-      "precio_simulador": null,
-      "referencia": null,
-      "sesion": "2026-11-27",
-      "stop": null,
-      "ticker": "AXON",
-      "tipo": "venta_tiempo"
-    },
     {
       "acciones": 2,
       "cartera": "A",
